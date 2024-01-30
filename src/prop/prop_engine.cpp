@@ -170,6 +170,25 @@ void PropEngine::assertInputFormulas(
   int64_t natomsPost = d_cnfStream->d_stats.d_numAtoms.get();
   Assert(natomsPost >= natomsPre);
   d_stats.d_numInputAtoms += (natomsPost - natomsPre);
+  if (Trace("cnf-skeleton").isConnected())
+  {
+    Trace("cnf-skeleton") << "input formulas:" << std::endl;
+    for (auto assertion : assertions)
+    {
+      Trace("cnf-skeleton") << assertion << std::endl;
+    }
+    Trace("cnf-skeleton") << std::endl;
+    Trace("cnf-skeleton") << "clauses:" << std::endl;
+    for (auto clause : d_ppm->getInputClauses())
+    {
+      Trace("cnf-skeleton") << clause << std::endl;
+    }
+    Trace("cnf-skeleton") << std::endl;
+    std::stringstream ss;
+    d_cnfStream->dumpDimacs(ss, d_ppm->getInputClauses());
+    Trace("cnf-skeleton") << "cnf input: " << std::endl;
+    Trace("cnf-skeleton") << ss.str() << std::endl;
+  }
 }
 
 void PropEngine::assertLemma(TrustNode tlemma, theory::LemmaProperty p)

@@ -154,13 +154,14 @@ class PropPfManager : protected EnvObj
    */
   LazyCDProof* getCnfProof();
 
+  /** Retrieve the clauses derived from the input */
+  std::vector<Node> getInputClauses();
+
  private:
   /** Retrieve the proofs for clauses derived from the input */
   std::vector<std::shared_ptr<ProofNode>> getInputClausesProofs();
   /** Retrieve the proofs for clauses derived from lemmas */
   std::vector<std::shared_ptr<ProofNode>> getLemmaClausesProofs();
-  /** Retrieve the clauses derived from the input */
-  std::vector<Node> getInputClauses();
   /** Retrieve the clauses derived from lemmas */
   std::vector<Node> getLemmaClauses();
   /** The proofs of this proof manager, which are saved once requested (note the
