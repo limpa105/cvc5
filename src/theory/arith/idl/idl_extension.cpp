@@ -18,6 +18,7 @@
 #include <iomanip>
 #include <queue>
 #include <set>
+#include <vector>
 
 #include "expr/node_builder.h"
 #include "theory/arith/theory_arith.h"
@@ -94,32 +95,25 @@ Node IdlExtension::ppStaticRewrite(TNode atom)
   if (atom[0].getKind() == Kind::CONST_INTEGER)
   {
     // Move constant value to right-hand side
-    Kind k = Kind::EQUAL;
-    switch (atom.getKind())
-    {
-      // -------------------------------------------------------------------------
-      // TODO: Handle these cases.
-      // -------------------------------------------------------------------------
-      case Kind::EQUAL:
-      case Kind::LT:
-      case Kind::LEQ:
-      case Kind::GT:
-      case Kind::GEQ:
-      default: break;
-    }
-    return ppStaticRewrite(nm->mkNode(k, atom[1], atom[0]));
+    const Rational& lhs = atom[0].getConst<Rational>();
+    Node negated_ls = nm->mkConstInt(-lhs);
+    Node negated_right = nm->mkNode(Kind::SUB, atom[1][1], atom[1][0]);
+    //return ppStaticRewrite(nm->mkNode(k, atom[1], atom[0]));
+    return ppStaticRewrite(nm->mkNode(atom.getKind(), negated_right, negated_ls));
   }
   else if (atom[1].getKind() == Kind::VARIABLE)
   {
     // Handle the case where there are no constants, e.g., (= x y) where both
     // x and y are variables
-    Node ret = atom;
+    //Node ret = atom;
     // -------------------------------------------------------------------------
-    // TODO: Handle this case.
-    // -------------------------------------------------------------------------
-    return ret;
+    Node rhs = nm->mkConstInt(0);
+    Node lhs = nm->mkNode(Kind::SUB, atom[0], atom[1]);
+    // --------------------------------
+    // -----------------------------------------
+    //return ret;
+    return ppStaticRewrite(nm->mkNode(atom.getKind(), lhs, rhs));
   }
-
   switch (atom.getKind())
   {
     case Kind::EQUAL:
@@ -136,10 +130,28 @@ Node IdlExtension::ppStaticRewrite(TNode atom)
     // -------------------------------------------------------------------------
     // TODO: Handle these cases.
     // -------------------------------------------------------------------------
-    case Kind::LT:
-    case Kind::LEQ:
-    case Kind::GT:
-    case Kind::GEQ:
+    case Kind::LT: {
+      const Rational& right = atom[1].getConst<Rational>();
+      Node subtracted_right = nm->mkConstInt(right-1);
+      return nm->mkNode(Kind::LEQ, atom[0], subtracted_right);
+
+    }
+    //Node l_le_r = nm->mkNode(Kind::LEQ, atom[0], atom[1]);
+    case Kind::LEQ: {
+      return atom;
+    }
+    case Kind::GT: {
+      Node negated_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+      const Rational& right = atom[1].getConst<Rational>();
+      Node negated_right = nm->mkConstInt((-right) -1);
+      return nm->mkNode(Kind::LEQ, negated_left, negated_right);
+    }
+    case Kind::GEQ: {
+      Node negated_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
+      const Rational& right = atom[1].getConst<Rational>();
+      Node negated_right = nm->mkConstInt(-right);
+      return nm->mkNode(Kind::LEQ, negated_left, negated_right);
+    }
       // -------------------------------------------------------------------------
 
     default: break;
@@ -202,10 +214,19 @@ bool IdlExtension::collectModelInfo(TheoryModel* m,
 {
   std::vector<Rational> distance(d_numVars, Rational(0));
 
-  // ---------------------------------------------------------------------------
-  // TODO: implement model generation by computing the single-source shortest
-  // path from a node that has distance zero to all other nodes
-  // ---------------------------------------------------------------------------
+  int num_edges = d_matrix.size();
+  //std::vector<int> distance(num_edges, INF);
+  //distance[0] = 0;
+  for (int k=0; k<num_edges-1; ++k){
+    for (int i = 0; i<num_edges; ++i){
+      for(int j =0; j<num_edges; ++j){
+        //std::cout << d_matrix[i][j] << "";
+        if (d_valid[i][j] && distance[j] > distance[i] + d_matrix[i][j]){
+          distance[j] = distance[i] + d_matrix[i][j];
+        }
+      }
+    }
+  }
 
   NodeManager* nm = NodeManager::currentNM();
   for (size_t i = 0; i < d_numVars; i++)
@@ -248,12 +269,33 @@ void IdlExtension::processAssertion(TNode assertion)
 
 bool IdlExtension::negativeCycle()
 {
+  int INF= 1e7;
+  int num_edges = d_matrix.size();
+  std::vector<int> distance(num_edges, INF);
+  distance[0] = 0;
+  for (int k=0; k<num_edges-1; ++k){
+    for (int i = 0; i<num_edges; ++i){
+      for(int j =0; j<num_edges; ++j){
+        //std::cout << d_matrix[i][j] << "";
+        if (d_valid[i][j] && distance[j] > distance[i] + d_matrix[i][j].getDouble()){
+          distance[j] = distance[i] + d_matrix[i][j].getDouble();
+        }
+      }
+    }
+  }
+   for (int i = 0; i<num_edges; ++i){
+      for(int j =0; j<num_edges; ++j){
+        if (d_valid[i][j] && distance[j]> distance[i] + d_matrix[i][j].getDouble())
+          return true;
+    };
+   };
+
   // --------------------------------------------------------------------------
   // TODO: write the code to detect a negative cycle.
   // --------------------------------------------------------------------------
 
   return false;
-}
+};
 
 void IdlExtension::printMatrix(const std::vector<std::vector<Rational>>& matrix,
                                const std::vector<std::vector<bool>>& valid)
