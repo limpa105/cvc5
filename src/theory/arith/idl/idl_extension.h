@@ -32,12 +32,58 @@ class TheoryArith;
 
 namespace idl {
 
-/**
- * Handles integer difference logic (IDL) constraints.
- */
+class Literal {
+ public:
+  /** Parse one side of the literal AST **/
+  void parseOneSide(internal::TNode &side, Literal &literal); // parses one side of AST 
+
+  /** Calculate LHS - RHS **/
+  int calculateDelta(std::vector<int>& assignment);  // calculates LHS - RHS
+
+  /** Coefficients of the literal: 1x+2y <=3 -> [1,2] */
+  std::vector<int> coefficients; 
+
+  /** Index of variables in solvers's current assignment in the order they appear 
+   * in the literal **/
+  std::vector<int> variables;  // variables based on their index stored in the solver 
+
+  /** Constants present in the equation **/
+  int threshold; 
+
+  /** LHS - RHS **/
+  int delta;  
+
+  /** true if literal is negated false otherwise **/ 
+  bool isFalse = false ;
+
+  /** true if literal is == and false if it is >= 
+   * (this is needed as rewrites for == can result in
+   *  getting stuck in a local optima ) **/ 
+  bool isEqual = false; 
+};
+
 class IdlExtension : protected EnvObj
 {
+
  public:
+
+  /** A list all parsed literals **/
+  std::vector<Literal> literals; 
+
+  /** Current assignment of the search **/
+  std::vector<int> variableValues; 
+
+  /** A set of idx of the unsat literals under current assignment **/
+  std::set<int> unsatLiterals;
+
+  /** ith entry is the set of literals that ith variable in
+   * VariablesValues is present */ 
+  std::vector<std::set<int>> variablesToLiterals;
+
+  /** A map of variable name to its index in values **/
+  std::map<std::string, int> nameToIdx;
+
+
   IdlExtension(Env& env, TheoryArith& parent);
   ~IdlExtension();
 
@@ -61,6 +107,7 @@ class IdlExtension : protected EnvObj
   bool collectModelInfo(TheoryModel* m, const std::set<Node>& termSet);
 
  private:
+
   /** Process a new assertion */
   void processAssertion(TNode assertion);
 

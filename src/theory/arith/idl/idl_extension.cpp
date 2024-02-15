@@ -1,6 +1,6 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Andres Noetzli
+ *   Liza Pertseva 
  *
  * This file is part of the cvc5 project.
  *
@@ -46,33 +46,30 @@ IdlExtension::~IdlExtension() {
 
 void IdlExtension::preRegisterTerm(TNode node)
 {
-  Assert(d_numVars == 0);
-  if (node.isVar())
-  {
-    Trace("theory::arith::idl")
-        << "IdlExtension::preRegisterTerm(): processing var " << node
-        << std::endl;
-    unsigned size = d_varMap.size();
-    d_varMap[node] = size;
-    d_varList.push_back(node);
+  if (node.isVar() && node.hasName()){
+      int current_idx = variableValues.size();
+      nameToIdx[node.getName()] = current_idx;
+      // all variables start at 0 
+      // TODO: Future implementation if variable has bounds start 
+      // at those bounds 
+      variableValues.push_back(0);
+      // at the start no variable is present in any literal
+      variablesToLiterals.push_back(std::set<int>());
   }
+    
 }
 
 void IdlExtension::presolve()
 {
-  d_numVars = d_varMap.size();
-  Trace("theory::arith::idl")
-      << "IdlExtension::preSolve(): d_numVars = " << d_numVars << std::endl;
-
-  // Initialize adjacency matrix.
-  for (size_t i = 0; i < d_numVars; ++i)
-  {
-    d_matrix.emplace_back(d_numVars);
-    d_valid.emplace_back(d_numVars, false);
-  }
+  // In current implementation there is nothing to presolve as all
+  // data structures are set up  when we process assertion but this is an
+  // ineffective way to do this and will need to change in future
+  return;
 }
 
+
 void IdlExtension::notifyFact(
+  // I don't understand what this method is doing 
     TNode atom, bool pol, TNode fact, bool isPrereg, bool isInternal)
 {
   Trace("theory::arith::idl")
@@ -82,80 +79,8 @@ void IdlExtension::notifyFact(
 
 Node IdlExtension::ppStaticRewrite(TNode atom)
 {
-  // We are only interested in predicates
-  if (!atom.getType().isBoolean())
-  {
-    return atom;
-  }
-
-  Trace("theory::arith::idl")
-      << "IdlExtension::ppStaticRewrite(): processing " << atom << std::endl;
-  NodeManager* nm = NodeManager::currentNM();
-
-  if (atom[0].getKind() == Kind::CONST_INTEGER)
-  {
-    // Move constant value to right-hand side
-    const Rational& lhs = atom[0].getConst<Rational>();
-    Node negated_ls = nm->mkConstInt(-lhs);
-    Node negated_right = nm->mkNode(Kind::SUB, atom[1][1], atom[1][0]);
-    //return ppStaticRewrite(nm->mkNode(k, atom[1], atom[0]));
-    return ppStaticRewrite(nm->mkNode(atom.getKind(), negated_right, negated_ls));
-  }
-  else if (atom[1].getKind() == Kind::VARIABLE)
-  {
-    // Handle the case where there are no constants, e.g., (= x y) where both
-    // x and y are variables
-    //Node ret = atom;
-    // -------------------------------------------------------------------------
-    Node rhs = nm->mkConstInt(0);
-    Node lhs = nm->mkNode(Kind::SUB, atom[0], atom[1]);
-    // --------------------------------
-    // -----------------------------------------
-    //return ret;
-    return ppStaticRewrite(nm->mkNode(atom.getKind(), lhs, rhs));
-  }
-  switch (atom.getKind())
-  {
-    case Kind::EQUAL:
-    {
-      Node l_le_r = nm->mkNode(Kind::LEQ, atom[0], atom[1]);
-      Assert(atom[0].getKind() == Kind::SUB);
-      Node negated_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
-      const Rational& right = atom[1].getConst<Rational>();
-      Node negated_right = nm->mkConstInt(-right);
-      Node r_le_l = nm->mkNode(Kind::LEQ, negated_left, negated_right);
-      return nm->mkNode(Kind::AND, l_le_r, r_le_l);
-    }
-
-    // -------------------------------------------------------------------------
-    // TODO: Handle these cases.
-    // -------------------------------------------------------------------------
-    case Kind::LT: {
-      const Rational& right = atom[1].getConst<Rational>();
-      Node subtracted_right = nm->mkConstInt(right-1);
-      return nm->mkNode(Kind::LEQ, atom[0], subtracted_right);
-
-    }
-    //Node l_le_r = nm->mkNode(Kind::LEQ, atom[0], atom[1]);
-    case Kind::LEQ: {
-      return atom;
-    }
-    case Kind::GT: {
-      Node negated_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
-      const Rational& right = atom[1].getConst<Rational>();
-      Node negated_right = nm->mkConstInt((-right) -1);
-      return nm->mkNode(Kind::LEQ, negated_left, negated_right);
-    }
-    case Kind::GEQ: {
-      Node negated_left = nm->mkNode(Kind::SUB, atom[0][1], atom[0][0]);
-      const Rational& right = atom[1].getConst<Rational>();
-      Node negated_right = nm->mkConstInt(-right);
-      return nm->mkNode(Kind::LEQ, negated_left, negated_right);
-    }
-      // -------------------------------------------------------------------------
-
-    default: break;
-  }
+  // In current implementation there is nothing to rewrite as all rewrites happen 
+  // when setting up data structures but this might change in future implementations
   return atom;
 }
 
@@ -170,14 +95,6 @@ void IdlExtension::postCheck(Theory::Effort level)
       << "IdlExtension::postCheck(): number of facts = " << d_facts.size()
       << std::endl;
 
-  // Reset the graph
-  for (size_t i = 0; i < d_numVars; i++)
-  {
-    for (size_t j = 0; j < d_numVars; j++)
-    {
-      d_valid[i][j] = false;
-    }
-  }
 
   for (Node fact : d_facts)
   {
@@ -189,24 +106,8 @@ void IdlExtension::postCheck(Theory::Effort level)
     processAssertion(fact);
   }
 
-  if (negativeCycle())
-  {
-    // Return a conflict that includes all the literals that have been asserted
-    // to this theory solver. A better implementation would only include the
-    // literals involved in the conflict here.
-    NodeBuilder conjunction(Kind::AND);
-    for (Node fact : d_facts)
-    {
-      conjunction << fact;
-    }
-    Node conflict = conjunction;
-    // Send the conflict using the inference manager. Each conflict is assigned
-    // an ID. Here, we use  ARITH_CONF_IDL_EXT, which indicates a generic
-    // conflict detected by this extension
-    d_parent.getInferenceManager().conflict(conflict,
-                                            InferenceId::ARITH_CONF_IDL_EXT);
-    return;
-  }
+  // Currently does not return conflict but will be implemented in future versions 
+  // Right now in case of UNSAT it will not terminate 
 }
 
 bool IdlExtension::collectModelInfo(TheoryModel* m,
@@ -215,8 +116,7 @@ bool IdlExtension::collectModelInfo(TheoryModel* m,
   std::vector<Rational> distance(d_numVars, Rational(0));
 
   int num_edges = d_matrix.size();
-  //std::vector<int> distance(num_edges, INF);
-  //distance[0] = 0;
+
   for (int k=0; k<num_edges-1; ++k){
     for (int i = 0; i<num_edges; ++i){
       for(int j =0; j<num_edges; ++j){
@@ -243,6 +143,7 @@ void IdlExtension::processAssertion(TNode assertion)
   bool polarity = assertion.getKind() != Kind::NOT;
   TNode atom = polarity ? assertion : assertion[0];
   Assert(atom.getKind() == Kind::LEQ);
+  std::cout << atom[0].getKind();
   Assert(atom[0].getKind() == Kind::SUB);
   TNode var1 = atom[0][0];
   TNode var2 = atom[0][1];
