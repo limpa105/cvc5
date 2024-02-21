@@ -31,8 +31,8 @@
 namespace cvc5::internal {
 namespace theory {
 namespace arith {
-namespace idl {
-class IdlExtension;
+namespace local_search {
+class LocalSearchExtension;
 }
 namespace nl {
 class NonlinearExtension;
@@ -183,12 +183,13 @@ class TheoryArith : public Theory {
     * The IDL extension, responsible for handling integer difference logic
     * constraints.
     */
-  std::unique_ptr<idl::IdlExtension> d_idlExtension;
+  std::unique_ptr<local_search::LocalSearchExtension> d_localSearchExtension;
   /** The operator elimination utility */
   OperatorElim d_opElim;
   /** The preprocess utility */
   ArithPreprocess d_arithPreproc;
   /** The theory rewriter for this theory. */
+  //ArithRewriter d_rewriter;
   std::unique_ptr<TheoryRewriter> d_rewriter;
 
   /**

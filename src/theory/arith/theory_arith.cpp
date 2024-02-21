@@ -25,8 +25,8 @@
 #include "theory/arith/equality_solver.h"
 #include "theory/arith/linear/theory_arith_private.h"
 #include "theory/arith/nl/nonlinear_extension.h"
-#include "theory/arith/idl/idl_extension.h"
-#include "theory/arith/idl/noop_rewriter.h"
+#include "theory/arith/local_search/local_search_extension.h"
+//#include "theory/arith/idl/noop_rewriter.h"
 #include "theory/ext_theory.h"
 #include "theory/rewriter.h"
 #include "theory/theory_model.h"
@@ -50,7 +50,7 @@ TheoryArith::TheoryArith(Env& env, OutputChannel& out, Valuation valuation)
       d_eqSolver(nullptr),
       d_internal(new linear::TheoryArithPrivate(*this, env, d_bab)),
       d_nonlinearExtension(nullptr),
-      d_idlExtension(nullptr),
+      d_localSearchExtension(nullptr),
       d_opElim(d_env),
       d_arithPreproc(env, d_im, d_pnm, d_opElim),
       d_rewriter(nullptr),
@@ -67,15 +67,7 @@ TheoryArith::TheoryArith(Env& env, OutputChannel& out, Valuation valuation)
 
   // construct the equality solver
   d_eqSolver.reset(new EqualitySolver(env, d_astate, d_im));
-
-  if (options().arith.arithIdlExt)
-  {
-    d_rewriter.reset(new idl::NoopRewriter());
-  }
-  else
-  {
-    d_rewriter.reset(new ArithRewriter(d_opElim));
-  }
+  d_rewriter.reset(new ArithRewriter(d_opElim));
 }
 
 TheoryArith::~TheoryArith(){
@@ -110,9 +102,9 @@ void TheoryArith::finishInit()
     d_nonlinearExtension.reset(new nl::NonlinearExtension(d_env, *this));
   }
 
-  if (options().arith.arithIdlExt)
+  if (options().arith.localSearchExt)
   {
-    d_idlExtension.reset(new idl::IdlExtension(d_env, *this));
+    d_localSearchExtension.reset(new local_search::LocalSearchExtension(d_env, *this));
   }
 
   d_eqSolver->finishInit();
@@ -127,9 +119,9 @@ void TheoryArith::finishInit()
 
 void TheoryArith::preRegisterTerm(TNode n)
 {
-  if (d_idlExtension != nullptr)
+  if (d_localSearchExtension != nullptr)
   {
-    d_idlExtension->preRegisterTerm(n);
+    d_localSearchExtension->preRegisterTerm(n);
     return;
   }
   // handle logic exceptions
@@ -185,11 +177,6 @@ void TheoryArith::notifySharedTerm(TNode n)
 
 TrustNode TheoryArith::ppRewrite(TNode atom, std::vector<SkolemLemma>& lems)
 {
-  if (d_idlExtension != nullptr)
-  {
-    return TrustNode::null();
-  }
-
   CodeTimer timer(d_ppRewriteTimer, /* allow_reentrant = */ true);
   Trace("arith::preprocess") << "arith::ppRewrite() : " << atom << endl;
   Assert(d_env.theoryOf(atom) == THEORY_ARITH);
@@ -204,17 +191,7 @@ TrustNode TheoryArith::ppRewrite(TNode atom, std::vector<SkolemLemma>& lems)
 
 TrustNode TheoryArith::ppStaticRewrite(TNode atom)
 {
-  if (d_idlExtension != nullptr) {
-    Node atomr = d_idlExtension->ppStaticRewrite(atom);
-    if (atom != atomr)
-    {
-      return TrustNode::mkTrustRewrite(atom, atomr);
-    }
-    else
-    {
-      return TrustNode::null();
-    }
-  }
+  
   Trace("arith::preprocess") << "arith::ppStaticRewrite() : " << atom << endl;
   Kind k = atom.getKind();
   if (k == Kind::EQUAL)
@@ -236,7 +213,7 @@ TrustNode TheoryArith::ppStaticRewrite(TNode atom)
 Theory::PPAssertStatus TheoryArith::ppAssert(
     TrustNode tin, TrustSubstitutionMap& outSubstitutions)
 {
-  if (d_idlExtension != nullptr)
+  if (d_localSearchExtension != nullptr)
   {
     return Theory::PP_ASSERT_STATUS_UNSOLVED;
   }
@@ -245,7 +222,7 @@ Theory::PPAssertStatus TheoryArith::ppAssert(
 
 void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 {
-  if (d_idlExtension != nullptr)
+  if (d_localSearchExtension != nullptr)
   {
     return;
   }
@@ -258,7 +235,7 @@ void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 
 bool TheoryArith::preCheck(Effort level)
 {
-  if (d_idlExtension != nullptr)
+  if (d_localSearchExtension != nullptr)
   {
     return false;
   }
@@ -270,9 +247,9 @@ bool TheoryArith::preCheck(Effort level)
 void TheoryArith::postCheck(Effort level)
 {
   d_im.reset();
-  if (d_idlExtension != nullptr)
+  if (d_localSearchExtension != nullptr)
   {
-    d_idlExtension->postCheck(level);
+    d_localSearchExtension->postCheck(level);
     return;
   }
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
@@ -351,9 +328,9 @@ void TheoryArith::postCheck(Effort level)
 bool TheoryArith::preNotifyFact(
     TNode atom, bool pol, TNode fact, bool isPrereg, bool isInternal)
 {
-  if (d_idlExtension != nullptr)
+  if (d_localSearchExtension != nullptr)
   {
-    d_idlExtension->notifyFact(atom, pol, fact, isPrereg, isInternal);
+    d_localSearchExtension->notifyFact(atom, pol, fact, isPrereg, isInternal);
     return true;
   }
 
@@ -400,9 +377,9 @@ void TheoryArith::propagate(Effort e) {
 bool TheoryArith::collectModelInfo(TheoryModel* m,
                                    const std::set<Node>& termSet)
 {
-  if (d_idlExtension != nullptr)
+  if (d_localSearchExtension != nullptr)
   {
-    return d_idlExtension->collectModelInfo(m, termSet);
+    return d_localSearchExtension->collectModelInfo(m, termSet);
   }
   // If we have a buffered lemma (from the non-linear extension), then we
   // do not assert model values, since those values are likely incorrect.
@@ -478,9 +455,9 @@ void TheoryArith::notifyRestart(){
 }
 
 void TheoryArith::presolve(){
-  if (d_idlExtension != nullptr)
+  if (d_localSearchExtension != nullptr)
   {
-    d_idlExtension->presolve();
+    d_localSearchExtension->presolve();
     return;
   }
   d_internal->presolve();
