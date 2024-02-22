@@ -12,7 +12,7 @@ total=0
 for file in "$TEST_DIR"/*/*/*; do
     if [ -f "$file" ]; then
         ((total++))
-        if timeout 1200s "$CVC5" --local-search-ext --produce-models  "$file"; then
+        if timeout 1200s "$CVC5" --local-search-ext --produce-models --check-models  "$file"; then
             ((sat_count++))
             echo "Processed $file"  >> "$output_file"
             echo "Processed $file"
@@ -22,7 +22,6 @@ for file in "$TEST_DIR"/*/*/*; do
         fi 
     fi
 done 
-echo "$sat_count correct out of $total"
 
 # Now check nested directories
 for file in "$TEST_DIR"/*/*/*/*; do

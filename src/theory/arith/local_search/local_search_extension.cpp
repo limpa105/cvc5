@@ -199,6 +199,8 @@ bool LocalSearchExtension::collectModelInfo(TheoryModel* m,
                                             const std::set<Node>& termSet)
 {
   NodeManager* nm = NodeManager::currentNM();
+  // Assignments are stored in variablesValues so we add the last assignment
+  // to the model
   for (size_t i = 0; i < variablesValues.size(); i++)
   {
     m->assertEquality(
@@ -213,15 +215,16 @@ std::set<int> LocalSearchExtension::sampleWithReplacement(
   std::vector<int> elements(originalSet.begin(), originalSet.end());
   std::set<int> sampledSet;
   std::uniform_int_distribution<> dis(0, elements.size() - 1);
-  for (size_t i = 0; i < sampleSize; ++i)
+  for (int i = 0; i < sampleSize; ++i)
   {
-    size_t index = dis(rd_generator);
+    int index = dis(rd_generator);
     sampledSet.insert(elements[index]);
   }
   return sampledSet;
 }
 
 __int128_t LocalSearchExtension::getUpperBound(double value)
+// 2.5 -> 2 && -2.5 -> -3
 {
   if (value > 0)
   {
@@ -332,6 +335,7 @@ void LocalSearchExtension::parseOneSide(TNode& side, Literal& literal)
 
 bool LocalSearchExtension::checkIfSat(Literal literal, __int128_t delta)
 {
+  // SAT delta values for the 4 possible cases
   if ((!literal.isNot && literal.isEqual && delta == (__int128_t)0)
       || (literal.isNot && !literal.isEqual && delta > (__int128_t)0)
       || (literal.isNot && literal.isEqual && delta != (__int128_t)0)
@@ -360,13 +364,15 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
   {
     Literal chosenLiteral = literals[literal_idx];
     assert(chosenLiteral.variables.size() != 0);
-    // for all variables in an UNSAT literal compute a potential critical move
+    // For all variables in an UNSAT literal compute a potential critical move
     for (int varIdxInLit = 0; varIdxInLit < chosenLiteral.variables.size();
          varIdxInLit++)
     {
       int varIdxInSlv = chosenLiteral.variables[varIdxInLit];
       auto move =
           criticalMove(varIdxInLit, varIdxInSlv, chosenLiteral, inDscore);
+      // If cirtical move was found add it to allowed moves but add varIdxInSlv
+      // to make computing the score easier
       if (move)
       {
         for (auto const& item : move.value())
@@ -413,6 +419,8 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
       change1[varIdxInSlv] -= 1;
       results.push_back(std::make_pair(change1, 0));
     }
+    // If in Dscore all moves are always allowed (we do not check the doNotMove
+    // list)
     if (inDscore || doNotMove[2 * varIdxInSlv] <= 0)
     {
       std::vector<__int128_t> change2 = variablesValues;
@@ -443,7 +451,7 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
   if (delta == 0)
   {
     // delta should never be zero
-    assert(false);
+    AlwaysAssert(false);
   }
   assert(delta != 0);
   direction = delta > 0 ? 0 : 1;
@@ -462,6 +470,8 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
 int LocalSearchExtension::computeScore(std::vector<__int128_t> change,
                                        int varIdx)
 {
+  // score: how many new SAT clauses we get from a new assignment -
+  // new UNSAT clauses we get from a new assignment
   int score = 0;
   for (int literalIdx : variablesToLiterals[varIdx])
   {
@@ -487,6 +497,7 @@ int LocalSearchExtension::computeDistanceScore(Literal literal,
                                                std::vector<__int128_t> change,
                                                int varIdx)
 {
+  // Distance score: how far away we are from being SAT. If SAT distance is zero
   // case >=
   if (!literal.isEqual && !literal.isNot)
   {
@@ -539,7 +550,10 @@ __int128_t LocalSearchExtension::stepForward(std::vector<__int128_t> change,
       value--;
     }
   }
-  doNotMove[2 * varIdx + (direction)] = 3 + doNotMoveDistribution(rd_generator);
+  // update the move for the change
+  doNotMove[2 * varIdx + (direction)] =
+      DONOTMOVECONST + doNotMoveDistribution(rd_generator);
+  // record satLiterals to update unsatLiterals later on
   std::set<int> satLiterals = std::set<int>();
   int score = 0;
   for (auto& literal_idx : variablesToLiterals[varIdx])
@@ -566,11 +580,12 @@ __int128_t LocalSearchExtension::stepForward(std::vector<__int128_t> change,
   std::set<int> result;
   if (satLiterals.size() == 0)
   {
-    // If we ever get here we are experiencing an overflow in delta
-    // calculation and need to restart
+    // If we ever get here we are experiencing an overflow in delta calculation
+    // and need to restart
     nonImprove = MAXNONIMPROVE + 1;
     return 0;
   }
+  // compute unsatLiterals - new satLiterals
   std::set_difference(unsatLiterals.begin(),
                       unsatLiterals.end(),
                       satLiterals.begin(),
@@ -601,7 +616,8 @@ void LocalSearchExtension::restart()
   unsatLiterals = std::set<int>();
   for (int i = 0; i < literals.size(); i++)
   {
-    // recompute the deltas with the initial assignment
+    // recompute the deltas with the initial assignment and set weights back to
+    // 1
     literals[i].delta = literals[i].calculateDelta(variablesValues);
     literals[i].weight = 1;
     if (!checkIfSat(literals[i], literals[i].delta))
@@ -613,19 +629,44 @@ void LocalSearchExtension::restart()
 
 void LocalSearchExtension::applyPAWS()
 {
-  for (int const& i : unsatLiterals)
+  std::uniform_real_distribution<> distr(0.0, 1.0);
+  // If smoothing activated decrease satisfied by 1 and
+  // increase unsatisfied by 1: since we do not keep track
+  // of satisfied this is equivalent to decreasing all by 1
+  // and increasing unsatified by 2.
+  if (distr(rd_generator) < SMOOTHING)
   {
-    literals[i].weight += 1;
+    for (int const& i : unsatLiterals)
+    {
+      literals[i].weight += 2;
+    }
+    for (int i = 0; i < literals.size(); i++)
+    {
+      if (literals[i].weight > 1)
+      {
+        literals[i].weight -= 1;
+      }
+    }
+  }
+  // If not smoothing just increase unsatisfied by 1
+  else
+  {
+    for (int const& i : unsatLiterals)
+    {
+      literals[i].weight += 1;
+    }
   }
 }
 
 bool LocalSearchExtension::LocalSearch()
 {
+  // Initialize doNotMove and random generator
   std::vector<int> tempVec(variablesValues.size() * 2 + 1, 0);
   doNotMove = tempVec;
   std::random_device rd;
   std::mt19937 gen(rd());
   rd_generator = gen;
+  rd_generator.seed(1);
   std::uniform_int_distribution<> tempDistribution(0, 10);
   doNotMoveDistribution = tempDistribution;
   int satScore = literals.size() - unsatLiterals.size();
@@ -636,9 +677,10 @@ bool LocalSearchExtension::LocalSearch()
     // If a solution has been found
     if (unsatLiterals.size() == 0)
     {
+      // Check that all literals are SAT
       if (!checkIfSolutionSat())
       {
-        assert(false);
+        AlwaysAssert(false);
       }
       return true;
     }
@@ -671,9 +713,9 @@ bool LocalSearchExtension::LocalSearch()
       // change clause weights using PAWS scheme
       applyPAWS();
       bestScore = std::numeric_limits<int>::max();
-      std::vector<std::tuple<std::vector<__int128_t>, int, int>> possibleMoves =
-          getPossibleMoves(true);
-      for (auto move : possibleMoves)
+      std::vector<std::tuple<std::vector<__int128_t>, int, int>>
+          newPossibleMoves = getPossibleMoves(true);
+      for (auto move : newPossibleMoves)
       {
         auto change = std::get<0>(move);
         int direction = std::get<1>(move);
@@ -686,7 +728,8 @@ bool LocalSearchExtension::LocalSearch()
               (computeDistanceScore(literal, change, varIdxInSlv)
                - computeDistanceScore(literal, variablesValues, varIdxInSlv));
         }
-        // Best distance score is that which minimizes distance to SAT
+        // Best distance score is that which minimizes distance to SAT compared
+        // to current assignment
         if (score < bestScore
             || (score == bestScore
                 && doNotMove[2 * varIdxInSlv + direction ^ 1]

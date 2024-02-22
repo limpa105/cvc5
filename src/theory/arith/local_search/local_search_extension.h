@@ -128,6 +128,12 @@ class LocalSearchExtension : protected EnvObj
   /** Number of literals to consider when in Distance Score*/
   const int NUMLITCONSIDER = 3;
 
+  /** Smallest number of iterations that we do not change the variable after
+   * changing it once */
+  const int DONOTMOVECONST = 3;
+
+  float SMOOTHING = 0.0003;
+
   /** Random number generator **/
   std::mt19937 rd_generator;
 
