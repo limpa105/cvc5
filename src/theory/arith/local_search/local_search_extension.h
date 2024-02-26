@@ -39,17 +39,17 @@ class Literal
 {
  public:
   /** Coefficients of the literal: 1x+2y <=3 -> [1,2] */
-  std::vector<__int128_t> coefficients;
+  std::vector<Integer> coefficients;
 
   /** Index of variables in solvers's current assignment in the order they
    * appear in the literal **/
   std::vector<int> variables;
 
   /** Constants present in the equation **/
-  int threshold = 0;
+  Integer threshold = Integer(0);
 
   /** LHS - RHS **/
-  __int128_t delta;
+  Integer delta;
 
   /** true if literal is negated false otherwise **/
   bool isNot = false;
@@ -66,8 +66,8 @@ class Literal
   TNode equation;
 
   /** Calculate LHS - RHS **/
-  __int128_t calculateDelta(
-      std::vector<__int128_t>& assignment);  // calculates LHS - RHS
+  Integer calculateDelta(
+      std::vector<Integer>& assignment);  // calculates LHS - RHS
 
   /** Prints current internal data structures **/
   void printAllocation();
@@ -141,7 +141,7 @@ class LocalSearchExtension : protected EnvObj
   std::vector<Literal> literals;
 
   /** Current assignment of the search **/
-  std::vector<__int128_t> variablesValues;
+  std::vector<Integer> variablesValues;
 
   /** A set of idx of the unsat literals under current assignment **/
   std::set<int> unsatLiterals;
@@ -168,8 +168,9 @@ class LocalSearchExtension : protected EnvObj
   std::set<int> sampleWithReplacement(const std::set<int>& originalSet,
                                       int sampleSize);
 
-  /** Helper function to get custom upperbound-> -1.5 -> -2 & 1.5 ->2 **/
-  __int128_t getUpperBound(double f);
+  /** Helper function to get custom upperbound when dividing a by b
+   * ex a/b=- -1.5 -> -2 || a/b = 1.5 ->2 **/
+  Integer getUpperBound(Integer a, Integer b);
 
   /** Helper function to print a set **/
   void printSet(std::set<int> mySet, std::string name);
@@ -178,7 +179,7 @@ class LocalSearchExtension : protected EnvObj
   void printUnsat();
 
   /** Prints a potential change **/
-  void printChange(std::vector<__int128_t> change);
+  void printChange(std::vector<Integer> change);
 
   /** Add a literal to the LS solver **/
   void addLiteral(Literal literal) { literals.push_back(literal); }
@@ -190,10 +191,10 @@ class LocalSearchExtension : protected EnvObj
   void parseOneSide(internal::TNode& side, Literal& literal);
 
   /** Checks if a Literal is SAT **/
-  bool checkIfSat(Literal literal, __int128_t delta);
+  bool checkIfSat(Literal literal, Integer delta);
 
   /** get allowed critical moves at the current point in the search **/
-  std::vector<std::tuple<std::vector<__int128_t>, int, int>> getPossibleMoves(
+  std::vector<std::tuple<std::vector<Integer>, int, int>> getPossibleMoves(
       bool inDscore);
 
   /** Computes a critical move for a variable based on its position in a literal
@@ -206,25 +207,20 @@ class LocalSearchExtension : protected EnvObj
    * vector<int> : possible new assignment
    * int: direction of change
    * none -> if no moves are allowed **/
-  std::optional<std::vector<std::pair<std::vector<__int128_t>, int>>>
-  criticalMove(int varIdxInLit,
-               int varIdxInSlv,
-               Literal literal,
-               bool inDscore);
+  std::optional<std::vector<std::pair<std::vector<Integer>, int>>> criticalMove(
+      int varIdxInLit, int varIdxInSlv, Literal literal, bool inDscore);
 
   /** Computes score of a potential assignment change **/
-  int computeScore(std::vector<__int128_t> change, int varIdx);
+  int computeScore(std::vector<Integer> change, int varIdx);
 
   /** Computes distance score of a potential assignment change (how far away it
    * is from truth)**/
-  int computeDistanceScore(Literal literal,
-                           std::vector<__int128_t> change,
-                           int varIdx);
+  Integer computeDistanceScore(Literal literal,
+                               std::vector<Integer> change,
+                               int varIdx);
 
   /** Step forward in the LS by switching the assignment to a new one **/
-  __int128_t stepForward(std::vector<__int128_t> change,
-                         int varIdx,
-                         int direction);
+  int stepForward(std::vector<Integer> change, int varIdx, int direction);
 
   /** Safety check to make sure the solution is SAT **/
   bool checkIfSolutionSat();

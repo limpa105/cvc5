@@ -36,55 +36,26 @@ namespace theory {
 namespace arith {
 namespace local_search {
 
-/** Overloading << to print __int128_t values **/
-std::ostream& operator<<(std::ostream& dest, __int128_t value)
+Integer Literal::calculateDelta(std::vector<Integer>& assignment)
 {
-  std::ostream::sentry s(dest);
-  if (s)
-  {
-    __uint128_t tmp = value < 0 ? -value : value;
-    char buffer[128];
-    char* d = std::end(buffer);
-    do
-    {
-      --d;
-      *d = "0123456789"[tmp % 10];
-      tmp /= 10;
-    } while (tmp != 0);
-    if (value < 0)
-    {
-      --d;
-      *d = '-';
-    }
-    int len = std::end(buffer) - d;
-    if (dest.rdbuf()->sputn(d, len) != len)
-    {
-      dest.setstate(std::ios_base::badbit);
-    }
-  }
-  return dest;
-}
-
-__int128_t Literal::calculateDelta(std::vector<__int128_t>& assignment)
-{
-  __int128_t sum = (__int128_t)0;
+  Integer sum = 0;
   for (int i = 0; i < coefficients.size(); ++i)
   {
-    sum += assignment[variables[i]] * (__int128_t)coefficients[i];
+    sum += assignment[variables[i]] * coefficients[i];
   };
-  return sum - (__int128_t)threshold;
+  return sum - threshold;
 };
 
 void Literal::printAllocation()
 {
   std::cout << '\n' << "Equation:" << equation;
   std::cout << '\n' << "Variables: ";
-  for (__int128_t var : variables)
+  for (Integer var : variables)
   {
     std::cout << var << " ";
   };
   std::cout << '\n' << "Coefficients: ";
-  for (int var : coefficients)
+  for (Integer var : coefficients)
   {
     std::cout << var << " ";
   };
@@ -203,8 +174,7 @@ bool LocalSearchExtension::collectModelInfo(TheoryModel* m,
   // to the model
   for (size_t i = 0; i < variablesValues.size(); i++)
   {
-    m->assertEquality(
-        d_varList[i], nm->mkConstInt((int)variablesValues[i]), true);
+    m->assertEquality(d_varList[i], nm->mkConstInt(variablesValues[i]), true);
   }
   return true;
 }
@@ -223,16 +193,18 @@ std::set<int> LocalSearchExtension::sampleWithReplacement(
   return sampledSet;
 }
 
-__int128_t LocalSearchExtension::getUpperBound(double value)
-// 2.5 -> 2 && -2.5 -> -3
+Integer LocalSearchExtension::getUpperBound(Integer a, Integer b)
+// a/b = 2.5 -> 3 &&  a/b = -2.5 -> -3
 {
-  if (value > 0)
+  // if result is positivie
+  if (a.sgn() == b.sgn())
   {
-    return std::ceil(value);
+    return a.ceilingDivideQuotient(b);
   }
   else
   {
-    return std::floor(value);
+    // if result is negative
+    return a.floorDivideQuotient(b);
   }
 };
 
@@ -253,7 +225,7 @@ void LocalSearchExtension::printUnsat()
   return;
 }
 
-void LocalSearchExtension::printChange(std::vector<__int128_t> change)
+void LocalSearchExtension::printChange(std::vector<Integer> change)
 {
   for (const auto& pair : nameToIdx)
   {
@@ -284,10 +256,10 @@ void LocalSearchExtension::processAssertion(TNode assertion)
   // Now move all vars to RHS
   for (auto& v : literal.coefficients)
   {
-    v *= -1;
+    v *= Integer(-1);
   }
   // Move threshold back to RHS
-  literal.threshold *= -1;
+  literal.threshold *= Integer(-1);
   parseOneSide(RHS, literal);
   literal.delta = literal.calculateDelta(variablesValues);
   for (const auto& var : literal.variables)
@@ -314,7 +286,7 @@ void LocalSearchExtension::parseOneSide(TNode& side, Literal& literal)
   }
   else if (side.getKind() == Kind::MULT)
   {
-    literal.coefficients.push_back(side[0].getConst<Rational>().getDouble());
+    literal.coefficients.push_back(side[0].getConst<Rational>().getNumerator());
     literal.variables.push_back(nameToIdx[side[1].getName()]);
   }
   else
@@ -322,34 +294,35 @@ void LocalSearchExtension::parseOneSide(TNode& side, Literal& literal)
     if (side.isConst())
     {
       // move to a different side if constant
-      literal.threshold += -1 * side.getConst<Rational>().getDouble();
+      literal.threshold +=
+          Integer(-1) * side.getConst<Rational>().getNumerator();
     }
     else
     {
       // In case just variable we have a coefficient of 1
-      literal.coefficients.push_back(1);
+      literal.coefficients.push_back(Integer(1));
       literal.variables.push_back(nameToIdx[side.getName()]);
     }
   }
 }
 
-bool LocalSearchExtension::checkIfSat(Literal literal, __int128_t delta)
+bool LocalSearchExtension::checkIfSat(Literal literal, Integer delta)
 {
   // SAT delta values for the 4 possible cases
-  if ((!literal.isNot && literal.isEqual && delta == (__int128_t)0)
-      || (literal.isNot && !literal.isEqual && delta > (__int128_t)0)
-      || (literal.isNot && literal.isEqual && delta != (__int128_t)0)
-      || (!literal.isNot && !literal.isEqual && delta <= (__int128_t)0))
+  if ((!literal.isNot && literal.isEqual && delta == Integer(0))
+      || (literal.isNot && !literal.isEqual && delta > Integer(0))
+      || (literal.isNot && literal.isEqual && delta != Integer(0))
+      || (!literal.isNot && !literal.isEqual && delta <= Integer(0)))
   {
     return true;
   }
   return false;
 }
 
-std::vector<std::tuple<std::vector<__int128_t>, int, int>>
+std::vector<std::tuple<std::vector<Integer>, int, int>>
 LocalSearchExtension::getPossibleMoves(bool inDscore)
 {
-  std::vector<std::tuple<std::vector<__int128_t>, int, int>> allowedMoves;
+  std::vector<std::tuple<std::vector<Integer>, int, int>> allowedMoves;
   std::set<int> allowedLiterals;
   if (!inDscore)
   {
@@ -386,23 +359,23 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
   return allowedMoves;
 }
 
-std::optional<std::vector<std::pair<std::vector<__int128_t>, int>>>
+std::optional<std::vector<std::pair<std::vector<Integer>, int>>>
 LocalSearchExtension::criticalMove(int varIdxInLit,
                                    int varIdxInSlv,
                                    Literal literal,
                                    bool inDscore)
 {
-  __int128_t delta;
+  Integer delta;
   int direction;
-  std::vector<std::pair<std::vector<__int128_t>, int>> results;
-  int coef = literal.coefficients[varIdxInLit];
+  std::vector<std::pair<std::vector<Integer>, int>> results;
+  Integer coef = literal.coefficients[varIdxInLit];
   // case : ==
   if (literal.isEqual && !literal.isNot)
   {
-    __int128_t deltaSum = literal.delta;
-    if (coef != 0 && deltaSum % coef == 0)
+    Integer deltaSum = literal.delta;
+    if (coef != 0 && coef.divides(deltaSum))
     {
-      delta = deltaSum / coef;
+      delta = getUpperBound(deltaSum, coef);
     }
     else
     {
@@ -415,7 +388,7 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
   {
     if (inDscore || doNotMove[2 * varIdxInSlv + 1] <= 0)
     {
-      std::vector<__int128_t> change1 = variablesValues;
+      std::vector<Integer> change1 = variablesValues;
       change1[varIdxInSlv] -= 1;
       results.push_back(std::make_pair(change1, 0));
     }
@@ -423,7 +396,7 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
     // list)
     if (inDscore || doNotMove[2 * varIdxInSlv] <= 0)
     {
-      std::vector<__int128_t> change2 = variablesValues;
+      std::vector<Integer> change2 = variablesValues;
       change2[varIdxInSlv] += 1;
       results.push_back(std::make_pair(change2, 1));
     }
@@ -439,14 +412,14 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
   }
   else if (!literal.isNot)
   {
-    delta = getUpperBound(std::abs((double)literal.delta / (double)coef));
-    if (coef < 0) delta *= (__int128_t)-1;
+    delta = getUpperBound(literal.delta.abs(), coef.abs());
+    if (coef < 0) delta *= Integer(-1);
     // case: not >=
   }
   else
   {
-    delta = getUpperBound(std::abs((double)(1 - literal.delta) / (double)coef));
-    if (coef > 0) delta *= (__int128_t)-1;
+    delta = getUpperBound((Integer(1) - literal.delta).abs(), coef.abs());
+    if (coef > 0) delta *= Integer(-1);
   }
   if (delta == 0)
   {
@@ -461,14 +434,13 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
   {
     return std::nullopt;
   }
-  std::vector<__int128_t> change = variablesValues;
+  std::vector<Integer> change = variablesValues;
   change[varIdxInSlv] -= delta;
   results.push_back(std::make_pair(change, direction));
   return results;
 }
 
-int LocalSearchExtension::computeScore(std::vector<__int128_t> change,
-                                       int varIdx)
+int LocalSearchExtension::computeScore(std::vector<Integer> change, int varIdx)
 {
   // score: how many new SAT clauses we get from a new assignment -
   // new UNSAT clauses we get from a new assignment
@@ -476,7 +448,7 @@ int LocalSearchExtension::computeScore(std::vector<__int128_t> change,
   for (int literalIdx : variablesToLiterals[varIdx])
   {
     Literal literal = literals[literalIdx];
-    int newDelta = literal.calculateDelta(change);
+    Integer newDelta = literal.calculateDelta(change);
     bool newSat = checkIfSat(literal, newDelta);
     bool oldSat = checkIfSat(literal, literal.delta);
     // if a literal became SAT increment score
@@ -493,33 +465,33 @@ int LocalSearchExtension::computeScore(std::vector<__int128_t> change,
   return score;
 }
 
-int LocalSearchExtension::computeDistanceScore(Literal literal,
-                                               std::vector<__int128_t> change,
-                                               int varIdx)
+Integer LocalSearchExtension::computeDistanceScore(Literal literal,
+                                                   std::vector<Integer> change,
+                                                   int varIdx)
 {
   // Distance score: how far away we are from being SAT. If SAT distance is zero
   // case >=
   if (!literal.isEqual && !literal.isNot)
   {
-    return std::max(literal.calculateDelta(change), (__int128_t)0)
-           * literal.weight;
+    return Integer::max(literal.calculateDelta(change), 0) * literal.weight;
 
     // case ==
   }
   else if (literal.isEqual && !literal.isNot)
   {
-    __int128_t delta = literal.calculateDelta(change);
+    Integer delta = literal.calculateDelta(change);
     if (delta < 1)
     {
       delta = delta * -1;
     }
-    return std::max(delta, (__int128_t)0) * literal.weight;
+    return Integer::max(delta, 0) * literal.weight;
 
     // case not >=
   }
   else if (!literal.isEqual && literal.isNot)
   {
-    return -1 * std::min(literal.calculateDelta(change) - 1, (__int128_t)0)
+    return Integer(-1)
+           * Integer::min(literal.calculateDelta(change) - Integer(1), 0)
            * literal.weight;
 
     // case: not ==
@@ -537,9 +509,9 @@ int LocalSearchExtension::computeDistanceScore(Literal literal,
   }
 }
 
-__int128_t LocalSearchExtension::stepForward(std::vector<__int128_t> change,
-                                             int varIdx,
-                                             int direction)
+int LocalSearchExtension::stepForward(std::vector<Integer> change,
+                                      int varIdx,
+                                      int direction)
 {
   variablesValues = change;
   // For all values in doNotMove decrement by 1
@@ -559,7 +531,7 @@ __int128_t LocalSearchExtension::stepForward(std::vector<__int128_t> change,
   for (auto& literal_idx : variablesToLiterals[varIdx])
   {
     Literal literal = literals[literal_idx];
-    __int128_t oldDelta = literal.delta;
+    Integer oldDelta = literal.delta;
     bool oldSat = checkIfSat(literal, oldDelta);
     literals[literal_idx].delta = literals[literal_idx].calculateDelta(change);
     bool newSat =
@@ -582,6 +554,8 @@ __int128_t LocalSearchExtension::stepForward(std::vector<__int128_t> change,
   {
     // If we ever get here we are experiencing an overflow in delta calculation
     // and need to restart
+    printChange(variablesValues);
+    Assert(false);
     nonImprove = MAXNONIMPROVE + 1;
     return 0;
   }
@@ -611,7 +585,7 @@ void LocalSearchExtension::restart()
 {
   std::vector<int> tempVec(variablesValues.size() * 2 + 1, 0);
   doNotMove = tempVec;
-  std::vector<__int128_t> tempVec2(variablesValues.size(), (__int128_t)0);
+  std::vector<Integer> tempVec2(variablesValues.size(), Integer(0));
   variablesValues = tempVec2;
   unsatLiterals = std::set<int>();
   for (int i = 0; i < literals.size(); i++)
@@ -671,6 +645,7 @@ bool LocalSearchExtension::LocalSearch()
   doNotMoveDistribution = tempDistribution;
   int satScore = literals.size() - unsatLiterals.size();
   int bestScore = satScore;
+  Integer bestScoreInteger;
   // This should be a heuristic in the future
   while (true)
   {
@@ -685,10 +660,10 @@ bool LocalSearchExtension::LocalSearch()
       return true;
     }
     // First try computing a decreasing change using regular score
-    std::vector<std::tuple<std::vector<__int128_t>, int, int>> possibleMoves =
+    std::vector<std::tuple<std::vector<Integer>, int, int>> possibleMoves =
         getPossibleMoves(false);
     int bestDirection;
-    std::vector<__int128_t> bestChange;
+    std::vector<Integer> bestChange;
     int bestVarIdx;
     bool decreasingChangeExists = false;
     for (auto move : possibleMoves)
@@ -712,15 +687,15 @@ bool LocalSearchExtension::LocalSearch()
     {
       // change clause weights using PAWS scheme
       applyPAWS();
-      bestScore = std::numeric_limits<int>::max();
-      std::vector<std::tuple<std::vector<__int128_t>, int, int>>
-          newPossibleMoves = getPossibleMoves(true);
+      bestScoreInteger = Integer(std::numeric_limits<int>::max());
+      std::vector<std::tuple<std::vector<Integer>, int, int>> newPossibleMoves =
+          getPossibleMoves(true);
       for (auto move : newPossibleMoves)
       {
         auto change = std::get<0>(move);
         int direction = std::get<1>(move);
         int varIdxInSlv = std::get<2>(move);
-        int score = 0;
+        Integer score = 0;
         for (int literal_idx : variablesToLiterals[varIdxInSlv])
         {
           Literal literal = literals[literal_idx];
@@ -730,7 +705,7 @@ bool LocalSearchExtension::LocalSearch()
         }
         // Best distance score is that which minimizes distance to SAT compared
         // to current assignment
-        if (score < bestScore
+        if (score < bestScoreInteger
             || (score == bestScore
                 && doNotMove[2 * varIdxInSlv + direction ^ 1]
                        < doNotMove[2 * bestVarIdx + bestDirection ^ 1]))
@@ -738,16 +713,22 @@ bool LocalSearchExtension::LocalSearch()
           decreasingChangeExists = true;
           bestDirection = direction;
           bestVarIdx = varIdxInSlv;
-          bestScore = score;
+          bestScoreInteger = score;
           bestChange = change;
         }
       }
     }
-    assert(decreasingChangeExists);
-    // Change assignment
-    satScore += stepForward(bestChange, bestVarIdx, bestDirection);
-    bestScore = satScore;
-    nonImprove += 1;
+    if (!decreasingChangeExists)
+    {
+      nonImprove = MAXNONIMPROVE + 1;
+    }
+    else
+    {
+      // Change assignment
+      satScore += stepForward(bestChange, bestVarIdx, bestDirection);
+      bestScore = satScore;
+      nonImprove += 1;
+    }
     if (nonImprove > MAXNONIMPROVE)
     {
       restart();
@@ -757,7 +738,6 @@ bool LocalSearchExtension::LocalSearch()
     }
   }
 }
-
 }  // namespace local_search
 }  // namespace arith
 }  // namespace theory
