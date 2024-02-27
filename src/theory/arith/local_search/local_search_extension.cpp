@@ -122,11 +122,11 @@ Node LocalSearchExtension::ppStaticRewrite(TNode atom)
   return atom;
 }
 
-void LocalSearchExtension::postCheck(Theory::Effort level)
+bool LocalSearchExtension::postCheck(Theory::Effort level)
 {
   if (!Theory::fullEffort(level))
   {
-    return;
+    return true;
   }
 
   Trace("theory::arith::idl")
@@ -142,26 +142,32 @@ void LocalSearchExtension::postCheck(Theory::Effort level)
         << "IdlExtension::check(): processing " << fact << std::endl;
     processAssertion(fact);
   }
-
-  if (!LocalSearch())
-  {
-    // Return a conflict that includes all the literals that have been asserted
-    // to this theory solver. A better implementation would only include the
-    // literals involved in the conflict here.
-    NodeBuilder conjunction(Kind::AND);
-    for (Node fact : d_facts)
-    {
-      conjunction << fact;
-    }
-    Node conflict = conjunction;
-    // Send the conflict using the inference manager. Each conflict is assigned
-    // an ID. Here, we use  ARITH_CONF_IDL_EXT, which indicates a generic
-    // conflict detected by this extension
-    d_parent.getInferenceManager().conflict(conflict,
-                                            InferenceId::ARITH_CONF_IDL_EXT);
-    return;
+  if (LocalSearch()){
+    foundASolution = true;
+    return false;
   }
-  // Note: Local Search currently does not return conflict but will be
+  return true;
+
+
+  // if (!LocalSearch())
+  // {
+  //   // Return a conflict that includes all the literals that have been asserted
+  //   // to this theory solver. A better implementation would only include the
+  //   // literals involved in the conflict here.
+  //   NodeBuilder conjunction(Kind::AND);
+  //   for (Node fact : d_facts)
+  //   {
+  //     conjunction << fact;
+  //   }
+  //   Node conflict = conjunction;
+  //   // Send the conflict using the inference manager. Each conflict is assigned
+  //   // an ID. Here, we use  ARITH_CONF_IDL_EXT, which indicates a generic
+  //   // conflict detected by this extension
+  //   d_parent.getInferenceManager().conflict(conflict,
+  //                                           InferenceId::ARITH_CONF_IDL_EXT);
+  //   return;
+  // }
+  // // Note: Local Search currently does not return conflict but will be
   // implemented in future versions. Right now in case of UNSAT it will not
   // terminate
 }
@@ -554,7 +560,6 @@ int LocalSearchExtension::stepForward(std::vector<Integer> change,
   {
     // If we ever get here we are experiencing an overflow in delta calculation
     // and need to restart
-    printChange(variablesValues);
     Assert(false);
     nonImprove = MAXNONIMPROVE + 1;
     return 0;
@@ -640,12 +645,13 @@ bool LocalSearchExtension::LocalSearch()
   std::random_device rd;
   std::mt19937 gen(rd());
   rd_generator = gen;
-  rd_generator.seed(1);
+  //rd_generator.seed(1);
   std::uniform_int_distribution<> tempDistribution(0, 10);
   doNotMoveDistribution = tempDistribution;
   int satScore = literals.size() - unsatLiterals.size();
   int bestScore = satScore;
   Integer bestScoreInteger;
+  int restartCount = 0;
   // This should be a heuristic in the future
   while (true)
   {
@@ -731,6 +737,10 @@ bool LocalSearchExtension::LocalSearch()
     }
     if (nonImprove > MAXNONIMPROVE)
     {
+      if (restartCount == MAXRESTARTCOUNT){
+        return false;
+      }
+      restartCount +=1;
       restart();
       satScore = literals.size() - unsatLiterals.size();
       bestScore = satScore;

@@ -76,6 +76,9 @@ class Literal
 class LocalSearchExtension : protected EnvObj
 {
  public:
+
+  bool foundASolution = false;
+
   LocalSearchExtension(Env& env, TheoryArith& parent);
   ~LocalSearchExtension();
 
@@ -92,8 +95,10 @@ class LocalSearchExtension : protected EnvObj
   /** Pre-processing of input atoms */
   Node ppStaticRewrite(TNode atom);
 
-  /** Check for conflicts in the current facts */
-  void postCheck(Theory::Effort level);
+  /** Check for conflicts in the current facts. 
+   * Returns true if conflicts have been found
+  */
+  bool postCheck(Theory::Effort level);
 
   /** Get all information regarding the current model */
   bool collectModelInfo(TheoryModel* m, const std::set<Node>& termSet);
@@ -124,6 +129,8 @@ class LocalSearchExtension : protected EnvObj
 
   /** Parameter after how many iterations should one restart*/
   const int MAXNONIMPROVE = 50000;
+
+  const int MAXRESTARTCOUNT = 3;
 
   /** Number of literals to consider when in Distance Score*/
   const int NUMLITCONSIDER = 3;

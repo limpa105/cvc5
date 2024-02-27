@@ -121,7 +121,6 @@ void TheoryArith::preRegisterTerm(TNode n)
   if (d_localSearchExtension != nullptr)
   {
     d_localSearchExtension->preRegisterTerm(n);
-    return;
   }
   // handle logic exceptions
   Kind k = n.getKind();
@@ -212,19 +211,19 @@ TrustNode TheoryArith::ppStaticRewrite(TNode atom)
 Theory::PPAssertStatus TheoryArith::ppAssert(
     TrustNode tin, TrustSubstitutionMap& outSubstitutions)
 {
-  if (d_localSearchExtension != nullptr)
-  {
-    return Theory::PP_ASSERT_STATUS_UNSOLVED;
-  }
+  // if (d_localSearchExtension != nullptr)
+  // {
+  //   return Theory::PP_ASSERT_STATUS_UNSOLVED;
+  // }
   return d_internal->ppAssert(tin, outSubstitutions);
 }
 
 void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 {
-  if (d_localSearchExtension != nullptr)
-  {
-    return;
-  }
+// if (d_localSearchExtension != nullptr)
+// {
+//   return;
+// }
 
   if (options().arith.arithStaticLearning)
   {
@@ -234,10 +233,10 @@ void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 
 bool TheoryArith::preCheck(Effort level)
 {
-  if (d_localSearchExtension != nullptr)
-  {
-    return false;
-  }
+    // if (d_localSearchExtension != nullptr)
+    // {
+    //   return false;
+    // }
 
   Trace("arith-check") << "TheoryArith::preCheck " << level << std::endl;
   return d_internal->preCheck(level);
@@ -248,8 +247,11 @@ void TheoryArith::postCheck(Effort level)
   d_im.reset();
   if (d_localSearchExtension != nullptr)
   {
-    d_localSearchExtension->postCheck(level);
-    return;
+    /// A solution has been found using local search
+    if (!d_localSearchExtension->postCheck(level)){
+      return;
+    };
+    // Else default to regular solver
   }
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
@@ -330,7 +332,6 @@ bool TheoryArith::preNotifyFact(
   if (d_localSearchExtension != nullptr)
   {
     d_localSearchExtension->notifyFact(atom, pol, fact, isPrereg, isInternal);
-    return true;
   }
 
   Trace("arith-check") << "TheoryArith::preNotifyFact: " << fact
@@ -376,8 +377,10 @@ void TheoryArith::propagate(Effort e) {
 bool TheoryArith::collectModelInfo(TheoryModel* m,
                                    const std::set<Node>& termSet)
 {
-  if (d_localSearchExtension != nullptr)
+  // if the solution was found by local search return it
+  if (d_localSearchExtension->foundASolution)
   {
+    std::cout << "local search ";
     return d_localSearchExtension->collectModelInfo(m, termSet);
   }
   // If we have a buffered lemma (from the non-linear extension), then we
@@ -391,6 +394,7 @@ bool TheoryArith::collectModelInfo(TheoryModel* m,
     return true;
   }
   // this overrides behavior to not assert equality engine
+  std::cout << "cvc5 ";
   return collectModelValues(m, termSet);
 }
 
