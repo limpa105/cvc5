@@ -144,11 +144,18 @@ class LocalSearchExtension : protected EnvObj
   /** Random number generator **/
   std::mt19937 rd_generator;
 
-  /** A list all parsed literals **/
-  std::vector<Literal> literals;
+  /** A list of current parsed literals **/
+  std::vector<int> currentLiteralsIdx;
+
+  /** A list of ALL literals in the problem **/
+  std::vector<Literal> allLiterals;
+
+  std::map<uint64_t, int> idToIdxLiteral;
+
 
   /** Current assignment of the search **/
   std::vector<Integer> variablesValues;
+
 
   /** A set of idx of the unsat literals under current assignment **/
   std::set<int> unsatLiterals;
@@ -189,7 +196,7 @@ class LocalSearchExtension : protected EnvObj
   void printChange(std::vector<Integer> change);
 
   /** Add a literal to the LS solver **/
-  void addLiteral(Literal literal) { literals.push_back(literal); }
+  //void addLiteral(Literal literal) { literals.push_back(literal); }
 
   /** Process a new assertion into the local data structures */
   void processAssertion(TNode assertion);

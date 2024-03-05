@@ -378,10 +378,12 @@ bool TheoryArith::collectModelInfo(TheoryModel* m,
                                    const std::set<Node>& termSet)
 {
   // if the solution was found by local search return it
-  if (d_localSearchExtension->foundASolution)
+  if (d_localSearchExtension != nullptr)
   {
+    if (d_localSearchExtension->foundASolution){
     std::cout << "local search ";
     return d_localSearchExtension->collectModelInfo(m, termSet);
+    }
   }
   // If we have a buffered lemma (from the non-linear extension), then we
   // do not assert model values, since those values are likely incorrect.

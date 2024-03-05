@@ -23,6 +23,8 @@
 #include <random>
 #include <set>
 #include <vector>
+#include <chrono>
+
 
 #include "expr/node_builder.h"
 #include "theory/arith/arith_preprocess.h"
@@ -30,6 +32,8 @@
 #include "theory/rewriter.h"
 #include "theory/theory_model.h"
 #include "util/rational.h"
+
+using namespace std::chrono;
 
 namespace cvc5::internal {
 namespace theory {
@@ -128,11 +132,21 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   {
     return true;
   }
-
+  
   Trace("theory::arith::idl")
       << "IdlExtension::postCheck(): number of facts = " << d_facts.size()
       << std::endl;
 
+  std::cout << "Starting Assertions" << "\n";
+  auto start = high_resolution_clock::now();
+  currentLiteralsIdx.clear();
+  unsatLiterals.clear();
+  auto stop = high_resolution_clock::now();
+  auto duration = duration_cast<microseconds>(stop - start);
+ 
+// To get the value of duration use the count()
+// member function on the duration object
+  std::cout << duration.count() << "\n";
   for (Node fact : d_facts)
   {
     // For simplicity, we reprocess all the literals that have been asserted to
@@ -242,13 +256,25 @@ void LocalSearchExtension::printChange(std::vector<Integer> change)
 
 void LocalSearchExtension::processAssertion(TNode assertion)
 {
+  int idx_literal = currentLiteralsIdx.size();
+  if (idToIdxLiteral.count(assertion.getId())>0){
+    currentLiteralsIdx.push_back(idToIdxLiteral.at(assertion.getId()));
+    allLiterals[currentLiteralsIdx[idx_literal]].delta = allLiterals[currentLiteralsIdx[idx_literal]].calculateDelta(variablesValues);
+    allLiterals[currentLiteralsIdx[idx_literal]].weight = 1;
+    Literal literal = allLiterals[currentLiteralsIdx[idx_literal]];
+    if (!checkIfSat(literal, literal.delta))
+    {
+    unsatLiterals.insert(idx_literal);
+    }
+    return;
+  }
+
   Literal literal;
   literal.equation = assertion;
   literal.isNot = assertion.getKind() == Kind::NOT;
   // continue to child if Not
   TNode atom = literal.isNot ? assertion[0] : assertion;
   literal.isEqual = atom.getKind() == Kind::EQUAL;
-  int idx_literal = literals.size();
   // Check that the parser worked and we are only dealing with
   // == or >=
   Assert(literal.isEqual || atom.getKind() == Kind::GEQ);
@@ -277,7 +303,9 @@ void LocalSearchExtension::processAssertion(TNode assertion)
   {
     unsatLiterals.insert(idx_literal);
   }
-  addLiteral(literal);
+  idToIdxLiteral[assertion.getId()] = allLiterals.size();
+  currentLiteralsIdx.push_back(allLiterals.size());
+  allLiterals.push_back(literal);
 }
 
 void LocalSearchExtension::parseOneSide(TNode& side, Literal& literal)
@@ -341,7 +369,7 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
   }
   for (int const& literal_idx : allowedLiterals)
   {
-    Literal chosenLiteral = literals[literal_idx];
+    Literal chosenLiteral = allLiterals[currentLiteralsIdx[literal_idx]];
     assert(chosenLiteral.variables.size() != 0);
     // For all variables in an UNSAT literal compute a potential critical move
     for (int varIdxInLit = 0; varIdxInLit < chosenLiteral.variables.size();
@@ -453,7 +481,7 @@ int LocalSearchExtension::computeScore(std::vector<Integer> change, int varIdx)
   int score = 0;
   for (int literalIdx : variablesToLiterals[varIdx])
   {
-    Literal literal = literals[literalIdx];
+    Literal literal = allLiterals[currentLiteralsIdx[literalIdx]];
     Integer newDelta = literal.calculateDelta(change);
     bool newSat = checkIfSat(literal, newDelta);
     bool oldSat = checkIfSat(literal, literal.delta);
@@ -536,12 +564,12 @@ int LocalSearchExtension::stepForward(std::vector<Integer> change,
   int score = 0;
   for (auto& literal_idx : variablesToLiterals[varIdx])
   {
-    Literal literal = literals[literal_idx];
+    Literal literal = allLiterals[currentLiteralsIdx[literal_idx]];
     Integer oldDelta = literal.delta;
     bool oldSat = checkIfSat(literal, oldDelta);
-    literals[literal_idx].delta = literals[literal_idx].calculateDelta(change);
+    allLiterals[currentLiteralsIdx[literal_idx]].delta = allLiterals[currentLiteralsIdx[literal_idx]].calculateDelta(change);
     bool newSat =
-        checkIfSat(literals[literal_idx], literals[literal_idx].delta);
+        checkIfSat(allLiterals[currentLiteralsIdx[literal_idx]], allLiterals[currentLiteralsIdx[literal_idx]].delta);
     // If variable became UNSAT decrement score by weight
     if (oldSat && !newSat)
     {
@@ -576,8 +604,9 @@ int LocalSearchExtension::stepForward(std::vector<Integer> change,
 
 bool LocalSearchExtension::checkIfSolutionSat()
 {
-  for (Literal literal : literals)
+  for (int idx : currentLiteralsIdx)
   {
+    Literal literal = allLiterals[currentLiteralsIdx[idx]];
     if (!checkIfSat(literal, literal.calculateDelta(variablesValues)))
     {
       return false;
@@ -593,13 +622,13 @@ void LocalSearchExtension::restart()
   std::vector<Integer> tempVec2(variablesValues.size(), Integer(0));
   variablesValues = tempVec2;
   unsatLiterals = std::set<int>();
-  for (int i = 0; i < literals.size(); i++)
+  for (int i = 0; i < currentLiteralsIdx.size(); i++)
   {
     // recompute the deltas with the initial assignment and set weights back to
     // 1
-    literals[i].delta = literals[i].calculateDelta(variablesValues);
-    literals[i].weight = 1;
-    if (!checkIfSat(literals[i], literals[i].delta))
+    allLiterals[currentLiteralsIdx[i]].delta = allLiterals[currentLiteralsIdx[i]].calculateDelta(variablesValues);
+    allLiterals[currentLiteralsIdx[i]].weight = 1;
+    if (!checkIfSat(allLiterals[currentLiteralsIdx[i]], allLiterals[currentLiteralsIdx[i]].delta))
     {
       unsatLiterals.insert(i);
     }
@@ -617,13 +646,13 @@ void LocalSearchExtension::applyPAWS()
   {
     for (int const& i : unsatLiterals)
     {
-      literals[i].weight += 2;
+      allLiterals[currentLiteralsIdx[i]].weight += 2;
     }
-    for (int i = 0; i < literals.size(); i++)
+    for (int i = 0; i < currentLiteralsIdx.size(); i++)
     {
-      if (literals[i].weight > 1)
+      if (allLiterals[currentLiteralsIdx[i]].weight > 1)
       {
-        literals[i].weight -= 1;
+        allLiterals[currentLiteralsIdx[i]].weight -= 1;
       }
     }
   }
@@ -632,7 +661,7 @@ void LocalSearchExtension::applyPAWS()
   {
     for (int const& i : unsatLiterals)
     {
-      literals[i].weight += 1;
+      allLiterals[currentLiteralsIdx[i]].weight += 1;
     }
   }
 }
@@ -648,7 +677,7 @@ bool LocalSearchExtension::LocalSearch()
   //rd_generator.seed(1);
   std::uniform_int_distribution<> tempDistribution(0, 10);
   doNotMoveDistribution = tempDistribution;
-  int satScore = literals.size() - unsatLiterals.size();
+  int satScore = currentLiteralsIdx.size() - unsatLiterals.size();
   int bestScore = satScore;
   Integer bestScoreInteger;
   int restartCount = 0;
@@ -704,7 +733,7 @@ bool LocalSearchExtension::LocalSearch()
         Integer score = 0;
         for (int literal_idx : variablesToLiterals[varIdxInSlv])
         {
-          Literal literal = literals[literal_idx];
+          Literal literal = allLiterals[currentLiteralsIdx[literal_idx]];
           score +=
               (computeDistanceScore(literal, change, varIdxInSlv)
                - computeDistanceScore(literal, variablesValues, varIdxInSlv));
@@ -742,7 +771,7 @@ bool LocalSearchExtension::LocalSearch()
       }
       restartCount +=1;
       restart();
-      satScore = literals.size() - unsatLiterals.size();
+      satScore = currentLiteralsIdx.size() - unsatLiterals.size();
       bestScore = satScore;
       nonImprove = 0;
     }
