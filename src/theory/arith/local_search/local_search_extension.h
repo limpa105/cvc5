@@ -160,6 +160,7 @@ class LocalSearchExtension : protected EnvObj
 
   int processedAsserts = 0;
 
+  bool checkBounds(Integer Value, int idx);
 
   /** A set of idx of the unsat literals under current assignment **/
   std::set<int> unsatLiterals;

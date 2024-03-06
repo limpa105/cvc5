@@ -265,7 +265,7 @@ void LocalSearchExtension::printChange(std::vector<Integer> change)
 
 void LocalSearchExtension::processAssertion(TNode assertion)
 {
-  //std::cout << "First:" << assertion << "\n";
+  std::cout << "First:" << assertion << "\n";
   totalAsserts +=1;
   int idx_literal = currentLiteralsIdx.size();
   if (idToIdxLiteral.count(assertion.getId())>0){
@@ -289,7 +289,7 @@ void LocalSearchExtension::processAssertion(TNode assertion)
   TNode atom = isNot ? assertion[0] : assertion;
   // if Upper Bound 
   if (atom.getKind()==Kind::GEQ && atom[0].isVar() && atom[1].isConst()){
-    //std::cout << "UPPER\n";
+    std::cout << "UPPER\n";
     int varIdx = nameToIdx[atom[0].getName()];
     Integer limit = atom[1].getConst<Rational>().getNumerator();
     if (!isNot) {
@@ -314,7 +314,7 @@ void LocalSearchExtension::processAssertion(TNode assertion)
   }
   // Equal
   if (!isNot && assertion.getKind()==Kind::EQUAL && assertion[0].isVar() && assertion[1].isConst()){
-    //std::cout << "EQUAL\n";
+    std::cout << "EQUAL\n";
     int varIdx = nameToIdx[assertion[0].getName()];
     Integer limit = assertion[1].getConst<Rational>().getNumerator();
     variablesValues[varIdx] = limit;
@@ -331,7 +331,7 @@ void LocalSearchExtension::processAssertion(TNode assertion)
     return;
   }
   if (!isNot && assertion.getKind()==Kind::GEQ && assertion[0].getKind()==Kind::MULT && assertion[0][1].isVar() &&  assertion[0][0].getConst<Rational>().getNumerator() == Integer(-1) && assertion[1].isConst()){
-    //std::cout << "Lower\n";
+    std::cout << "Lower\n";
     int varIdx = nameToIdx[assertion[0][1].getName()];
     Integer limit = assertion[1].getConst<Rational>().getNumerator();
     variablesValues[varIdx] = Integer(-1) * limit;
@@ -347,7 +347,7 @@ void LocalSearchExtension::processAssertion(TNode assertion)
     }
     return;
   }
-  //std::cout << "Cont:" << assertion << "\n";
+  std::cout << "Cont:" << assertion << "\n";
   processedAsserts +=1;
 
 
@@ -488,6 +488,27 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
   return allowedMoves;
 }
 
+
+bool LocalSearchExtension::checkBounds(Integer value, int idx){
+  if (upperBound[idx].has_value()){
+     if (upperBound[idx].value() > value){
+       return false;
+     }
+  }
+  if (equalBound[idx].has_value()){
+     if (equalBound[idx].value() != value){
+       return false;
+    }
+  }
+  // x <= 1 -> x =2 bad 
+  if (lowerBound[idx].has_value()){
+     if (lowerBound[idx].value() < value){
+       return false;
+    }
+  }
+}
+
+
 std::optional<std::vector<std::pair<std::vector<Integer>, int>>>
 LocalSearchExtension::criticalMove(int varIdxInLit,
                                    int varIdxInSlv,
@@ -519,8 +540,9 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
     {
       std::vector<Integer> change1 = variablesValues;
       change1[varIdxInSlv] -= 1;
-
-      results.push_back(std::make_pair(change1, 0));
+      if (checkBounds(change1[varIdxInSlv], varIdxInSlv)){
+        results.push_back(std::make_pair(change1, 0));
+      }
     }
     // If in Dscore all moves are always allowed (we do not check the doNotMove
     // list)
@@ -528,8 +550,9 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
     {
       std::vector<Integer> change2 = variablesValues;
       change2[varIdxInSlv] += 1;
-
-      results.push_back(std::make_pair(change2, 1));
+      if (checkBounds(change2[varIdxInSlv], varIdxInSlv)) {
+        results.push_back(std::make_pair(change2, 1));
+      }
     }
     if (results.size() > 0)
     {
@@ -567,24 +590,13 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
   }
   std::vector<Integer> change = variablesValues;
   change[varIdxInSlv] -= delta;
-  if (upperBound[varIdxInSlv].has_value()){
-     if (upperBound[varIdxInSlv].value() > change[varIdxInSlv]){
-       return std::nullopt;
-     }
-  }
-  if (equalBound[varIdxInSlv].has_value()){
-     if (equalBound[varIdxInSlv].value() != change[varIdxInSlv]){
-       return std::nullopt;
-    }
-  }
-  // x <= 1 -> x =2 bad 
-  if (lowerBound[varIdxInSlv].has_value()){
-     if (lowerBound[varIdxInSlv].value() < change[varIdxInSlv]){
-       return std::nullopt;
-    }
-  }
+  if (checkBounds(change[varIdxInSlv], varIdxInSlv)) {
   results.push_back(std::make_pair(change, direction));
   return results;
+  }
+  else {
+    return std::nullopt;
+  }
 }
 
 int LocalSearchExtension::computeScore(std::vector<Integer> change, int varIdx)
@@ -719,7 +731,7 @@ bool LocalSearchExtension::checkIfSolutionSat()
 {
   for (int idx : currentLiteralsIdx)
   {
-    Literal literal = allLiterals[currentLiteralsIdx[idx]];
+    Literal literal = allLiterals[idx];
     if (!checkIfSat(literal, literal.calculateDelta(variablesValues)))
     {
       literal.printAllocation();
@@ -784,8 +796,8 @@ void LocalSearchExtension::applyPAWS()
 
 bool LocalSearchExtension::LocalSearch()
 {
-  //std::cout << "Current Assertions:" << currentLiteralsIdx.size() << "\n";
-  //std::cout << "Total Assertions:" << totalAsserts << "\n";
+  std::cout << "Current Assertions:" << currentLiteralsIdx.size() << "\n";
+  std::cout << "Total Assertions:" << totalAsserts << "\n";
   // Initialize doNotMove and random generator
   std::vector<int> tempVec(variablesValues.size() * 2 + 1, 0);
   doNotMove = tempVec;
@@ -807,6 +819,8 @@ bool LocalSearchExtension::LocalSearch()
     // If a solution has been found
     if (unsatLiterals.size() == 0)
     {
+      std::cout << "We are here\n";
+      std::cout << "Size:" << allLiterals.size() << "\n";
       // Check that all literals are SAT
       if (!checkIfSolutionSat())
       {
