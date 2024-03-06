@@ -130,7 +130,7 @@ class LocalSearchExtension : protected EnvObj
   /** Parameter after how many iterations should one restart*/
   const int MAXNONIMPROVE = 50000;
 
-  const int MAXRESTARTCOUNT = 3;
+  const int MAXRESTARTCOUNT = 1;
 
   /** Number of literals to consider when in Distance Score*/
   const int NUMLITCONSIDER = 3;
@@ -181,6 +181,8 @@ class LocalSearchExtension : protected EnvObj
   /** Helper function to sample from a set with replacement **/
   std::set<int> sampleWithReplacement(const std::set<int>& originalSet,
                                       int sampleSize);
+
+
 
   /** Helper function to get custom upperbound when dividing a by b
    * ex a/b=- -1.5 -> -2 || a/b = 1.5 ->2 **/

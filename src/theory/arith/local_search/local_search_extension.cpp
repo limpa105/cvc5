@@ -213,6 +213,7 @@ std::set<int> LocalSearchExtension::sampleWithReplacement(
   return sampledSet;
 }
 
+
 Integer LocalSearchExtension::getUpperBound(Integer a, Integer b)
 // a/b = 2.5 -> 3 &&  a/b = -2.5 -> -3
 {
@@ -358,6 +359,7 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
 {
   std::vector<std::tuple<std::vector<Integer>, int, int>> allowedMoves;
   std::set<int> allowedLiterals;
+  std::vector<int> allowedVariables;
   if (!inDscore)
   {
     allowedLiterals = unsatLiterals;
@@ -371,9 +373,20 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
   {
     Literal chosenLiteral = allLiterals[currentLiteralsIdx[literal_idx]];
     assert(chosenLiteral.variables.size() != 0);
+    if(chosenLiteral.variables.size() > 100){
+      std::vector<int> temp(chosenLiteral.variables.size()) ; // vector with 100 ints.
+      allowedVariables = temp;
+      std::iota (std::begin(allowedVariables ), std::end(allowedVariables), 0); 
+      std::mt19937 rng(std::random_device{}());
+      std::shuffle(begin(allowedVariables), end(allowedVariables), rng);
+      allowedVariables.resize(100);
+    } else {
+      std::vector<int> temp(chosenLiteral.variables.size()) ; // vector with 100 ints.
+      allowedVariables = temp;
+      std::iota (std::begin(allowedVariables ), std::end(allowedVariables), 0); 
+    }
     // For all variables in an UNSAT literal compute a potential critical move
-    for (int varIdxInLit = 0; varIdxInLit < chosenLiteral.variables.size();
-         varIdxInLit++)
+    for (int varIdxInLit: allowedVariables)
     {
       int varIdxInSlv = chosenLiteral.variables[varIdxInLit];
       auto move =
@@ -617,6 +630,7 @@ bool LocalSearchExtension::checkIfSolutionSat()
 
 void LocalSearchExtension::restart()
 {
+  std::cout << "RESTART \n";
   std::vector<int> tempVec(variablesValues.size() * 2 + 1, 0);
   doNotMove = tempVec;
   std::vector<Integer> tempVec2(variablesValues.size(), Integer(0));
@@ -668,6 +682,7 @@ void LocalSearchExtension::applyPAWS()
 
 bool LocalSearchExtension::LocalSearch()
 {
+  std::cout << currentLiteralsIdx.size() << "\n";
   // Initialize doNotMove and random generator
   std::vector<int> tempVec(variablesValues.size() * 2 + 1, 0);
   doNotMove = tempVec;
@@ -681,6 +696,7 @@ bool LocalSearchExtension::LocalSearch()
   int bestScore = satScore;
   Integer bestScoreInteger;
   int restartCount = 0;
+  nonImprove = 0;
   // This should be a heuristic in the future
   while (true)
   {
@@ -755,6 +771,7 @@ bool LocalSearchExtension::LocalSearch()
     }
     if (!decreasingChangeExists)
     {
+      std::cout << "No CHANGE\n";
       nonImprove = MAXNONIMPROVE + 1;
     }
     else
@@ -773,7 +790,6 @@ bool LocalSearchExtension::LocalSearch()
       restart();
       satScore = currentLiteralsIdx.size() - unsatLiterals.size();
       bestScore = satScore;
-      nonImprove = 0;
     }
   }
 }
