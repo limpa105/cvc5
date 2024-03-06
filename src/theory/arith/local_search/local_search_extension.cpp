@@ -372,7 +372,7 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
   for (int const& literal_idx : allowedLiterals)
   {
     Literal chosenLiteral = allLiterals[currentLiteralsIdx[literal_idx]];
-    assert(chosenLiteral.variables.size() != 0);
+    AlwaysAssert(chosenLiteral.variables.size() != 0);
     if(chosenLiteral.variables.size() > 100){
       std::vector<int> temp(chosenLiteral.variables.size()) ; // vector with 100 ints.
       allowedVariables = temp;
@@ -473,7 +473,7 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
     // delta should never be zero
     AlwaysAssert(false);
   }
-  assert(delta != 0);
+  AlwaysAssert(delta != 0);
   direction = delta > 0 ? 0 : 1;
   // Check that we have not moved the variable in the opposite direction in less
   // than allowed num of iterations if we have no critical move can be preformed
