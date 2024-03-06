@@ -156,6 +156,10 @@ class LocalSearchExtension : protected EnvObj
   /** Current assignment of the search **/
   std::vector<Integer> variablesValues;
 
+  int totalAsserts = 0;
+
+  int processedAsserts = 0;
+
 
   /** A set of idx of the unsat literals under current assignment **/
   std::set<int> unsatLiterals;
@@ -170,6 +174,13 @@ class LocalSearchExtension : protected EnvObj
   /** A list of indexes that cannot be moved as they
    *  were moved < n iterations ago **/
   std::vector<int> doNotMove;
+
+  std::vector<std::optional<Integer>> upperBound;
+
+  std::vector<std::optional<Integer>> lowerBound;
+
+  std::vector<std::optional<Integer>> equalBound;
+
 
   /** Number of iterations since last restart **/
   int nonImprove = 0;

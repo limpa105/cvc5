@@ -141,11 +141,16 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   auto start = high_resolution_clock::now();
   currentLiteralsIdx.clear();
   unsatLiterals.clear();
+  std::vector<std::set<int>> tempMap(variablesValues.size(), std::set<int>());
+  variablesToLiterals = tempMap;
+  std::vector<std::optional<Integer>> tempUp(variablesValues.size(), std::nullopt);
+  upperBound = tempUp;
+  std::vector<std::optional<Integer>> tempEq(variablesValues.size(), std::nullopt);
+  equalBound = tempEq;
+  std::vector<std::optional<Integer>> tempLower(variablesValues.size(), std::nullopt);
+  lowerBound = tempLower;
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<microseconds>(stop - start);
- 
-// To get the value of duration use the count()
-// member function on the duration object
   std::cout << duration.count() << "\n";
   for (Node fact : d_facts)
   {
@@ -269,12 +274,47 @@ void LocalSearchExtension::processAssertion(TNode assertion)
     }
     return;
   }
+  bool isNot = assertion.getKind() == Kind::NOT;
+  TNode atom = isNot ? assertion[0] : assertion;
+  totalAsserts +=1;
+  // if Upper Bound 
+  if (atom.getKind()==Kind::GEQ && atom[0].isVar() && atom[1].isConst()){
+    int varIdx = nameToIdx[atom[0].getName()];
+    Integer limit = atom[1].getConst<Rational>().getNumerator();
+    if (!isNot) {
+    variablesValues[varIdx] = limit;
+    upperBound[varIdx] = limit;
+    return;
+    } else {
+      variablesValues[varIdx] = limit -1;
+      lowerBound[varIdx] = limit -1;
+      return;
+    }
+  }
+  // Equal
+  if (!isNot && assertion.getKind()==Kind::EQUAL && assertion[0].isVar() && assertion[1].isConst()){
+    int varIdx = nameToIdx[assertion[0].getName()];
+    Integer limit = assertion[1].getConst<Rational>().getNumerator();
+    variablesValues[varIdx] = limit;
+    equalBound[varIdx] = limit;
+    return;
+  }
+  if (!isNot && assertion.getKind()==Kind::GEQ && assertion[0].getKind()==Kind::MULT && assertion[0][1].isVar() &&  assertion[0][0].getConst<Rational>().getNumerator() == Integer(1) && assertion[1].isConst()){
+    int varIdx = nameToIdx[assertion[0][1].getName()];
+    Integer limit = assertion[1].getConst<Rational>().getNumerator();
+    variablesValues[varIdx] = Integer(-1) * limit;
+    lowerBound[varIdx] = Integer(-1) * limit;
+    return;
+  }
+  processedAsserts +=1;
+
+
 
   Literal literal;
   literal.equation = assertion;
   literal.isNot = assertion.getKind() == Kind::NOT;
   // continue to child if Not
-  TNode atom = literal.isNot ? assertion[0] : assertion;
+  //TNode atom = literal.isNot ? assertion[0] : assertion;
   literal.isEqual = atom.getKind() == Kind::EQUAL;
   // Check that the parser worked and we are only dealing with
   // == or >=
@@ -483,6 +523,21 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
   }
   std::vector<Integer> change = variablesValues;
   change[varIdxInSlv] -= delta;
+  if (upperBound[varIdxInSlv].has_value()){
+     if (upperBound[varIdxInSlv].value() < change[varIdxInSlv]){
+       return std::nullopt;
+     }
+  }
+  if (equalBound[varIdxInSlv].has_value()){
+     if (equalBound[varIdxInSlv].value() != change[varIdxInSlv]){
+       return std::nullopt;
+    }
+  }
+  if (lowerBound[varIdxInSlv].has_value()){
+     if (lowerBound[varIdxInSlv].value() > change[varIdxInSlv]){
+       return std::nullopt;
+    }
+  }
   results.push_back(std::make_pair(change, direction));
   return results;
 }
@@ -682,7 +737,8 @@ void LocalSearchExtension::applyPAWS()
 
 bool LocalSearchExtension::LocalSearch()
 {
-  std::cout << currentLiteralsIdx.size() << "\n";
+  std::cout << "Current Assertions:" << currentLiteralsIdx.size() << "\n";
+  std::cout << "Total Assertions:" << totalAsserts << "\n";
   // Initialize doNotMove and random generator
   std::vector<int> tempVec(variablesValues.size() * 2 + 1, 0);
   doNotMove = tempVec;
