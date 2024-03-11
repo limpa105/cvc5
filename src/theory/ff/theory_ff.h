@@ -30,6 +30,7 @@
 #include "theory/care_pair_argument_callback.h"
 #include "theory/ff/stats.h"
 #include "theory/ff/sub_theory.h"
+#include "theory/ff/range_solver.h"
 #include "theory/ff/theory_ff_rewriter.h"
 #include "theory/theory.h"
 #include "theory/theory_eq_notify.h"
@@ -106,6 +107,8 @@ class TheoryFiniteFields : public Theory
 #endif /* CVC5_USE_COCOA */
 
   std::unique_ptr<FfStatistics> d_stats;
+
+   std::unique_ptr<ff::RangeSolver> d_rangeSolver;
 }; /* class TheoryFiniteFields */
 
 }  // namespace ff

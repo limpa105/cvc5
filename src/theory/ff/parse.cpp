@@ -206,6 +206,9 @@ SpectrumOpt spectrum(const Node& t, uint8_t depth)
       // give up
       return {};
     }
+    case Kind::FINITE_FIELD_LT:{
+      return{};
+    }
     default: Unreachable() << t.getKind();
   }
   return {};

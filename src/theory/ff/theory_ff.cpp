@@ -58,10 +58,12 @@ TheoryFiniteFields::TheoryFiniteFields(Env& env,
       d_im(env, *this, d_state, getStatsPrefix(THEORY_FF)),
       d_eqNotify(d_im),
       d_stats(
-          std::make_unique<FfStatistics>(statisticsRegistry(), "theory::ff::"))
+          std::make_unique<FfStatistics>(statisticsRegistry(), "theory::ff::")),
+      d_rangeSolver(nullptr)
 {
   d_theoryState = &d_state;
   d_inferManager = &d_im;
+
 }
 
 TheoryFiniteFields::~TheoryFiniteFields() {}
@@ -88,6 +90,10 @@ void TheoryFiniteFields::finishInit()
 
 void TheoryFiniteFields::postCheck(Effort level)
 {
+if (options().ff.ffRangeSolver){
+  std::cout << "HELLO!\n";
+  return ;
+}
 #ifdef CVC5_USE_COCOA
   Trace("ff::check") << "ff::check : " << level << " @ level "
                      << context()->getLevel() << std::endl;
@@ -117,6 +123,10 @@ void TheoryFiniteFields::notifyFact(TNode atom,
                                     TNode fact,
                                     bool isInternal)
 {
+  if (options().ff.ffRangeSolver){
+     d_rangeSolver ->notifyFact(fact);
+    return;
+  }
 #ifdef CVC5_USE_COCOA
   Trace("ff::check") << "ff::notifyFact : " << fact << " @ level "
                      << context()->getLevel() << std::endl;
@@ -152,6 +162,7 @@ bool TheoryFiniteFields::collectModelValues(TheoryModel* m,
 
 void TheoryFiniteFields::preRegisterWithEe(TNode node)
 {
+  return;
   Assert(d_equalityEngine != nullptr);
   if (node.getKind() == Kind::EQUAL)
   {
@@ -165,6 +176,15 @@ void TheoryFiniteFields::preRegisterWithEe(TNode node)
 
 void TheoryFiniteFields::preRegisterTerm(TNode node)
 {
+  if (options().ff.ffRangeSolver){
+    if (d_rangeSolver == nullptr) {
+      TypeNode ty = node.getType();
+      TypeNode fieldTy = ty;
+      d_rangeSolver.reset(new ff::RangeSolver(d_env,ty.getFfSize()));
+      return;
+    }
+    return;
+  }
   preRegisterWithEe(node);
 #ifdef CVC5_USE_COCOA
   Trace("ff::register") << "ff::preRegisterTerm : " << node << std::endl;

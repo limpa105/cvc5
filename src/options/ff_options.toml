@@ -32,6 +32,15 @@ name   = "Finite Field Theory"
   type       = "bool"
   default    = "false"
   help       = "parse bitsums"
+
+[[option]]
+  name       = "ffRangeSolver"
+  category   = "expert"
+  long       = "ff-range-solver"
+  type       = "bool"
+  default    = "false"
+  help       = "Solve using the range solver"
+
 [[option]]
   name       = "ffSolver"
   category   = "expert"

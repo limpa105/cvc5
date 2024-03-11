@@ -47,11 +47,13 @@ operator FINITE_FIELD_MULT 2: "multiplication of two or more field elements"
 operator FINITE_FIELD_NEG 1 "unary negation of a field element"
 operator FINITE_FIELD_ADD 2: "addition of two or more field elements"
 operator FINITE_FIELD_BITSUM 2: "bitsum of field elements"
+operator FINITE_FIELD_LT 2: "element 1 is less than element 2 and greater than or equal to 0"
 
 typerule CONST_FINITE_FIELD ::cvc5::internal::theory::ff::FiniteFieldConstantTypeRule
 typerule FINITE_FIELD_MULT ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
 typerule FINITE_FIELD_NEG ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
 typerule FINITE_FIELD_ADD ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
 typerule FINITE_FIELD_BITSUM ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
+typerule FINITE_FIELD_LT ::cvc5::internal::theory::ff::FiniteFieldBoolFieldTypeRule
 
 endtheory

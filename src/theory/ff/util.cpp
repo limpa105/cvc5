@@ -82,7 +82,8 @@ bool isFfLeaf(const Node& n)
          && !(n.getKind() == Kind::FINITE_FIELD_ADD
               || n.getKind() == Kind::FINITE_FIELD_MULT
               || n.getKind() == Kind::FINITE_FIELD_NEG
-              || n.getKind() == Kind::FINITE_FIELD_BITSUM);
+              || n.getKind() == Kind::FINITE_FIELD_BITSUM
+              || n.getKind() == Kind::FINITE_FIELD_LT);
 }
 
 bool isFfTerm(const Node& n) { return n.getType().isFiniteField(); }

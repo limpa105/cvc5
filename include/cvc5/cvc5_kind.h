@@ -2031,6 +2031,19 @@ enum ENUM(Kind) : int32_t
    */
   EVALUE(FINITE_FIELD_BITSUM),
   /**
+   * Less than one integer and greater than or equal to zero: 0 <= x < y.
+   *
+   * - Arity: ``n = 2``
+   *
+   *   - ``1..n:`` Terms of finite field Sort (sorts must match)
+   *
+   * - Create Term of this Kind with:
+   *
+   *   - Solver::mkTerm(Kind, const std::vector<Term>&) const
+   *   - Solver::mkTerm(const Op&, const std::vector<Term>&) const
+   */
+  EVALUE(FINITE_FIELD_LT),
+  /**
    * Multiplication of two or more finite field elements.
    *
    * - Arity: ``n > 1``
@@ -2047,6 +2060,7 @@ enum ENUM(Kind) : int32_t
    *   - Solver::mkOp(Kind, const std::vector<uint32_t>&) const
    */
   EVALUE(FINITE_FIELD_MULT),
+
 
   /* FP -------------------------------------------------------------------- */
 
