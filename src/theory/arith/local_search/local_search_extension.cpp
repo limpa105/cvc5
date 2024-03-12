@@ -291,15 +291,27 @@ void LocalSearchExtension::processAssertion(TNode assertion)
   if (atom.getKind()==Kind::GEQ && atom[0].isVar() && atom[1].isConst()){
     std::cout << "UPPER\n";
     int varIdx = nameToIdx[atom[0].getName()];
+    // x >= 2 -> x 
     Integer limit = atom[1].getConst<Rational>().getNumerator();
     if (!isNot) {
     // not x >= 2 > x <2 -> x <= 1
-    variablesValues[varIdx] = limit;
-    upperBound[varIdx] = limit;
+      if (upperBound[varIdx].has_value()){
+        variablesValues[varIdx] = Integer::max(upperBound[varIdx].value(), limit);
+        upperBound[varIdx] = variablesValues[varIdx];
+////PAUSe
+      } else {
+      variablesValues[varIdx] = limit;
+      upperBound[varIdx] = limit;
+      }
     } else {
+       if (lowerBound[varIdx].has_value()){
+        variablesValues[varIdx] = Integer::min(lowerBound[varIdx].value(), limit-1);
+        upperBound[varIdx] = variablesValues[varIdx];
+      } else {
       //std::cout << limit << "\n";
       variablesValues[varIdx] = limit -1;
       lowerBound[varIdx] = limit -1;
+      }
     }
     for (auto idx : variablesToLiterals[varIdx]) {
       allLiterals[currentLiteralsIdx[idx]].delta = allLiterals[currentLiteralsIdx[idx]].calculateDelta(variablesValues);
@@ -317,6 +329,10 @@ void LocalSearchExtension::processAssertion(TNode assertion)
     std::cout << "EQUAL\n";
     int varIdx = nameToIdx[assertion[0].getName()];
     Integer limit = assertion[1].getConst<Rational>().getNumerator();
+    if (equalBound[varIdx].has_value()){
+      // In future learn how to throw a conflict here
+      Assert(false);
+    }
     variablesValues[varIdx] = limit;
     equalBound[varIdx] = limit;
     for (auto idx : variablesToLiterals[varIdx]) {
@@ -333,9 +349,15 @@ void LocalSearchExtension::processAssertion(TNode assertion)
   if (!isNot && assertion.getKind()==Kind::GEQ && assertion[0].getKind()==Kind::MULT && assertion[0][1].isVar() &&  assertion[0][0].getConst<Rational>().getNumerator() == Integer(-1) && assertion[1].isConst()){
     std::cout << "Lower\n";
     int varIdx = nameToIdx[assertion[0][1].getName()];
-    Integer limit = assertion[1].getConst<Rational>().getNumerator();
-    variablesValues[varIdx] = Integer(-1) * limit;
-    lowerBound[varIdx] = Integer(-1) * limit;
+    Integer limit = Integer(-1) * assertion[1].getConst<Rational>().getNumerator();
+    if (lowerBound[varIdx].has_value()){
+      variablesValues[varIdx] = Integer::min(lowerBound[varIdx].value(), limit);
+      lowerBound[varIdx] = variablesValues[varIdx];
+    } 
+    else {
+    variablesValues[varIdx] =  limit;
+    lowerBound[varIdx] =  limit;
+    }
     for (auto idx : variablesToLiterals[varIdx]) {
       allLiterals[currentLiteralsIdx[idx]].delta = allLiterals[currentLiteralsIdx[idx]].calculateDelta(variablesValues);
     if (!checkIfSat(allLiterals[currentLiteralsIdx[idx]], allLiterals[currentLiteralsIdx[idx]].delta)){
@@ -826,6 +848,7 @@ bool LocalSearchExtension::LocalSearch()
       {
         AlwaysAssert(false);
       }
+      printChange(variablesValues);
       return true;
     }
     // First try computing a decreasing change using regular score
