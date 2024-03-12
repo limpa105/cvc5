@@ -506,6 +506,7 @@ bool LocalSearchExtension::checkBounds(Integer value, int idx){
        return false;
     }
   }
+  return true;
 }
 
 
@@ -815,11 +816,10 @@ bool LocalSearchExtension::LocalSearch()
   // This should be a heuristic in the future
   while (true)
   {
-    //printUnsat();
+    printUnsat();
     // If a solution has been found
     if (unsatLiterals.size() == 0)
     {
-      std::cout << "We are here\n";
       std::cout << "Size:" << allLiterals.size() << "\n";
       // Check that all literals are SAT
       if (!checkIfSolutionSat())
@@ -887,6 +887,7 @@ bool LocalSearchExtension::LocalSearch()
         }
       }
     }
+    std::cout << "WE GOT HERE!\n";
     if (!decreasingChangeExists)
     {
       std::cout << "No CHANGE\n";
