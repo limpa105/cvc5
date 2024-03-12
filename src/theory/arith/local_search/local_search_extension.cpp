@@ -819,8 +819,15 @@ void LocalSearchExtension::applyPAWS()
 
 bool LocalSearchExtension::LocalSearch()
 {
+  for (int i = 0; i < variablesValues.size(); i++ ){
+    if (upperBound[i].has_value() && lowerBound[i].has_value() && upperBound[i] > lowerBound[i]){
+      std::cout << "CONFLICT\n";
+      return false;
+    }
+  }
   std::cout << "Current Assertions:" << currentLiteralsIdx.size() << "\n";
   std::cout << "Total Assertions:" << totalAsserts << "\n";
+  // First attempt at detecting a conflict 
   // Initialize doNotMove and random generator
   std::vector<int> tempVec(variablesValues.size() * 2 + 1, 0);
   doNotMove = tempVec;
