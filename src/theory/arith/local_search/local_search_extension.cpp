@@ -24,6 +24,7 @@
 #include <set>
 #include <vector>
 #include <chrono>
+#include <fstream>
 
 
 #include "expr/node_builder.h"
@@ -102,6 +103,8 @@ void LocalSearchExtension::preRegisterTerm(TNode node)
 
     // also add the node for the solution
     d_varList.push_back(node);
+
+
   }
 }
 
@@ -136,6 +139,8 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
     return true;
   }
   
+
+
   Trace("theory::arith::idl")
       << "IdlExtension::postCheck(): number of facts = " << d_facts.size()
       << std::endl;
@@ -265,7 +270,7 @@ void LocalSearchExtension::printChange(std::vector<Integer> change)
 
 void LocalSearchExtension::processAssertion(TNode assertion)
 {
-  std::cout << "First:" << assertion << "\n";
+  //std::cout << "First:" << assertion << "\n";
   totalAsserts +=1;
   int idx_literal = currentLiteralsIdx.size();
   if (idToIdxLiteral.count(assertion.getId())>0){
@@ -289,7 +294,7 @@ void LocalSearchExtension::processAssertion(TNode assertion)
   TNode atom = isNot ? assertion[0] : assertion;
   // if Upper Bound 
   if (atom.getKind()==Kind::GEQ && atom[0].isVar() && atom[1].isConst()){
-    std::cout << "UPPER\n";
+    //std::cout << "UPPER\n";
     int varIdx = nameToIdx[atom[0].getName()];
     // x >= 2 -> x 
     Integer limit = atom[1].getConst<Rational>().getNumerator();
@@ -326,7 +331,7 @@ void LocalSearchExtension::processAssertion(TNode assertion)
   }
   // Equal
   if (!isNot && assertion.getKind()==Kind::EQUAL && assertion[0].isVar() && assertion[1].isConst()){
-    std::cout << "EQUAL\n";
+    //std::cout << "EQUAL\n";
     int varIdx = nameToIdx[assertion[0].getName()];
     Integer limit = assertion[1].getConst<Rational>().getNumerator();
     if (equalBound[varIdx].has_value()){
@@ -369,7 +374,7 @@ void LocalSearchExtension::processAssertion(TNode assertion)
     }
     return;
   }
-  std::cout << "Cont:" << assertion << "\n";
+  //std::cout << "Cont:" << assertion << "\n";
   processedAsserts +=1;
 
 
@@ -818,6 +823,7 @@ void LocalSearchExtension::applyPAWS()
 }
 
 bool LocalSearchExtension::LocalSearch()
+
 {
   for (int i = 0; i < variablesValues.size(); i++ ){
     if (upperBound[i].has_value() && lowerBound[i].has_value() && upperBound[i] > lowerBound[i]){
@@ -825,13 +831,27 @@ bool LocalSearchExtension::LocalSearch()
       return false;
     }
   }
-  std::cout << "Current Assertions:" << currentLiteralsIdx.size() << "\n";
-  std::cout << "Total Assertions:" << totalAsserts << "\n";
+  std::random_device rd;
+    
+    // Choose a random number between 1 and 10000 as part of the file name
+  std::default_random_engine eng(rd());
+  std::uniform_int_distribution<int> distr(1, 10000);
+  int random_number = distr(eng);
+    
+    // Generate a random file name
+  // std::string filename = "~/Documents/WINTER2024/fake/cvc5/expr/file_" + std::to_string(random_number) + ".txt";
+  // std::cout << "Created file" << filename << "\n";
+
+  // myFile = filename;
+  // std::ofstream file(myFile);
+  // std::cout << myFile << "\n";
+  // std::cout << "Current Assertions:" << currentLiteralsIdx.size() << "\n";
+  // std::cout << "Total Assertions:" << totalAsserts << "\n";
   // First attempt at detecting a conflict 
   // Initialize doNotMove and random generator
   std::vector<int> tempVec(variablesValues.size() * 2 + 1, 0);
   doNotMove = tempVec;
-  std::random_device rd;
+  //std::random_device rd;
   std::mt19937 gen(rd());
   rd_generator = gen;
   //rd_generator.seed(1);
@@ -845,7 +865,10 @@ bool LocalSearchExtension::LocalSearch()
   // This should be a heuristic in the future
   while (true)
   {
-    printUnsat();
+
+    std::cout << unsatLiterals.size() << "\n";
+    //file << unsatLiterals.size() << std::endl;
+    //printUnsat();
     // If a solution has been found
     if (unsatLiterals.size() == 0)
     {
@@ -856,6 +879,8 @@ bool LocalSearchExtension::LocalSearch()
         AlwaysAssert(false);
       }
       printChange(variablesValues);
+      std::cout << "SAT" << std::endl;
+      //file.close();
       return true;
     }
     // First try computing a decreasing change using regular score
@@ -917,10 +942,10 @@ bool LocalSearchExtension::LocalSearch()
         }
       }
     }
-    std::cout << "WE GOT HERE!\n";
+    //std::cout << "WE GOT HERE!\n";
     if (!decreasingChangeExists)
     {
-      std::cout << "No CHANGE\n";
+      //std::cout << "No CHANGE\n";
       nonImprove = MAXNONIMPROVE + 1;
     }
     else
@@ -933,8 +958,11 @@ bool LocalSearchExtension::LocalSearch()
     if (nonImprove > MAXNONIMPROVE)
     {
       if (restartCount == MAXRESTARTCOUNT){
+        std::cout << "GIVE UP" << std::endl;
+
         return false;
       }
+      std::cout << "RESTART" << std::endl;
       restartCount +=1;
       restart();
       satScore = currentLiteralsIdx.size() - unsatLiterals.size();

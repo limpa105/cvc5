@@ -165,6 +165,8 @@ class LocalSearchExtension : protected EnvObj
   /** A set of idx of the unsat literals under current assignment **/
   std::set<int> unsatLiterals;
 
+  std::string myFile;
+
   /** ith entry is the set of literals that ith variable in
    * variablesValues is present */
   std::vector<std::set<int>> variablesToLiterals;

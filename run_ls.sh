@@ -21,8 +21,9 @@ echo $2
 for file in "$TEST_DIR"/*; do
     if [ -f "$file" ]; then
         ((total++))
+        filename="exp/${file##*/}"
         echo -n "$file " >> "$output_file"
-        if timeout 1200s $CVC5 --local-search-ext --produce-models --check-models -v  "$file" >>  "$output_file"; then
+        if timeout 1200s $CVC5 --local-search-ext --produce-models --check-models   "$file" >  "$filename" 2>&1; then
             ((sat_count++))
             echo "Processed $file"
         else
