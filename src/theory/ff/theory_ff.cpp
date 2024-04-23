@@ -90,9 +90,16 @@ void TheoryFiniteFields::finishInit()
 
 void TheoryFiniteFields::postCheck(Effort level)
 {
+std::cout << "Post Checking \n";
 if (options().ff.ffRangeSolver){
-  std::cout << "HELLO!\n";
-  return ;
+  Result r = d_rangeSolver->postCheck(level);
+  if (r.getStatus() == Result::UNSAT){
+    NodeManager* nm = NodeManager::currentNM();
+    const Node conflict = nm->mkAnd(d_rangeSolver->conflict());
+    d_im.conflict(conflict, InferenceId::FF_LEMMA);
+    std::cout << "WE DID IT!\n";
+  }
+  return;
 }
 #ifdef CVC5_USE_COCOA
   Trace("ff::check") << "ff::check : " << level << " @ level "
@@ -123,6 +130,7 @@ void TheoryFiniteFields::notifyFact(TNode atom,
                                     TNode fact,
                                     bool isInternal)
 {
+  std::cout << "Notifying Facts :) \n";
   if (options().ff.ffRangeSolver){
      d_rangeSolver ->notifyFact(fact);
     return;
@@ -162,7 +170,6 @@ bool TheoryFiniteFields::collectModelValues(TheoryModel* m,
 
 void TheoryFiniteFields::preRegisterWithEe(TNode node)
 {
-  return;
   Assert(d_equalityEngine != nullptr);
   if (node.getKind() == Kind::EQUAL)
   {
@@ -178,13 +185,13 @@ void TheoryFiniteFields::preRegisterTerm(TNode node)
 {
   if (options().ff.ffRangeSolver){
     if (d_rangeSolver == nullptr) {
-      TypeNode ty = node.getType();
-      TypeNode fieldTy = ty;
-      d_rangeSolver.reset(new ff::RangeSolver(d_env,ty.getFfSize()));
-      return;
+    d_rangeSolver.reset(new ff::RangeSolver(d_env));
     }
+    std::cout << "Preregistering term?" << node << "\n";
+    d_rangeSolver -> preRegisterTerm(node);
+    std::cout << "Done" << "\n";
     return;
-  }
+    }
   preRegisterWithEe(node);
 #ifdef CVC5_USE_COCOA
   Trace("ff::register") << "ff::preRegisterTerm : " << node << std::endl;

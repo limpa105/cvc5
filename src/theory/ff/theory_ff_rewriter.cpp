@@ -148,6 +148,18 @@ Node postRewriteFfAdd(TNode t)
 Node preRewriteFfMult(TNode t)
 {
   Assert(t.getKind() == Kind::FINITE_FIELD_MULT);
+  Assert(t[0].getKind() == Kind::VARIABLE || t[0].getKind() == Kind::CONST_FINITE_FIELD);
+  if (t[1].getKind() == Kind::FINITE_FIELD_ADD){
+    std::cout << "We are now here\n";
+    Assert(t.getNumChildren()==2);
+    std::vector<Node> products;
+     NodeManager* const nm = NodeManager::currentNM();
+    for (int i =0; i<t[1].getNumChildren(); i++){
+      products.push_back(nm->mkNode(Kind::FINITE_FIELD_MULT, t[0], t[1][i]));
+    }
+    return expr::algorithm::flatten(nm->mkNode(Kind::FINITE_FIELD_ADD, products));
+  }
+
   return expr::algorithm::flatten(t);
 }
 

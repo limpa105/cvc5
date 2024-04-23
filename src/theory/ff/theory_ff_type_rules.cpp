@@ -93,11 +93,11 @@ TypeNode FiniteFieldFixedFieldTypeRule::computeType(NodeManager* nodeManager,
   return t;
 }
 
-TypeNode FiniteFieldBoolFieldTypeRule::preComputeType(NodeManager* nm, TNode n){
+TypeNode FiniteFieldRelationFieldTypeRule::preComputeType(NodeManager* nm, TNode n){
   return nm->booleanType();
 }
 
-TypeNode FiniteFieldBoolFieldTypeRule::computeType(NodeManager* nodeManager,
+TypeNode FiniteFieldRelationFieldTypeRule::computeType(NodeManager* nodeManager,
                                                     TNode n,
                                                     bool check,
                                                     std::ostream* errOut){

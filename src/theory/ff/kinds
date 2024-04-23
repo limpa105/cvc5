@@ -54,6 +54,6 @@ typerule FINITE_FIELD_MULT ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTy
 typerule FINITE_FIELD_NEG ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
 typerule FINITE_FIELD_ADD ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
 typerule FINITE_FIELD_BITSUM ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
-typerule FINITE_FIELD_LT ::cvc5::internal::theory::ff::FiniteFieldBoolFieldTypeRule
+typerule FINITE_FIELD_LT ::cvc5::internal::theory::ff::FiniteFieldRelationFieldTypeRule
 
 endtheory

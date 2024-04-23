@@ -102,6 +102,7 @@ class SubTheory : protected EnvObj, public FieldObj
    */
   void setTrivialConflict();
 
+
   /**
    * Facts, in notification order.
    *

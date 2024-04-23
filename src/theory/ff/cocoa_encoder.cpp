@@ -13,9 +13,10 @@
  * encoding Nodes as cocoa ring elements.
  */
 
-#ifdef CVC5_USE_COCOA
+ #ifdef CVC5_USE_COCOA
 
 #include "theory/ff/cocoa_encoder.h"
+
 
 // external includes
 #include <CoCoA/BigInt.H>
@@ -23,9 +24,16 @@
 #include <CoCoA/SparsePolyIter.H>
 #include <CoCoA/SparsePolyOps-RingElem.H>
 #include <CoCoA/SparsePolyRing.H>
+#include <CoCoA/RingZZ.H>
+#include <CoCoA/RingQQ.H>
+#include <CoCoA/matrix.H>
+#include <CoCoA/DenseMatrix.H>
+#include <CoCoA/error.H>
+#include <CoCoA/PPOrdering.H>
 
 // std includes
 #include <sstream>
+#include <list>
 
 // internal includes
 #include "expr/node_traversal.h"
@@ -78,6 +86,7 @@ CoCoA::symbol cocoaSym(const std::string& varName, std::optional<size_t> index)
 
 CocoaEncoder::CocoaEncoder(const FfSize& size) : FieldObj(size) {}
 
+
 CoCoA::symbol CocoaEncoder::freshSym(const std::string& varName,
                                      std::optional<size_t> index)
 {
@@ -121,6 +130,32 @@ void CocoaEncoder::endScan()
   {
     d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
   }
+}
+
+void CocoaEncoder::endScanIntegers(){
+  Assert(d_stage == Stage::Scan);
+  std::cout << "Passed assert\n";
+  d_stage = Stage::Encode;
+  std::cout << d_syms.size() << "\n";
+  std::vector<std::vector<long>> k = grevlexWeighted(std::vector<long>(d_syms.size(), 2));
+  std::cout << "got order \n";
+  CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ(), k);
+  std::cout << "Made matrix\n";
+   try {
+    d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms, CoCoA::NewMatrixOrdering(
+    m, d_syms.size()-1));
+        // Your code that uses CoCoA
+    } catch (const CoCoA::ErrorInfo e) {
+      std::cout << e << "\n";
+       AlwaysAssert(false);
+    }
+  std::cout << "Made ring\n";
+
+  for (size_t i = 0, n = d_syms.size(); i < n; ++i)
+  {
+    d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
+  }
+  std::cout << "Added polys to the ring\n";
 }
 
 void CocoaEncoder::addFact(const Node& fact)

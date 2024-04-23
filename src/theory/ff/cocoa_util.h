@@ -76,10 +76,19 @@ std::string extractStr(const T& t)
   return o.str();
 }
 
+std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights);
+
+
+
 }  // namespace ff
 }  // namespace theory
 }  // namespace cvc5::internal
 
 #endif /* CVC5__THEORY__FF__COCOA_UTIL_H */
+
+
+
+
+
 
 #endif /* CVC5_USE_COCOA */

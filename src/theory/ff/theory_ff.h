@@ -30,7 +30,7 @@
 #include "theory/care_pair_argument_callback.h"
 #include "theory/ff/stats.h"
 #include "theory/ff/sub_theory.h"
-#include "theory/ff/range_solver.h"
+#include "theory/ff/range_solver_ff.h"
 #include "theory/ff/theory_ff_rewriter.h"
 #include "theory/theory.h"
 #include "theory/theory_eq_notify.h"

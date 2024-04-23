@@ -56,7 +56,7 @@ class FiniteFieldFixedFieldTypeRule
                               std::ostream* errOut);
 };
 
-class FiniteFieldBoolFieldTypeRule 
+class FiniteFieldRelationFieldTypeRule 
 {
   public:
     static TypeNode preComputeType(NodeManager* nm, TNode n);

@@ -23,6 +23,7 @@
 #include <CoCoA/SparsePolyOps-RingElem.H>
 
 // std includes
+#include <iostream>
 
 // internal includes
 
@@ -87,6 +88,33 @@ CoCoA::BigInt intToCocoa(const Integer& i)
 {
   return CoCoA::BigIntFromString(i.toString());
 }
+
+std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights){
+  std::cout << "Grev Order\n";
+  int numRows = 1;
+  int numColumns = weights.size();
+  std::cout << weights.size() << "\n";
+  int grevColumns = numColumns - numRows;
+  std::vector<std::vector<long>> finalMatrix(grevColumns, std::vector<long>(numColumns, 0));
+  std::cout << finalMatrix.size() << "\n";
+  std::cout << finalMatrix[0].size() << "\n";
+  std::cout << "Starting for loop\n";
+  for (int i =0; i<grevColumns; ++i){
+    for (int j = 0; j<numColumns; ++j){
+      if (i+j < grevColumns){
+        finalMatrix[i][j] = 1;
+      }
+      else {
+        finalMatrix[i][j] = 0;
+    }
+  }
+  }
+  std::cout << "Created first matrix \n";
+  finalMatrix.push_back(weights);
+  std::cout << "Created final matrix \n";
+  return finalMatrix;
+}
+
 
 }  // namespace ff
 }  // namespace theory

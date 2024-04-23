@@ -24,6 +24,7 @@
 #include <CoCoA/ring.H>
 #include <CoCoA/symbol.H>
 
+
 // std includes
 #include <optional>
 #include <string>
@@ -72,6 +73,7 @@ class CocoaEncoder : public FieldObj
    * Get the polys who's common zero we are finding (excluding bitsums).
    * Available in Stage::Encode.
    */
+  void endScanIntegers();
   const std::vector<Poly>& polys() const { return d_polys; }
   /**
    * Get the bitsum polys.
