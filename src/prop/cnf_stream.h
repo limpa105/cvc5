@@ -159,6 +159,8 @@ class CnfStream : protected EnvObj
   /** Retrieves map from literals to nodes. */
   const CnfStream::LiteralToNodeMap& getNodeCache() const;
 
+  void dumpDimacs(std::ostream& out, const std::vector<Node>& clauses);
+
  protected:
   /**
    * Same as above, except that uses the saved d_removable flag. It calls the

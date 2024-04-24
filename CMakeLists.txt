@@ -128,6 +128,7 @@ option(USE_POLY          "Use LibPoly for polynomial arithmetic")
 # check the intalled system version. If the user provides a directory we
 # immediately fail if the dependency was not found at the specified location.
 set(GLPK_DIR          "" CACHE STRING "Set GLPK install directory")
+set(PYTHONIC_PATH     "" CACHE STRING "Set Pythonic API repository path")
 
 # Prepend binaries with prefix on make install
 set(PROGRAM_PREFIX    "" CACHE STRING "Program prefix on make install")
@@ -352,7 +353,7 @@ endif()
 if(DEFINED BUILD_BINDINGS_PYTHON_VERSION) 
   find_package(Python ${BUILD_BINDINGS_PYTHON_VERSION} EXACT COMPONENTS Interpreter REQUIRED)
 else()
-  find_supported_python_version()
+  find_package(Python COMPONENTS Interpreter REQUIRED)
 endif()
 
 # Some cmake packages are not compatible with the newest version
@@ -363,7 +364,7 @@ if(NOT DEFINED PYTHON_EXECUTABLE)
   set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")
 endif()
 
-find_package(GMP 6.1 REQUIRED)
+find_package(GMP 6.3 REQUIRED)
 
 if(ENABLE_ASAN)
   # -fsanitize=address requires CMAKE_REQUIRED_FLAGS to be explicitely set,
@@ -476,7 +477,7 @@ if(USE_KISSAT)
 endif()
 
 if(USE_POLY)
-  find_package(Poly REQUIRED)
+  find_package(Poly 0.1.13 REQUIRED)
   add_definitions(-DCVC5_USE_POLY)
   set(CVC5_USE_POLY_IMP 1)
 else()
@@ -701,6 +702,9 @@ print_config("Api docs                  " ${BUILD_DOCS})
 message("")
 if(GLPK_DIR)
   print_config("GLPK dir                  " ${GLPK_DIR})
+endif()
+if(PYTHONIC_PATH)
+  print_config("Pythonic API path         " ${PYTHONIC_PATH})
 endif()
 message("")
 print_config("CPPLAGS (-D...)" "${CVC5_DEFINITIONS}")
