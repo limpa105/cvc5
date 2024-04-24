@@ -1,5 +1,5 @@
 (set-option :produce-models true)
-(set-logic QF_IDL)
+(set-logic QF_LIA)
 (set-info :source |Tests out a variety of syntaxes that the rewriter should support
 by Matthew Sotoudeh
 |)
@@ -9,8 +9,7 @@ by Matthew Sotoudeh
 (declare-const x Int)
 (declare-const y Int)
 (declare-const z Int)
-(assert (or (and (= 5 x) (= 6 x))
-            (and (= 10 y) (= 8 y))
+(assert (or (and (> 5 x) (< 6 x))
             (and (= (- 1) z) (= (- 1) z))))
 (check-sat)
 (get-model)

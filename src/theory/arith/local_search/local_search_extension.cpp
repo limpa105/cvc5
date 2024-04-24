@@ -121,6 +121,7 @@ void LocalSearchExtension::notifyFact(
 {
   Trace("theory::arith::idl")
       << "IdlExtension::notifyFact(): processing " << fact << std::endl;
+  std::cout << "Processing fact:" << fact << "\n";
   d_facts.push_back(fact);
 }
 
@@ -136,10 +137,13 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
 {
   if (!Theory::fullEffort(level))
   {
+    std::cout << "NOT FULL LEVEL\n";
     return true;
   }
-  
-
+  std::cout << "Printing Facts\n";
+  for (Node i: d_facts){
+    std::cout << i << "\n";
+  }
 
   Trace("theory::arith::idl")
       << "IdlExtension::postCheck(): number of facts = " << d_facts.size()
@@ -171,6 +175,7 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   }
   if (LocalSearch()){
     foundASolution = true;
+    std::cout << "LS found a solution\n";
     return false;
   }
   return true;
@@ -777,6 +782,17 @@ void LocalSearchExtension::restart()
   doNotMove = tempVec;
   std::vector<Integer> tempVec2(variablesValues.size(), Integer(0));
   variablesValues = tempVec2;
+  for (int i=0; i<variablesValues.size(); i++){
+    if (upperBound[i].has_value()){
+      variablesValues[i] = upperBound[i].value();
+    }
+    if (lowerBound[i].has_value()){
+      variablesValues[i] = lowerBound[i].value();
+    }
+    if (equalBound[i].has_value()){
+      variablesValues[i] = equalBound[i].value();
+    }
+  }
   unsatLiterals = std::set<int>();
   for (int i = 0; i < currentLiteralsIdx.size(); i++)
   {
@@ -822,9 +838,10 @@ void LocalSearchExtension::applyPAWS()
   }
 }
 
-bool LocalSearchExtension::LocalSearch()
 
+bool LocalSearchExtension::LocalSearch()
 {
+  std::cout << "Starting Local Search\n";
   for (int i = 0; i < variablesValues.size(); i++ ){
     if (upperBound[i].has_value() && lowerBound[i].has_value() && upperBound[i] > lowerBound[i]){
       std::cout << "CONFLICT\n";
@@ -862,10 +879,10 @@ bool LocalSearchExtension::LocalSearch()
   Integer bestScoreInteger;
   int restartCount = 0;
   nonImprove = 0;
+  int oldUnsat = unsatLiterals.size();
   // This should be a heuristic in the future
-  while (true)
+  while (restartCount < 2)
   {
-
     std::cout << unsatLiterals.size() << "\n";
     //file << unsatLiterals.size() << std::endl;
     //printUnsat();
@@ -970,6 +987,13 @@ bool LocalSearchExtension::LocalSearch()
     }
   }
 }
+
+std::vector<Node> LocalSearchExtension::conflict(){
+  std::vector<Node> d_conflict;
+  std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(d_conflict));
+  return d_conflict;
+}
+
 }  // namespace local_search
 }  // namespace arith
 }  // namespace theory

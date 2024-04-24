@@ -85,6 +85,8 @@ class LocalSearchExtension : protected EnvObj
   /** Register a term that is in the formula */
   void preRegisterTerm(TNode);
 
+  std::vector<Node> conflict();
+
   /** Set up the solving data structures */
   void presolve();
 

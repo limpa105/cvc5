@@ -30,6 +30,7 @@
 #include "theory/rewriter.h"
 #include "theory/theory_model.h"
 #include "util/cocoa_globals.h"
+#include "theory/decision_manager.h"
 
 using namespace std;
 using namespace cvc5::internal::kind;
@@ -220,10 +221,10 @@ Theory::PPAssertStatus TheoryArith::ppAssert(
 
 void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 {
-// if (d_localSearchExtension != nullptr)
-// {
-//   return;
-// }
+ if (d_localSearchExtension != nullptr)
+ {
+   return;
+ }
 
   if (options().arith.arithStaticLearning)
   {
@@ -233,10 +234,10 @@ void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 
 bool TheoryArith::preCheck(Effort level)
 {
-    // if (d_localSearchExtension != nullptr)
-    // {
-    //   return false;
-    // }
+    if (d_localSearchExtension != nullptr)
+     {
+      return false;
+    }
 
   Trace("arith-check") << "TheoryArith::preCheck " << level << std::endl;
   return d_internal->preCheck(level);
@@ -244,14 +245,40 @@ bool TheoryArith::preCheck(Effort level)
 
 void TheoryArith::postCheck(Effort level)
 {
-  d_im.reset();
+  std::cout << "Starting postcheck\n";
   if (d_localSearchExtension != nullptr)
   {
-    /// A solution has been found using local search
+    if (!Theory::fullEffort(level)) {
+      return;
+    }
+    std::cout << "Starting local search\n";
     if (!d_localSearchExtension->postCheck(level)){
       return;
+    } else {
+      NodeManager* nm = NodeManager::currentNM();
+      SkolemManager* sm = nm->getSkolemManager();
+      Node sk = sm->mkDummySkolem("CeLiteral", nm->booleanType());
+      Node lit = d_astate.getValuation().ensureLiteral(sk);
+      // No d_ce_lits in Arithmetic Theory? Is it okay to skip
+      d_im.addPendingPhaseRequirement(lit, true);
+      DecisionStrategy* ds = new DecisionStrategySingleton(
+      d_env, "CeLiteral", lit, d_astate.getValuation());
+      // d_dstrat[q].reset(ds); --> no d_dstart for arithmetic?
+      //d_im.doPendingPhaseRequirements();
+      //d_im.clearPendingPhaseRequirements();
+      d_im.getDecisionManager() -> registerStrategy(DecisionManager::STRAT_QUANT_CEGQI_FEASIBLE, ds);
+      vector<Node> d_conflict = d_localSearchExtension->conflict();
+      Node body = d_conflict[0];
+      for (int i =1 ; i<d_conflict.size(); i++){
+        body = nm->mkNode(Kind::AND, body, d_conflict[i]);
+      }
+      std::cout << body << "\n";
+      Node lem = nm->mkNode(Kind::OR, lit.negate(), body.negate()); 
+      std::cout << lem << "\n";
+      d_im.conflict(lem, InferenceId::LOCAL_SEARCH_LEMMA);
+      std::cout << "Got a conflict\n";
+      return;
     };
-    // Else default to regular solver
   }
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
@@ -377,13 +404,16 @@ void TheoryArith::propagate(Effort e) {
 bool TheoryArith::collectModelInfo(TheoryModel* m,
                                    const std::set<Node>& termSet)
 {
+  std::cout<< "COLLECTING MODEL INFO\n";
   // if the solution was found by local search return it
   if (d_localSearchExtension != nullptr)
   {
+     std::cout<< "COLLECTING MODEL INFO from LS\n";
     if (d_localSearchExtension->foundASolution){
     std::cout << "local search ";
     return d_localSearchExtension->collectModelInfo(m, termSet);
     }
+    AlwaysAssert(false);
   }
   // If we have a buffered lemma (from the non-linear extension), then we
   // do not assert model values, since those values are likely incorrect.
