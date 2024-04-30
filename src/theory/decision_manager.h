@@ -55,7 +55,7 @@ class DecisionManager
   {
     // The order of the global decision strategy used by the TheoryEngine
     // for getNextDecision.
-
+    STRAT_LOCAL_SEARCH_GUARD,
     //----- assume-feasibile strategies
     //  These are required to go first for the sake of model-soundness. In
     //  other words, if these strategies did not go first, we might answer
@@ -84,7 +84,7 @@ class DecisionManager
     //----- decision strategies that are optimizations
     STRAT_ARRAYS,
 
-    STRAT_LAST
+    STRAT_LAST,
   };
   /** The scope of a strategy, used in registerStrategy below */
   enum StrategyScope

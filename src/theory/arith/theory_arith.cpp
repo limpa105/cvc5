@@ -31,6 +31,7 @@
 #include "theory/theory_model.h"
 #include "util/cocoa_globals.h"
 #include "theory/decision_manager.h"
+#include <random>
 
 using namespace std;
 using namespace cvc5::internal::kind;
@@ -265,31 +266,52 @@ void TheoryArith::postCheck(Effort level)
     if (!d_localSearchExtension->postCheck(level)){
       return;
     } else {
+      // Step 1: Get conflict 
+      // TODO rewrite this to be cleaner 
       NodeManager* nm = NodeManager::currentNM();
-      SkolemManager* sm = nm->getSkolemManager();
-      Node sk = sm->mkDummySkolem("CeLiteral", nm->booleanType());
-      Node lit = d_astate.getValuation().ensureLiteral(sk);
-      // No d_ce_lits in Arithmetic Theory? Is it okay to skip
-      d_im.addPendingPhaseRequirement(lit, true);
-      DecisionStrategy* ds = new DecisionStrategySingleton(
-      d_env, "CeLiteral", lit, d_astate.getValuation());
-      // d_dstrat[q].reset(ds); --> no d_dstart for arithmetic?
-      //d_im.doPendingPhaseRequirements();
-      //d_im.clearPendingPhaseRequirements();
-      d_im.getDecisionManager() -> registerStrategy(DecisionManager::STRAT_QUANT_CEGQI_FEASIBLE, ds);
       vector<Node> d_conflict = d_localSearchExtension->conflict();
       Node body = d_conflict[0];
       for (int i =1 ; i<d_conflict.size(); i++){
-        body = nm->mkNode(Kind::AND, body, d_conflict[i]);
+         body = nm->mkNode(Kind::AND, body, d_conflict[i]);
       }
-      std::cout << body << "\n";
+      std::cout << "Body:" << body << "\n";
+
+      // Step 2: Check if conflict already exists 
+      if (d_conflict_guard.count(body) > 0){
+      bool value;
+      Node guard = d_conflict_guard[body];
+      if (d_astate.getValuation().hasSatValue(guard, value))
+      {
+        if (value){
+          // This should never happen 
+          std::cout << "guard was set to true\n";
+        }
+        else {
+          // This means the guard did not work for some reason
+          std::cout << "guard was set to false\n";
+        }
+      } else {
+        AlwaysAssert(false);
+      }
+      }
+      // This conflict has already been seen so we need a new one: randomly choose one 
+      // literal to exclude from the body  
+      SkolemManager* sm = nm->getSkolemManager();
+      Node sk = sm->mkDummySkolem("CeLiteral", nm->booleanType());
+      Node lit = d_astate.getValuation().ensureLiteral(sk);
+      d_im.addPendingPhaseRequirement(lit, true);
+      //d_im.doPendingPhaseRequirements();
+      DecisionStrategy* ds = new DecisionStrategySingleton(
+      d_env, "CeLiteral", lit, d_astate.getValuation());
+      d_im.getDecisionManager() -> registerStrategy(DecisionManager::STRAT_LOCAL_SEARCH_GUARD, ds, DecisionManager::STRAT_SCOPE_USER_CTX_DEPENDENT);
       Node lem = nm->mkNode(Kind::OR, lit.negate(), body.negate()); 
-      std::cout << lem << "\n";
-      d_im.conflict(lem, InferenceId::LOCAL_SEARCH_LEMMA);
+      std::cout << "Lemma:" << lem << "\n";
+      bool added = d_im.lemma(lem, InferenceId::CONFLICT_REWRITE_LIT, LemmaProperty(0));
+      d_conflict_guard[body] = lit;
       std::cout << "Got a conflict\n";
-      return;
+    }
     };
-  }
+
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
   {

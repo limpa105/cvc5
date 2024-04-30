@@ -968,7 +968,9 @@ enum class InferenceId
   // From the partition generator
   PARTITION_GENERATOR_PARTITION,
   //-------------------------------------- unknown
-  UNKNOWN
+  UNKNOWN,
+
+  LOCAL_SEARCH_LEMMA
 };
 
 /**

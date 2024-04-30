@@ -209,6 +209,8 @@ class TheoryArith : public Theory {
   bool d_arithModelCacheSet;
   /** Checks the proof rules of this theory. */
   ArithProofRuleChecker d_checker;
+  /** Stores map of los conflicts to gurards */
+  std::map<Node, Node> d_conflict_guard;
 
 };/* class TheoryArith */
 

@@ -883,7 +883,7 @@ bool LocalSearchExtension::LocalSearch()
   // This should be a heuristic in the future
   while (restartCount < 2)
   {
-    std::cout << unsatLiterals.size() << "\n";
+    //std::cout << unsatLiterals.size() << "\n";
     //file << unsatLiterals.size() << std::endl;
     //printUnsat();
     // If a solution has been found
