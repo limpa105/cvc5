@@ -267,14 +267,16 @@ void TheoryArith::postCheck(Effort level)
       return;
     } else {
       // Step 1: Get conflict 
-      // TODO rewrite this to be cleaner 
+      // TODO rewrite this to be cleaner
+      std::cout << "Theory recivied local search fail\n"; 
       NodeManager* nm = NodeManager::currentNM();
       vector<Node> d_conflict = d_localSearchExtension->conflict();
+      std::cout << "Theory got local search conflict which has size:" << d_conflict.size() << "\n";
       Node body = d_conflict[0];
       for (int i =1 ; i<d_conflict.size(); i++){
          body = nm->mkNode(Kind::AND, body, d_conflict[i]);
       }
-      std::cout << "Body:" << body << "\n";
+      //std::cout << "Body:" << body << "\n";
 
       // Step 2: Check if conflict already exists 
       if (d_conflict_guard.count(body) > 0){
@@ -305,9 +307,10 @@ void TheoryArith::postCheck(Effort level)
       d_env, "CeLiteral", lit, d_astate.getValuation());
       d_im.getDecisionManager() -> registerStrategy(DecisionManager::STRAT_LOCAL_SEARCH_GUARD, ds, DecisionManager::STRAT_SCOPE_USER_CTX_DEPENDENT);
       Node lem = nm->mkNode(Kind::OR, lit.negate(), body.negate()); 
-      std::cout << "Lemma:" << lem << "\n";
+      //std::cout << "Lemma:" << lem << "\n";
       bool added = d_im.lemma(lem, InferenceId::CONFLICT_REWRITE_LIT, LemmaProperty(0));
       d_conflict_guard[body] = lit;
+      std::cout << added << "\n";
       std::cout << "Got a conflict\n";
     }
     };

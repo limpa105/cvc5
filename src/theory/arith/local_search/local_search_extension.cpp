@@ -989,6 +989,7 @@ bool LocalSearchExtension::LocalSearch()
 }
 
 std::vector<Node> LocalSearchExtension::conflict(){
+  std::cout << "LS got conflict call \n";
   std::vector<Node> d_conflict;
   std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(d_conflict));
   return d_conflict;
