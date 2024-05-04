@@ -31,7 +31,7 @@ if __name__ == "__main__":
         result.append(i.split("\n"))
     df = pd.DataFrame()
     for i in result[1:]:
-        df = pd.concat([df, make_df(i)],ignore_index=True, join='outer')
+        df = pd.concat([df, make_df(i)],ignore_index=True, join='outer', sort=False)
     df["CVC5::SolutionFoundByLS"] = df["CVC5::SolutionFoundByLS"].fillna('0').astype(int)
     df["CVC5::SolutionFoundBySimplex"] = df["CVC5::SolutionFoundBySimplex"].fillna('0').astype(int)
     df["LS::RunTime"] = df["LS::RunTime"].str.replace('ms', '').fillna('0').astype(int).sum()
