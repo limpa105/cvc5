@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <random>
+#include <unordered_map>
 
 #include "context/cdlist.h"
 #include "smt/env_obj.h"
@@ -85,7 +86,9 @@ class LocalSearchExtension : protected EnvObj
   /** Register a term that is in the formula */
   void preRegisterTerm(TNode);
 
-  std::vector<Node> conflict();
+  std::vector<std::tuple<TNode, bool, TNode>> conflict();
+
+  std::vector<std::tuple<TNode, bool, TNode>> getTrivialConflict();
 
   /** Set up the solving data structures */
   void presolve();
@@ -105,11 +108,18 @@ class LocalSearchExtension : protected EnvObj
   /** Get all information regarding the current model */
   bool collectModelInfo(TheoryModel* m, const std::set<Node>& termSet);
 
+  std::vector<std::tuple<TNode, bool, TNode>> dls_conflict;
+
  private:
   /** -------------------------------------------------------------
    * The variables below are inherited from IDL Extension  */
   typedef context::CDHashMap<TNode, size_t> TNodeToUnsignedCDMap;
 
+  bool ConflictFound; 
+
+  std::unordered_map<int, int> idxToMainIdx;
+
+  std::map<int, int> idxToCount;
   /** The owner of this extension */
   TheoryArith& d_parent;
 
@@ -120,7 +130,7 @@ class LocalSearchExtension : protected EnvObj
   context::CDList<TNode> d_varList;
 
   /** Context-dependent list of asserted theory literals */
-  context::CDList<TNode> d_facts;
+  context::CDList<std::tuple<TNode, bool, TNode>> d_facts;
 
   /** i,jth entry is true iff there is an edge from i to j. */
   std::vector<std::vector<bool>> d_valid;
@@ -130,7 +140,7 @@ class LocalSearchExtension : protected EnvObj
   /** ---------------------------------------------------------------- **/
 
   /** Parameter after how many iterations should one restart*/
-  const int MAXNONIMPROVE = 50000;
+  const int MAXNONIMPROVE = 100000;
 
   const int MAXRESTARTCOUNT = 1;
 
@@ -176,15 +186,18 @@ class LocalSearchExtension : protected EnvObj
   /** A map of variable name to its index in values **/
   std::map<std::string, int> nameToIdx;
 
+
   /** A list of indexes that cannot be moved as they
    *  were moved < n iterations ago **/
   std::vector<int> doNotMove;
 
-  std::vector<std::optional<Integer>> upperBound;
+  std::vector<int> d_Bounds;
 
-  std::vector<std::optional<Integer>> lowerBound;
+  std::vector<std::optional<std::pair<Integer,int>>> upperBound;
 
-  std::vector<std::optional<Integer>> equalBound;
+  std::vector<std::optional<std::pair<Integer,int>>>  lowerBound;
+
+  std::vector<std::optional<std::pair<Integer,int>>>  equalBound;
 
 
   /** Number of iterations since last restart **/
@@ -217,7 +230,7 @@ class LocalSearchExtension : protected EnvObj
   //void addLiteral(Literal literal) { literals.push_back(literal); }
 
   /** Process a new assertion into the local data structures */
-  void processAssertion(TNode assertion);
+  void processAssertion(TNode assertion, int MainIndx);
 
   /** Parse one side of the literal AST **/
   void parseOneSide(internal::TNode& side, Literal& literal);

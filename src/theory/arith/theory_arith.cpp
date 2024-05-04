@@ -223,19 +223,11 @@ TrustNode TheoryArith::ppStaticRewrite(TNode atom)
 Theory::PPAssertStatus TheoryArith::ppAssert(
     TrustNode tin, TrustSubstitutionMap& outSubstitutions)
 {
-  // if (d_localSearchExtension != nullptr)
-  // {
-  //   return Theory::PP_ASSERT_STATUS_UNSOLVED;
-  // }
   return d_internal->ppAssert(tin, outSubstitutions);
 }
 
 void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 {
- if (d_localSearchExtension != nullptr)
- {
-   return;
- }
 
   if (options().arith.arithStaticLearning)
   {
@@ -245,10 +237,6 @@ void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 
 bool TheoryArith::preCheck(Effort level)
 {
-    if (d_localSearchExtension != nullptr)
-     {
-      return false;
-    }
 
   Trace("arith-check") << "TheoryArith::preCheck " << level << std::endl;
   return d_internal->preCheck(level);
@@ -256,65 +244,83 @@ bool TheoryArith::preCheck(Effort level)
 
 void TheoryArith::postCheck(Effort level)
 {
-  std::cout << "Starting postcheck\n";
-  if (d_localSearchExtension != nullptr)
+  if (Theory::fullEffort(level) && d_localSearchExtension != nullptr)
   {
-    if (!Theory::fullEffort(level)) {
-      return;
-    }
-    std::cout << "Starting local search\n";
+    //std::cout << "Starting local search\n";
+    localSearchTime.start();
     if (!d_localSearchExtension->postCheck(level)){
-      return;
-    } else {
+       localSearchTime.stop();
+       return;
+     } 
+    localSearchTime.stop();
+    //else {
+      //localSearchTime.stop();
+      //simplexTime.start();
       // Step 1: Get conflict 
-      // TODO rewrite this to be cleaner
-      std::cout << "Theory recivied local search fail\n"; 
-      NodeManager* nm = NodeManager::currentNM();
-      vector<Node> d_conflict = d_localSearchExtension->conflict();
-      std::cout << "Theory got local search conflict which has size:" << d_conflict.size() << "\n";
-      Node body = d_conflict[0];
-      for (int i =1 ; i<d_conflict.size(); i++){
-         body = nm->mkNode(Kind::AND, body, d_conflict[i]);
-      }
-      //std::cout << "Body:" << body << "\n";
+      // TODO rewrite this to be cleaner 
+      // NodeManager* nm = NodeManager::currentNM();
+      // std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->conflict();
+      // for (auto i: dls_conflict ){
+      //   d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
+      // }
+      // if (d_internal->postCheck(level)){
+      //   // simplex found a real conflict :) 
+      //   simplexTime.stop();
+      //   return;
+      // } else {
+      //   std::cout << "SIMPLEX FAILED TO FIND A CONFLICT\n";
+      //   std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict();
+      //   simplexTime.start();
+      //   for (auto i: dls_conflict2 ){
+      //   d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
+      //   }
+        //d_internal->postCheck(level);
+        //simplexTime.stop();
+        //return;
+      //}
+      // Node body = dls_conflict[0];
+      // for (int i =1 ; i<dls_conflict.size(); i++){
+      //    body = nm->mkNode(Kind::AND, body, dls_conflict[i]);
+      // }
+      // std::cout << "Body:" << body << "\n";
 
-      // Step 2: Check if conflict already exists 
-      if (d_conflict_guard.count(body) > 0){
-      bool value;
-      Node guard = d_conflict_guard[body];
-      if (d_astate.getValuation().hasSatValue(guard, value))
-      {
-        if (value){
-          // This should never happen 
-          std::cout << "guard was set to true\n";
-        }
-        else {
-          // This means the guard did not work for some reason
-          std::cout << "guard was set to false\n";
-        }
-      } else {
-        AlwaysAssert(false);
-      }
-      }
+      // // Step 2: Check if conflict already exists 
+      // if (d_conflict_guard.count(body) > 0){
+      //   AlwaysAssert(false);
+      // bool value;
+      // Node guard = d_conflict_guard[body];
+      // if (d_astate.getValuation().hasSatValue(guard, value))
+      // {
+      //   if (value){
+      //     // This should never happen 
+      //     std::cout << "guard was set to true\n";
+      //   }
+      //   else {
+      //     // This means the guard did not work for some reason
+      //     std::cout << "guard was set to false\n";
+      //   }
+      // } else {
+      //   AlwaysAssert(false);
+      // }
+      // }
       // This conflict has already been seen so we need a new one: randomly choose one 
       // literal to exclude from the body  
-      SkolemManager* sm = nm->getSkolemManager();
-      Node sk = sm->mkDummySkolem("CeLiteral", nm->booleanType());
-      Node lit = d_astate.getValuation().ensureLiteral(sk);
-      d_im.addPendingPhaseRequirement(lit, true);
-      //d_im.doPendingPhaseRequirements();
-      DecisionStrategy* ds = new DecisionStrategySingleton(
-      d_env, "CeLiteral", lit, d_astate.getValuation());
-      d_im.getDecisionManager() -> registerStrategy(DecisionManager::STRAT_LOCAL_SEARCH_GUARD, ds, DecisionManager::STRAT_SCOPE_USER_CTX_DEPENDENT);
-      Node lem = nm->mkNode(Kind::OR, lit.negate(), body.negate()); 
-      //std::cout << "Lemma:" << lem << "\n";
-      bool added = d_im.lemma(lem, InferenceId::CONFLICT_REWRITE_LIT, LemmaProperty(0));
-      d_conflict_guard[body] = lit;
-      std::cout << added << "\n";
-      std::cout << "Got a conflict\n";
-    }
-    };
-
+      // SkolemManager* sm = nm->getSkolemManager();
+      // Node sk = sm->mkDummySkolem("CeLiteral", nm->booleanType());
+      // Node lit = d_astate.getValuation().ensureLiteral(sk);
+      // //d_im.preferPhase(lit, true);
+      // //d_im.doPendingPhaseRequirements();
+      // //std::cout << d_astate.getValuation().getModel() << "\n";
+      // //DecisionStrategy* ds = new DecisionStrategySingleton(
+      // //d_env, "CeLiteral", lit, d_astate.getValuation());
+      // //d_im.getDecisionManager() -> registerStrategy(DecisionManager::STRAT_QUANT_CEGQI_FEASIBLE, ds, DecisionManager::STRAT_SCOPE_CTX_INDEPENDENT);
+      // //Node lem = nm->mkNode(Kind::OR, lit.negate(), body.negate()); 
+      // //d_im.conflict(body, InferenceId::LOCAL_SEARCH_LEMMA);
+      // //d_conflict_guard[body] = lit;
+      // //std::cout << "Got a conflict\n";
+    //}
+  };
+  simplexTime.start();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
   {
@@ -344,6 +350,7 @@ void TheoryArith::postCheck(Effort level)
     // linear solver emitted a conflict or lemma, return
     return;
   }
+  simplexTime.stop();
   if (d_im.hasSent())
   {
     return;
@@ -439,16 +446,15 @@ void TheoryArith::propagate(Effort e) {
 bool TheoryArith::collectModelInfo(TheoryModel* m,
                                    const std::set<Node>& termSet)
 {
-  std::cout<< "COLLECTING MODEL INFO\n";
   // if the solution was found by local search return it
   if (d_localSearchExtension != nullptr)
   {
-     std::cout<< "COLLECTING MODEL INFO from LS\n";
     if (d_localSearchExtension->foundASolution){
-    std::cout << "local search ";
+    std::cout << "Are we not here..?\n";
+    solutionFoundByLS.set(true);
     return d_localSearchExtension->collectModelInfo(m, termSet);
     }
-    AlwaysAssert(false);
+    //AlwaysAssert(false);
   }
   // If we have a buffered lemma (from the non-linear extension), then we
   // do not assert model values, since those values are likely incorrect.
@@ -460,8 +466,8 @@ bool TheoryArith::collectModelInfo(TheoryModel* m,
   {
     return true;
   }
+  solutionFoundBySimplex.set(true);
   // this overrides behavior to not assert equality engine
-  std::cout << "cvc5 ";
   return collectModelValues(m, termSet);
 }
 
@@ -525,11 +531,10 @@ void TheoryArith::notifyRestart(){
 }
 
 void TheoryArith::presolve(){
-  if (d_localSearchExtension != nullptr)
-  {
-    d_localSearchExtension->presolve();
-    return;
-  }
+  // if (d_localSearchExtension != nullptr)
+  // {
+  //   d_localSearchExtension->presolve();
+  // }
   d_internal->presolve();
 }
 

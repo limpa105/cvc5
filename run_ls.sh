@@ -21,62 +21,42 @@ echo $2
 for file in "$TEST_DIR"/*; do
     if [ -f "$file" ]; then
         ((total++))
-        filename="exp/${file##*/}"
+        echo -n "NEW FILE" >> "$output_file"
         echo -n "$file " >> "$output_file"
-	echo "$file"
-        if timeout 1200s $CVC5 --local-search-ext --produce-models --check-models   "$file" >  "$output_file"; then
-            ((sat_count++))
-            echo "Processed $file"
-        else
-            echo "timeout" >> "$output_file"
-            echo "Time out $file"
-        fi 
+	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >> "$output_file" 2>&1
+        echo "Processed $file"
     fi
 done 
 
 for file in "$TEST_DIR"/*/*; do
     if [ -f "$file" ]; then
         ((total++))
+        echo -n "NEW FILE" >> "$output_file"
         echo -n "$file " >> "$output_file"
-	echo "$file "
-        if timeout 1200s $CVC5 --local-search-ext --produce-models --check-models "$file" >>  "$output_file"; then
-            ((sat_count++))
-            echo "Processed $file"
-        else
-            echo "timeout" >> "$output_file"
-            echo "Time out $file"
-        fi 
+	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >> "$output_file" 2>&1
+        echo "Processed $file"
     fi
 done 
 
 for file in "$TEST_DIR"/*/*/*; do
     if [ -f "$file" ]; then
         ((total++))
+        echo -n "NEW FILE" >> "$output_file"
         echo -n "$file " >> "$output_file"
-        if timeout 1200s $CVC5 --local-search-ext --produce-models --check-models -v "$file" >>  "$output_file"; then
-            ((sat_count++))
-            echo "Processed $file"
-        else
-            echo "timeout" >> "$output_file"
-            echo "Time out $file"
-        fi 
+	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >> "$output_file" 2>&1
+        echo "Processed $file"
     fi
 done 
+
 
 for file in "$TEST_DIR"/*/*/*/*; do
     if [ -f "$file" ]; then
         ((total++))
+        echo -n "NEW FILE" >> "$output_file"
         echo -n "$file " >> "$output_file"
-        if timeout 1200s $CVC5 --local-search-ext --produce-models --check-models -v "$file" >>  "$output_file"; then
-            ((sat_count++))
-            echo "Processed $file"
-        else
-            echo "timeout" >> "$output_file"
-            echo "Time out $file"
-        fi 
+	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >>  "$output_file" 2>&1
+        echo "Processed $file"
     fi
-done 
+done  
 
 
-
-echo "$sat_count correct out of $total"

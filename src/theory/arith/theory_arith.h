@@ -27,6 +27,8 @@
 #include "theory/arith/proof_checker.h"
 #include "theory/theory.h"
 #include "theory/theory_state.h"
+#include "util/statistics_registry.h"
+
 
 namespace cvc5::internal {
 namespace theory {
@@ -131,6 +133,11 @@ class TheoryArith : public Theory {
     return d_im;
   }
 
+  TimerStat localSearchTime = statisticsRegistry().registerTimer("LS::RunTime", false);
+  TimerStat simplexTime = statisticsRegistry().registerTimer("Simplex::RunTime", false);
+  ValueStat<bool> solutionFoundByLS = statisticsRegistry().registerValue("CVC5::SolutionFoundByLS", false, false);
+  ValueStat<bool> solutionFoundBySimplex = statisticsRegistry().registerValue("CVC5::SolutionFoundBySimplex", false, false);
+
  private:
   /**
    * Update d_arithModelCache (if it is empty right now) and compute the termSet
@@ -211,6 +218,8 @@ class TheoryArith : public Theory {
   ArithProofRuleChecker d_checker;
   /** Stores map of los conflicts to gurards */
   std::map<Node, Node> d_conflict_guard;
+  /** Some Statistics **/
+
 
 };/* class TheoryArith */
 
