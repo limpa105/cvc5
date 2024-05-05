@@ -450,8 +450,7 @@ bool TheoryArith::collectModelInfo(TheoryModel* m,
   if (d_localSearchExtension != nullptr)
   {
     if (d_localSearchExtension->foundASolution){
-    std::cout << "Are we not here..?\n";
-    solutionFoundByLS.set(true);
+    std::cout << "CVC5::SolutionFoundByLS=1\n";
     return d_localSearchExtension->collectModelInfo(m, termSet);
     }
     //AlwaysAssert(false);
@@ -466,7 +465,7 @@ bool TheoryArith::collectModelInfo(TheoryModel* m,
   {
     return true;
   }
-  solutionFoundBySimplex.set(true);
+  std::cout << "CVC5::SolutionFoundBySimplex=1\n";
   // this overrides behavior to not assert equality engine
   return collectModelValues(m, termSet);
 }
