@@ -59,4 +59,4 @@ for file in "$TEST_DIR"/*/*/*/*; do
     fi
 done  
 
-python analyze.py "$output_file"
+python3 analyze.py "$output_file"
