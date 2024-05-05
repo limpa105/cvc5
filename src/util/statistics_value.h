@@ -96,7 +96,7 @@ struct StatisticAverageValue : StatisticBaseValue
 template <typename T>
 struct StatisticBackedValue : StatisticBaseValue
 {
-  StatExportData getViewer() const override;
+  StatExportData getViewer() const override { return d_value; }
   bool isDefault() const override { return d_value == T(); }
   void printSafe(int fd) const override { safe_print<T>(fd, d_value); }
 

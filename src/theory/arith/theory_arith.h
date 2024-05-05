@@ -135,8 +135,8 @@ class TheoryArith : public Theory {
 
   TimerStat localSearchTime = statisticsRegistry().registerTimer("LS::RunTime", false);
   TimerStat simplexTime = statisticsRegistry().registerTimer("Simplex::RunTime", false);
-  ValueStat<bool> solutionFoundByLS = statisticsRegistry().registerValue("CVC5::SolutionFoundByLS", false, false);
-  ValueStat<bool> solutionFoundBySimplex = statisticsRegistry().registerValue("CVC5::SolutionFoundBySimplex", false, false);
+  //ValueStat<bool> solutionFoundByLS = statisticsRegistry().registerValue("CVC5::SolutionFoundByLS", false, false);
+  //ValueStat<bool> solutionFoundBySimplex = statisticsRegistry().registerValue("CVC5::SolutionFoundBySimplex", false, false);
 
  private:
   /**

@@ -302,95 +302,95 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
   bool isNot = assertion.getKind() == Kind::NOT;
   TNode atom = isNot ? assertion[0] : assertion;
   // if Upper Bound 
-  if (atom.getKind()==Kind::GEQ && atom[0].isVar() && atom[1].isConst()){
-    //std::cout << "UPPER\n";
-    int varIdx = nameToIdx[atom[0].getName()];
-    // x >= 2 -> x 
-    Integer limit = atom[1].getConst<Rational>().getNumerator();
-    if (!isNot) {
-    // not x >= 2 > x <2 -> x <= 1
-      if (upperBound[varIdx].has_value()){
-        variablesValues[varIdx] = Integer::max(upperBound[varIdx].value().first, limit);
-        upperBound[varIdx] = std::make_pair(variablesValues[varIdx], MainIdx);
-        d_Bounds.push_back(MainIdx);
-////PAUSe
-      } else {
-      variablesValues[varIdx] = limit;
-      upperBound[varIdx] = std::make_pair(limit, MainIdx);
-      d_Bounds.push_back(MainIdx);
-      }
-    } else {
-       if (lowerBound[varIdx].has_value()){
-        variablesValues[varIdx] = Integer::min(lowerBound[varIdx].value().first, limit-1);
-        upperBound[varIdx] = std::make_pair(variablesValues[varIdx], MainIdx);
-        d_Bounds.push_back(MainIdx);
-      } else {
-      //std::cout << limit << "\n";
-      variablesValues[varIdx] = limit -1;
-      lowerBound[varIdx] = std::make_pair(limit -1, MainIdx);
-      d_Bounds.push_back(MainIdx);
-      }
-    }
-    for (auto idx : variablesToLiterals[varIdx]) {
-      allLiterals[currentLiteralsIdx[idx]].delta = allLiterals[currentLiteralsIdx[idx]].calculateDelta(variablesValues);
-      if (!checkIfSat(allLiterals[currentLiteralsIdx[idx]], allLiterals[currentLiteralsIdx[idx]].delta)){
-          unsatLiterals.insert(idx);
-      }
-      else {
-        unsatLiterals.erase(idx);
-      }
-    }
-    return;
-  }
-  // Equal
-  if (!isNot && assertion.getKind()==Kind::EQUAL && assertion[0].isVar() && assertion[1].isConst()){
-    //std::cout << "EQUAL\n";
-    int varIdx = nameToIdx[assertion[0].getName()];
-    Integer limit = assertion[1].getConst<Rational>().getNumerator();
-    if (equalBound[varIdx].has_value() && 
-          (equalBound[varIdx].value().first!= limit)){
-        ConflictFound = true; 
-        dls_conflict.push_back(d_facts[equalBound[varIdx].value().second]);
-    }
-    variablesValues[varIdx] = limit;
-    equalBound[varIdx] = std::make_pair(limit, MainIdx);
-    d_Bounds.push_back(MainIdx);
-    for (auto idx : variablesToLiterals[varIdx]) {
-    allLiterals[currentLiteralsIdx[idx]].delta = allLiterals[currentLiteralsIdx[idx]].calculateDelta(variablesValues);
-    if (!checkIfSat(allLiterals[currentLiteralsIdx[idx]], allLiterals[currentLiteralsIdx[idx]].delta)){
-          unsatLiterals.insert(idx);
-      }
-    else {
-      unsatLiterals.erase(idx);
-    }
-    }
-    return;
-  }
-  if (!isNot && assertion.getKind()==Kind::GEQ && assertion[0].getKind()==Kind::MULT && assertion[0][1].isVar() &&  assertion[0][0].getConst<Rational>().getNumerator() == Integer(-1) && assertion[1].isConst()){
-    std::cout << "Lower\n";
-    int varIdx = nameToIdx[assertion[0][1].getName()];
-    Integer limit = Integer(-1) * assertion[1].getConst<Rational>().getNumerator();
-    if (lowerBound[varIdx].has_value()){
-      variablesValues[varIdx] = Integer::min(lowerBound[varIdx].value().first, limit);
-      lowerBound[varIdx] = std::make_pair(variablesValues[varIdx], MainIdx);
-      d_Bounds.push_back(MainIdx);
-    } 
-    else {
-    variablesValues[varIdx] =  limit;
-    lowerBound[varIdx] =  std::make_pair(limit, MainIdx);
-    d_Bounds.push_back(MainIdx);
-    }
-    for (auto idx : variablesToLiterals[varIdx]) {
-      allLiterals[currentLiteralsIdx[idx]].delta = allLiterals[currentLiteralsIdx[idx]].calculateDelta(variablesValues);
-    if (!checkIfSat(allLiterals[currentLiteralsIdx[idx]], allLiterals[currentLiteralsIdx[idx]].delta)){
-        unsatLiterals.insert(idx);
-      }
-    else {
-      unsatLiterals.erase(idx);
-    }
-    }
-    return;
-  }
+//   if (atom.getKind()==Kind::GEQ && atom[0].isVar() && atom[1].isConst()){
+//     //std::cout << "UPPER\n";
+//     int varIdx = nameToIdx[atom[0].getName()];
+//     // x >= 2 -> x 
+//     Integer limit = atom[1].getConst<Rational>().getNumerator();
+//     if (!isNot) {
+//     // not x >= 2 > x <2 -> x <= 1
+//       if (upperBound[varIdx].has_value()){
+//         variablesValues[varIdx] = Integer::max(upperBound[varIdx].value().first, limit);
+//         upperBound[varIdx] = std::make_pair(variablesValues[varIdx], MainIdx);
+//         d_Bounds.push_back(MainIdx);
+// ////PAUSe
+//       } else {
+//       variablesValues[varIdx] = limit;
+//       upperBound[varIdx] = std::make_pair(limit, MainIdx);
+//       d_Bounds.push_back(MainIdx);
+//       }
+//     } else {
+//        if (lowerBound[varIdx].has_value()){
+//         variablesValues[varIdx] = Integer::min(lowerBound[varIdx].value().first, limit-1);
+//         upperBound[varIdx] = std::make_pair(variablesValues[varIdx], MainIdx);
+//         d_Bounds.push_back(MainIdx);
+//       } else {
+//       //std::cout << limit << "\n";
+//       variablesValues[varIdx] = limit -1;
+//       lowerBound[varIdx] = std::make_pair(limit -1, MainIdx);
+//       d_Bounds.push_back(MainIdx);
+//       }
+//     }
+//     for (auto idx : variablesToLiterals[varIdx]) {
+//       allLiterals[currentLiteralsIdx[idx]].delta = allLiterals[currentLiteralsIdx[idx]].calculateDelta(variablesValues);
+//       if (!checkIfSat(allLiterals[currentLiteralsIdx[idx]], allLiterals[currentLiteralsIdx[idx]].delta)){
+//           unsatLiterals.insert(idx);
+//       }
+//       else {
+//         unsatLiterals.erase(idx);
+//       }
+//     }
+//     return;
+//   }
+//   // Equal
+//   if (!isNot && assertion.getKind()==Kind::EQUAL && assertion[0].isVar() && assertion[1].isConst()){
+//     //std::cout << "EQUAL\n";
+//     int varIdx = nameToIdx[assertion[0].getName()];
+//     Integer limit = assertion[1].getConst<Rational>().getNumerator();
+//     if (equalBound[varIdx].has_value() && 
+//           (equalBound[varIdx].value().first!= limit)){
+//         ConflictFound = true; 
+//         dls_conflict.push_back(d_facts[equalBound[varIdx].value().second]);
+//     }
+//     variablesValues[varIdx] = limit;
+//     equalBound[varIdx] = std::make_pair(limit, MainIdx);
+//     d_Bounds.push_back(MainIdx);
+//     for (auto idx : variablesToLiterals[varIdx]) {
+//     allLiterals[currentLiteralsIdx[idx]].delta = allLiterals[currentLiteralsIdx[idx]].calculateDelta(variablesValues);
+//     if (!checkIfSat(allLiterals[currentLiteralsIdx[idx]], allLiterals[currentLiteralsIdx[idx]].delta)){
+//           unsatLiterals.insert(idx);
+//       }
+//     else {
+//       unsatLiterals.erase(idx);
+//     }
+//     }
+//     return;
+//   }
+//   if (!isNot && assertion.getKind()==Kind::GEQ && assertion[0].getKind()==Kind::MULT && assertion[0][1].isVar() &&  assertion[0][0].getConst<Rational>().getNumerator() == Integer(-1) && assertion[1].isConst()){
+//     std::cout << "Lower\n";
+//     int varIdx = nameToIdx[assertion[0][1].getName()];
+//     Integer limit = Integer(-1) * assertion[1].getConst<Rational>().getNumerator();
+//     if (lowerBound[varIdx].has_value()){
+//       variablesValues[varIdx] = Integer::min(lowerBound[varIdx].value().first, limit);
+//       lowerBound[varIdx] = std::make_pair(variablesValues[varIdx], MainIdx);
+//       d_Bounds.push_back(MainIdx);
+//     } 
+//     else {
+//     variablesValues[varIdx] =  limit;
+//     lowerBound[varIdx] =  std::make_pair(limit, MainIdx);
+//     d_Bounds.push_back(MainIdx);
+//     }
+//     for (auto idx : variablesToLiterals[varIdx]) {
+//       allLiterals[currentLiteralsIdx[idx]].delta = allLiterals[currentLiteralsIdx[idx]].calculateDelta(variablesValues);
+//     if (!checkIfSat(allLiterals[currentLiteralsIdx[idx]], allLiterals[currentLiteralsIdx[idx]].delta)){
+//         unsatLiterals.insert(idx);
+//       }
+//     else {
+//       unsatLiterals.erase(idx);
+//     }
+//     }
+//     return;
+//   }
   //std::cout << "Cont:" << assertion << "\n";
   processedAsserts +=1;
 
