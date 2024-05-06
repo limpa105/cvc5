@@ -253,6 +253,18 @@ void TheoryArith::postCheck(Effort level)
        return;
      } 
     localSearchTime.stop();
+    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->getTrivialConflict();
+    Node body =  std::get<2>(dls_conflict[0]);
+    NodeManager* nm = NodeManager::currentNM();
+    for (int i =1 ; i<dls_conflict.size(); i++){
+          body = nm->mkNode(Kind::AND, body, std::get<2>(dls_conflict[i]));
+       }
+    d_im.conflict(body, InferenceId::LOCAL_SEARCH_LEMMA);
+    return;
+    
+      // std::cout << "Body:" << body << "\n";
+
+    
     //else {
       //localSearchTime.stop();
       //simplexTime.start();
