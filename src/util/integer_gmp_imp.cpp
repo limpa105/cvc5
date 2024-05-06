@@ -418,6 +418,10 @@ unsigned long Integer::getUnsignedLong() const
   return d_value.get_ui();
 }
 
+double Integer::getDouble() const {
+  return d_value.get_d();
+}
+
 int64_t Integer::getSigned64() const
 {
   if constexpr (sizeof(int64_t) == sizeof(signed long int))

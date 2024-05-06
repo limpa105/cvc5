@@ -73,13 +73,16 @@ class CocoaEncoder : public FieldObj
    * Get the polys who's common zero we are finding (excluding bitsums).
    * Available in Stage::Encode.
    */
-  void endScanIntegers();
+
   const std::vector<Poly>& polys() const { return d_polys; }
   /**
    * Get the bitsum polys.
    * These have form: x - b0 - 2*b1 - 4b2 ... - 2^n*b_n.
    * Available in Stage::Encode.
    */
+  void endScanIntegers(std::vector<long> upperBoundWeights);
+
+
   const std::vector<Poly>& bitsumPolys() const { return d_bitsumPolys; }
   /**
    * Get the poly for this term
@@ -106,6 +109,11 @@ class CocoaEncoder : public FieldObj
    */
   FiniteFieldValue cocoaFfToFfVal(const Scalar& elem);
 
+  std::vector<Node> cocoaToNode( std::vector<CoCoA::RingElem>, NodeManager* nm);
+
+    /** all symbols */
+  std::vector<CoCoA::symbol> d_syms{};
+
  private:
   /**
    * Get a fresh symbol that starts with varName.
@@ -123,6 +131,8 @@ class CocoaEncoder : public FieldObj
   void encodeTerm(const Node& t);
   /** encode this fact as a poly that must be zero (caching) */
   void encodeFact(const Node& f);
+
+  std::vector<long> AddCoefToWeights(std::vector<long> weights);
 
   /** Which pass we're in. */
   enum class Stage
@@ -150,8 +160,6 @@ class CocoaEncoder : public FieldObj
   std::unordered_map<Node, CoCoA::symbol> d_varSyms{};
   /** map: term (a != b) to the symbol for the inverse of (a - b) */
   std::unordered_map<Node, CoCoA::symbol> d_diseqSyms{};
-  /** all symbols */
-  std::vector<CoCoA::symbol> d_syms{};
   /** map: symbol name to polynomial */
   std::unordered_map<std::string, Poly> d_symPolys{};
   /** map: symbol name to term */

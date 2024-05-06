@@ -285,6 +285,8 @@ class Integer
   /** Return the uint64_t representation of this Integer. */
   uint64_t getUnsigned64() const;
 
+  double getDouble() const;
+
   /**
    * Computes the hash of the node from the first word of the
    * numerator, the denominator.

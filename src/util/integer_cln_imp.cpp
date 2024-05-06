@@ -544,6 +544,11 @@ uint64_t Integer::getUnsigned64() const
   }
 }
 
+
+double Integer::getDouble() const {
+  return cln::double_aprox(d_value);
+}
+
 size_t Integer::hash() const { return equal_hashcode(d_value); }
 
 bool Integer::testBit(unsigned n) const { return cln::logbitp(n, d_value); }

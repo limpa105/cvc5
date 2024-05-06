@@ -13,7 +13,7 @@
  * encoding Nodes as cocoa ring elements.
  */
 
- #ifdef CVC5_USE_COCOA
+
 
 #include "theory/ff/cocoa_encoder.h"
 
@@ -34,6 +34,8 @@
 // std includes
 #include <sstream>
 #include <list>
+#include <algorithm>
+#include <string>
 
 // internal includes
 #include "expr/node_traversal.h"
@@ -132,30 +134,30 @@ void CocoaEncoder::endScan()
   }
 }
 
-void CocoaEncoder::endScanIntegers(){
+
+
+void CocoaEncoder::endScanIntegers(std::vector<long> upperBoundWeights){
   Assert(d_stage == Stage::Scan);
   std::cout << "Passed assert\n";
   d_stage = Stage::Encode;
   std::cout << d_syms.size() << "\n";
-  std::vector<std::vector<long>> k = grevlexWeighted(std::vector<long>(d_syms.size(), 2));
+  std::vector<std::vector<long>> k = grevlexWeighted(upperBoundWeights);
   std::cout << "got order \n";
   CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ(), k);
   std::cout << "Made matrix\n";
-   try {
-    d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms, CoCoA::NewMatrixOrdering(
-    m, d_syms.size()-1));
-        // Your code that uses CoCoA
-    } catch (const CoCoA::ErrorInfo e) {
-      std::cout << e << "\n";
-       AlwaysAssert(false);
-    }
+  try {
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms, CoCoA::NewMatrixOrdering(m, d_syms.size()-1));
+  } catch (const CoCoA::ErrorInfo& e) {
+    std::cout << e << "\n";
+    AlwaysAssert(false);
+  }
   std::cout << "Made ring\n";
 
   for (size_t i = 0, n = d_syms.size(); i < n; ++i)
   {
     d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
   }
-  std::cout << "Added polys to the ring\n";
+  std::cout << d_polyRing.value() << "\n";
 }
 
 void CocoaEncoder::addFact(const Node& fact)
@@ -246,6 +248,7 @@ std::vector<std::pair<size_t, Node>> CocoaEncoder::nodeIndets() const
 FiniteFieldValue CocoaEncoder::cocoaFfToFfVal(const Scalar& elem)
 {
   Assert(CoCoA::owner(elem) == coeffRing());
+  std::cout << size() << "\n";
   return ff::cocoaFfToFfVal(elem, size());
 }
 
@@ -345,8 +348,140 @@ void CocoaEncoder::encodeFact(const Node& f)
   }
 }
 
+
+std::vector<long> CocoaEncoder::AddCoefToWeights(std::vector<long> weights){
+
+}
+
+std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, NodeManager* nm){
+  std::vector<Node> result;
+  for (CoCoA::RingElem RingPolynomial: basis){
+    //std::vector<Node> NodePolynomial;
+    std::vector<Node> LHS;
+    //LHS.push_back(nm->mkConst(0));
+    std::vector<Node> RHS;
+    //RHS.push_back(nm->mkConst(0));
+    std::cout << RingPolynomial << "\n";
+    for (CoCoA::SparsePolyIter iter=CoCoA::BeginIter(RingPolynomial); !CoCoA::IsEnded(iter); ++iter)
+      {
+        if (extractStr(coeff(iter)).find('/') != std::string::npos){
+          goto next_iteration;
+        }
+        Integer IntCoef = Integer(extractStr(coeff(iter)));
+        bool positive = IntCoef > 0;
+        if (!positive) {
+          IntCoef = IntCoef *-1;
+        }
+        Node randVar = d_symNodes.begin()->second;
+        Node Coeff = nm->mkConst(FiniteFieldValue(IntCoef, randVar.getType().getFfSize()));
+        std::cout << "coeff: " << coeff(iter)  << "\tPP: " << PP(iter)  << "\n";
+        CoCoA::RingElem tempMonomial = CoCoA::monomial(d_polyRing.value(), PP(iter));
+        int degree = deg(tempMonomial);
+        if (degree == 0) {
+          if(positive){
+            LHS.push_back(Coeff);
+          } else {
+            RHS.push_back(Coeff);
+          }
+        }
+        // TODO NEED TO ADD A CHECK IF ITS A CONSTANT!!!!
+        else if (CoCoA::IsIndet(tempMonomial)) {
+          // we just have one variable
+          if(positive){
+            LHS.push_back(nm->mkNode(Kind::FINITE_FIELD_MULT, Coeff, d_symNodes[extractStr(tempMonomial)]));
+          } else{
+            RHS.push_back(nm->mkNode(Kind::FINITE_FIELD_MULT, Coeff, d_symNodes[extractStr(tempMonomial)]));
+          }
+        }
+        else if (IsIndetPosPower(tempMonomial)){
+          // we have one variable to a power:
+          size_t pos = extractStr(tempMonomial).find('^');
+          std::string variable = extractStr(tempMonomial).substr(0,pos);
+          Node mult =  Coeff;
+          while (degree > 0){
+            mult = nm->mkNode(Kind::FINITE_FIELD_MULT, mult,d_symNodes[variable]);
+            degree = degree - 1;
+          }
+          if (positive){
+            LHS.push_back(mult);
+          } else {
+            RHS.push_back(mult);
+          }
+        } else {
+           // we have two or more variables :(
+          std::cout << "INPUT" << extractStr(PP(iter)) << "\n";
+          //int multiplication = std::count(extractStr(PP(iter)).begin(), extractStr(PP(iter)).end(), '*');
+          // Currently do not support two variables and one variable to a power will change later
+          std::cout << "DEGREE" << degree << "\n";
+          //std::cout << "Multiplication" << multiplication << "\n";
+          //AlwaysAssert(degree == multiplication);
+          std::istringstream tokenStream(extractStr(PP(iter)));
+          Node mult = Coeff;
+          std::string token;
+          while(std::getline(tokenStream, token, '*') ){
+            std::cout << "We are here\n";
+            if (token.find('^') != std::string::npos){ 
+            std::cout << "entered x*y^2 part\n";
+            std::istringstream token_ss(token);
+            int count = 0;
+            std::string tok;
+            Node symbol;
+            while (std::getline(token_ss, tok, '^')) {
+              if (count == 0){
+                symbol = d_symNodes[tok];
+                mult = nm->mkNode(Kind::FINITE_FIELD_MULT, mult,symbol);
+                count +=1;
+              }
+              else {
+                int deg = std::stoi(tok);
+                while (deg > 0){
+                  mult =  nm->mkNode(Kind::FINITE_FIELD_MULT, mult, symbol);
+                  deg = deg-1;
+
+                }
+              }
+            }
+            } else {
+            std::cout << "did not enter the bad part\n";
+            mult = nm->mkNode(Kind::FINITE_FIELD_MULT, mult, d_symNodes[token]);
+            }
+          }
+          //AlwaysAssert(false);
+         if (positive){
+            LHS.push_back(mult);
+          } else {
+            RHS.push_back(mult);
+          }
+        }
+      }
+      if (LHS.size()>0 && RHS.size()>0){
+      result.push_back(nm->mkNode(
+        Kind::EQUAL, 
+        nm->mkNode(Kind::FINITE_FIELD_ADD, LHS),
+        nm->mkNode(Kind::FINITE_FIELD_ADD, RHS)));
+      }
+      else if(LHS.size()>0){
+        result.push_back(nm->mkNode(
+        Kind::EQUAL, 
+        nm->mkNode(Kind::FINITE_FIELD_ADD, LHS),
+        nm->mkConst(FiniteFieldValue::mkZero(size()))));
+      } else if(RHS.size()>0){
+        result.push_back(nm->mkNode(
+        Kind::EQUAL, 
+        nm->mkConst(FiniteFieldValue::mkZero(size())),
+        nm->mkNode(Kind::FINITE_FIELD_ADD, RHS)));
+      }
+      else {
+        AlwaysAssert(false);
+      }
+      next_iteration: ;
+    }
+    return result;
+
+  }
+
 }  // namespace ff
 }  // namespace theory
 }  // namespace cvc5::internal
 
-#endif /* CVC5_USE_COCOA */
+ /* CVC5_USE_COCOA */
