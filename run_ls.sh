@@ -23,6 +23,7 @@ for file in "$TEST_DIR"/*; do
         ((total++))
         echo -n "NEW FILE" >> "$output_file"
         echo -n "$file " >> "$output_file"
+	echo >> "$output_file"
 	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >> "$output_file" 2>&1
         echo "Processed $file"
     fi
@@ -32,7 +33,8 @@ for file in "$TEST_DIR"/*/*; do
     if [ -f "$file" ]; then
         ((total++))
         echo -n "NEW FILE" >> "$output_file"
-        echo -n "$file " >> "$output_file"
+        echo -n "$file \n" >> "$output_file"
+	echo >> "$output_file"
 	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >> "$output_file" 2>&1
         echo "Processed $file"
     fi
@@ -42,7 +44,8 @@ for file in "$TEST_DIR"/*/*/*; do
     if [ -f "$file" ]; then
         ((total++))
         echo -n "NEW FILE" >> "$output_file"
-        echo -n "$file " >> "$output_file"
+        echo -n "$file \n" >> "$output_file"
+	echo >> "$output_file"
 	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >> "$output_file" 2>&1
         echo "Processed $file"
     fi
@@ -53,7 +56,8 @@ for file in "$TEST_DIR"/*/*/*/*; do
     if [ -f "$file" ]; then
         ((total++))
         echo -n "NEW FILE" >> "$output_file"
-        echo -n "$file " >> "$output_file"
+        echo -n "$file \n" >> "$output_file"
+	echo >> "$output_file"
 	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >>  "$output_file" 2>&1
         echo "Processed $file"
     fi

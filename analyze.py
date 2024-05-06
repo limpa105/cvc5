@@ -22,7 +22,7 @@ if __name__ == "__main__":
         print("Usage: python script.py <filename>")
         sys.exit(1)
     filename = sys.argv[1]
-    with open("newscript/cav_2009.txt", "r") as file:
+    with open(filename, "r") as file:
     # Read entire file contents
         file_contents = file.read()
     file_contents = file_contents.split("NEW FILE")
@@ -30,8 +30,13 @@ if __name__ == "__main__":
     for i in file_contents:
         result.append(i.split("\n"))
     df = pd.DataFrame()
-    for i in result[1:]:
+    for i in result:
         df = pd.concat([df, make_df(i)],ignore_index=True, join='outer', sort=False)
+    print(df.columns)
+    if "CVC5::SolutionFoundByLS" not in df.columns:
+        df["CVC5::SolutionFoundByLS"] = 0
+    if "CVC5::SolutionFoundBySimplex" not in df.columns:
+        df["CVC5::SolutionFoundBySimplex"] =0
     df["CVC5::SolutionFoundByLS"] = df["CVC5::SolutionFoundByLS"].fillna('0').astype(int)
     df["CVC5::SolutionFoundBySimplex"] = df["CVC5::SolutionFoundBySimplex"].fillna('0').astype(int)
     df["LS::RunTime"] = df["LS::RunTime"].str.replace('ms', '').fillna('0').astype(int).sum()
