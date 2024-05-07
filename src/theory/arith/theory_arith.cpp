@@ -332,6 +332,7 @@ void TheoryArith::postCheck(Effort level)
       // //std::cout << "Got a conflict\n";
     //}
   };
+  return;
   simplexTime.start();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
