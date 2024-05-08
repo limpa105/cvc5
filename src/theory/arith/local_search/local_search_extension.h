@@ -88,7 +88,7 @@ class LocalSearchExtension : protected EnvObj
 
   std::vector<std::tuple<TNode, bool, TNode>> conflict();
 
-  std::vector<std::tuple<TNode, bool, TNode>> getTrivialConflict();
+  std::vector<std::tuple<TNode, bool, TNode>> getTrivialConflict(bool lookedAtSmart);
 
   /** Set up the solving data structures */
   void presolve();
@@ -140,7 +140,7 @@ class LocalSearchExtension : protected EnvObj
   /** ---------------------------------------------------------------- **/
 
   /** Parameter after how many iterations should one restart*/
-  const int MAXNONIMPROVE = 100000;
+  int MAXNONIMPROVE = 100000;
 
   const int MAXRESTARTCOUNT = 1;
 
@@ -152,6 +152,12 @@ class LocalSearchExtension : protected EnvObj
   const int DONOTMOVECONST = 3;
 
   float SMOOTHING = 0.0003;
+
+  bool sentSmartConflict;
+
+  double mean;
+
+  std::vector<std::pair<int, int>> orderedCount;
 
   /** Random number generator **/
   std::mt19937 rd_generator;

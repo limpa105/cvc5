@@ -140,7 +140,8 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
 {
   if (!Theory::fullEffort(level))
   {
-    return true;
+    //return;
+    MAXNONIMPROVE = 1000;
   }
 
   Trace("theory::arith::idl")
@@ -153,6 +154,8 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   unsatLiterals.clear();
   idxToCount.clear();
   idxToMainIdx.clear();
+  sentSmartConflict = false;
+  //if (level == Theory::EFFORT_FULL) 
   dls_conflict.clear();
   ConflictFound = false;
   std::vector<std::set<int>> tempMap(variablesValues.size(), std::set<int>());
@@ -1016,6 +1019,8 @@ std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::conflict(){
 
   std::vector<std::pair<int, int>> vec(idxToCount.begin(), idxToCount.end());
 
+  orderedCount = vec;
+
   // // Sort the vector by value using a custom comparator
   std::sort(vec.begin(), vec.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
        return a.second < b.second; // Compare by value
@@ -1025,9 +1030,11 @@ std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::conflict(){
         return acc + pair.second;
    });
   
-   double mean = static_cast<double>(total) / vec.size();
+   mean = static_cast<double>(total) / vec.size();
 
-   for (const auto& pair : vec) {
+
+
+   for (const auto& pair : orderedCount) {
          if (pair.second >= mean) {
              dls_conflict.push_back(d_facts[idxToMainIdx[pair.first]]);
         }
@@ -1036,17 +1043,33 @@ std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::conflict(){
       dls_conflict.push_back(d_facts[idx]);
     }
 
+  sentSmartConflict = true;
   
   return dls_conflict;
 
 }
 
-std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::getTrivialConflict(){
-  dls_conflict.clear();
-  std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(dls_conflict));
-  AlwaysAssert(dls_conflict.size() == d_facts.size());
-  std::cout << d_facts.size() << "\n";
-  return dls_conflict;
+std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::getTrivialConflict(bool lookedAtSmart){
+  if (!sentSmartConflict || !lookedAtSmart) {
+    dls_conflict.clear();
+    std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(dls_conflict));
+    AlwaysAssert(dls_conflict.size() == d_facts.size());
+    std::cout << d_facts.size() << "\n";
+    return dls_conflict;
+  }
+  else {
+    dls_conflict.clear();
+    for (const auto& pair : orderedCount) {
+         if (pair.second < mean) {
+             dls_conflict.push_back(d_facts[idxToMainIdx[pair.first]]);
+        }
+     }
+    for (const int idx: d_Bounds){
+      dls_conflict.push_back(d_facts[idx]);
+    }
+    return dls_conflict;
+
+  }
 }
 
 }  // namespace local_search

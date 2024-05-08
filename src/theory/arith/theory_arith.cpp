@@ -244,48 +244,131 @@ bool TheoryArith::preCheck(Effort level)
 
 void TheoryArith::postCheck(Effort level)
 {
-  if (Theory::fullEffort(level) && d_localSearchExtension != nullptr)
+  std::cout << level << "\n";
+  d_im.reset();
+  if (level == Theory::EFFORT_LAST_CALL)
+  {
+    // If we computed lemmas in the last FULL_EFFORT check, send them now.
+    if (d_im.hasPendingLemma())
+    {
+      d_im.doPendingFacts();
+      d_im.doPendingLemmas();
+      d_im.doPendingPhaseRequirements();
+    }
+    return;
+  }
+  if (d_localSearchExtension != nullptr && level == Theory::EFFORT_FULL)
   {
     //std::cout << "Starting local search\n";
     localSearchTime.start();
     if (!d_localSearchExtension->postCheck(level)){
+      std::cout << "Local search found an assignment\n";
        localSearchTime.stop();
        return;
      } 
     localSearchTime.stop();
     std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->conflict();
-    Node body =  std::get<2>(dls_conflict[0]);
-    NodeManager* nm = NodeManager::currentNM();
-    for (int i =1 ; i<dls_conflict.size(); i++){
-          body = nm->mkNode(Kind::AND, body, std::get<2>(dls_conflict[i]));
-       }
-    d_im.conflict(body, InferenceId::LOCAL_SEARCH_LEMMA);
-    return;
+    std::vector<int> conflict_ids;
+    //goto trivial_conflict;
+     bool lookedAtSmart = true; 
+    if (dls_conflict.size() <= 10){
+      lookedAtSmart = false;
+      goto trivial_conflict;
+    }
+    for( auto triple: dls_conflict){
+      conflict_ids.push_back(std::get<2>(triple).getId());
+    }
+    std::sort(conflict_ids.begin(), conflict_ids.end());
+    if (!previous_conflicts_ids.insert(conflict_ids).second) {
+        std::cout << "This conflict has already been seen..." << std::endl;
+        lookedAtSmart = false;
+        goto trivial_conflict;
+    } 
+    //Node body =  std::get<2>(dls_conflict[0]);
+    //NodeManager* nm = NodeManager::currentNM();
+    // for (int i =1 ; i<dls_conflict.size(); i++){
+    //       body = nm->mkNode(Kind::AND, body, std::get<2>(dls_conflict[i]));
+    //    }
+    //d_im.conflict(body, InferenceId::LOCAL_SEARCH_LEMMA);
+    //return;
     
       // std::cout << "Body:" << body << "\n";
 
     
     //else {
       //localSearchTime.stop();
-      //simplexTime.start();
+      simplexTime.start();
+
+
+      d_im.clearPending();
+      d_im.clearWaitingLemmas();
+      //d_internal->notifyRestart();
       // Step 1: Get conflict 
       // TODO rewrite this to be cleaner 
-      // NodeManager* nm = NodeManager::currentNM();
-      // std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->conflict();
-      // for (auto i: dls_conflict ){
-      //   d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
-      // }
-      // if (d_internal->postCheck(level)){
+      //std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->conflict();
+       for (auto i: dls_conflict ){
+        d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
+       }
+      //d_internal->presolve();
+      if (d_internal->postCheck(level)){
       //   // simplex found a real conflict :) 
-      //   simplexTime.stop();
-      //   return;
-      // } else {
-      //   std::cout << "SIMPLEX FAILED TO FIND A CONFLICT\n";
-      //   std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict();
-      //   simplexTime.start();
-      //   for (auto i: dls_conflict2 ){
-      //   d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
-      //   }
+        simplexTime.stop();
+        std::cout << "simplex found a conflict in smart\n";
+         return;
+      }
+      if (d_im.hasSent()){
+        std::cout << "d_im.hasSent()\n";
+        return;
+      } else {
+        trivial_conflict:
+        //d_internal->notifyRestart();
+         std::cout << "simplex did not find a conflict in smart\n";
+          std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict(lookedAtSmart);
+         simplexTime.start();
+         for (auto i: dls_conflict2 ){
+         d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
+         }
+         d_internal->presolve();
+         if (d_internal->postCheck(level))
+          {
+            std::cout << "simplex found a conflict in trivial...\n";
+            return;
+          }
+          std::cout << "simplex did not find a conflict in trivial...\n";
+        if (d_im.hasSent()){
+          std::cout << "d_im.hasSent()\n";
+          return;
+        }
+           std::cout << "simplex did not find a conflict in trivial...\n";
+           if (d_internal->foundNonlinear())
+          {
+            std::cout << "simplex found a non linear solution...\n";
+      // set incomplete
+          d_im.setModelUnsound(IncompleteId::ARITH_NL_DISABLED);
+          }
+    // If we won't be doing a last call effort check (which implies that
+    // models will be computed), we must sanity check the integer model
+    // from the linear solver now. We also must update the model cache
+    // if we did not do so above.
+      d_arithModelCache.clear();
+      d_arithModelCacheIllTyped.clear();
+      d_arithModelCacheSubs.clear();
+      d_arithModelCacheSet = false;
+      std::set<Node> termSet;
+      if (d_nonlinearExtension == nullptr)
+      {
+        updateModelCache(termSet);
+      }
+      if(sanityCheckIntegerModel()){
+        finalizeModelCache();
+        std::cout << "We left!!!\n";
+        return;
+      }
+    // Now, finalize the model cache, which constructs a substitution to be
+    // used for getEqualityStatus.
+      finalizeModelCache();
+
+        }
         //d_internal->postCheck(level);
         //simplexTime.stop();
         //return;
@@ -331,7 +414,8 @@ void TheoryArith::postCheck(Effort level)
       // //d_conflict_guard[body] = lit;
       // //std::cout << "Got a conflict\n";
     //}
-  };
+    
+  }
   return;
   simplexTime.start();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
@@ -429,7 +513,7 @@ bool TheoryArith::preNotifyFact(
     ret = d_eqSolver->preNotifyFact(atom, pol, fact, isPrereg, isInternal);
   }
   // we also always also notify the internal solver
-  d_internal->preNotifyFact(atom, pol, fact);
+  //d_internal->preNotifyFact(atom, pol, fact);
   return ret;
 }
 
@@ -455,6 +539,7 @@ TrustNode TheoryArith::explain(TNode n)
 void TheoryArith::propagate(Effort e) {
   d_internal->propagate(e);
 }
+
 
 bool TheoryArith::collectModelInfo(TheoryModel* m,
                                    const std::set<Node>& termSet)
@@ -656,7 +741,7 @@ bool TheoryArith::sanityCheckIntegerModel()
   for (const auto& p : d_arithModelCacheIllTyped)
   {
     Trace("arith-check") << p.first << " -> " << p.second << std::endl;
-    Assert(p.first.getType().isInteger() && !p.second.getType().isInteger());
+    AlwaysAssert(p.first.getType().isInteger() && !p.second.getType().isInteger());
     warning() << "TheoryArithPrivate generated a bad model value for "
                  "integer variable "
               << p.first << " : " << p.second << std::endl;

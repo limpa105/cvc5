@@ -219,6 +219,7 @@ class TheoryArith : public Theory {
   /** Stores map of los conflicts to gurards */
   std::map<Node, Node> d_conflict_guard;
   /** Some Statistics **/
+  std::set<std::vector<int>> previous_conflicts_ids;
 
 
 };/* class TheoryArith */
