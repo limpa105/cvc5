@@ -122,8 +122,7 @@ std::vector<long> getWeights(std::vector<CoCoA::symbol> symbols, std::map<std::s
 
 std::vector<Node> SimplifyViaGB(std::vector<Node> equalities, Integer modulous, std::map<std::string, Integer > upperBounds, NodeManager* nm){
       if (equalities.size() <= 1) {
-        std::vector<Node> result;
-        return result;
+        return equalities;
       }
       std::cout << "Got here" << modulous << "\n";
       CocoaEncoder enc((FfSize(modulous)) );
@@ -155,7 +154,9 @@ std::vector<Node> SimplifyViaGB(std::vector<Node> equalities, Integer modulous, 
       std::cout << "Computed ideal \n";
       auto basis = CoCoA::GBasis(ideal);
       std::vector<Node> newPoly;
-      if (basis.size() == 1 && CoCoA::deg(basis.front()) == 0){
+      if (basis.size() == 1 && CoCoA::deg(basis.front()) == 0)
+      {
+        std::cout << "BADDDDD BADDD BADDD\n";
         return newPoly;
       }
       std::cout << "Computed basis \n";
@@ -351,10 +352,13 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
         return false;
     }
     NodeManager* nm = NodeManager::currentNM();
-    std::cout << "STARING GB\n";
     if (newEqualitySinceGB){
+        std::cout << "STARING GB\n";
         std::vector<Node> newPoly = SimplifyViaGB(equalities, modulos, upperBounds, nm);
         if (newPoly.size() == 0 && equalities.size()!=0){
+            std::cout << equalities.size() << "\n";
+            std::cout << "BAD BAD BAD\n";
+
             status = Result::UNSAT;
             return false;
         }
