@@ -1,5 +1,4 @@
 #!/bin/bash
-
 TEST_DIR=$1
 CVC5="build/bin/cvc5"
 output_file=$2
@@ -17,16 +16,8 @@ fi
 for file in "$TEST_DIR"/*; do
     if [ -f "$file" ]; then
         total=$((total+1))
-        echo  >> "$output_file"
-	    timeout 120 $CVC5 --ff-range-solver "$file" 
-        if [ $? -eq 0 ]; then
-		echo -n "$file solved" >> $output_file
-    # If the program did not timeout, increment the counter
-            solved=$((solved+1))
-        else
-	    echo "$file failed" >> $output_file
-        # If the program timed out, do nothing
-        fi
+        echo -n "$file: " >> $output_file
+	    $CVC5 --ff-range-solver --tlimit=120000 "$file" | tail -n 2 | head -n 1 >> "$output_file" 
     fi
 done 
-echo  "Solved: $solved out of $total"
+python3 analyze.py $output_file

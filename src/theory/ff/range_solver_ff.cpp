@@ -154,11 +154,16 @@ std::vector<Node> SimplifyViaGB(std::vector<Node> equalities, Integer modulous, 
       CoCoA::ideal ideal = CoCoA::ideal(generators);
       std::cout << "Computed ideal \n";
       auto basis = CoCoA::GBasis(ideal);
+      std::vector<Node> newPoly;
+      if (basis.size() == 1 && CoCoA::deg(basis.front()) == 0){
+        return newPoly;
+      }
       std::cout << "Computed basis \n";
       std::cout << "BASIS\n";
-      std::vector<Node> newPoly = enc.cocoaToNode(basis, nm);
+      newPoly = enc.cocoaToNode(basis, nm);
       std::cout << "Finished Conversion\n";
       std::cout << newPoly.size() << "\n";
+
       return newPoly;
 }
 
@@ -349,6 +354,10 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
     std::cout << "STARING GB\n";
     if (newEqualitySinceGB){
         std::vector<Node> newPoly = SimplifyViaGB(equalities, modulos, upperBounds, nm);
+        if (newPoly.size() == 0 && equalities.size()!=0){
+            status = Result::UNSAT;
+            return false;
+        }
         std::cout <<  "Finished GB\n";
         clearEqualities();
         for (Node poly: newPoly){
@@ -356,6 +365,8 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
             addEquality(rewrite(poly), false);
             //std::cout << "WHAT\n";
         }
+        std::cout << equalities.size() << "\n";
+        std::cout << newPoly.size() << "\n";
         AlwaysAssert(equalities.size() == newPoly.size());
         newEqualitySinceGB = false;
     }
@@ -550,11 +561,12 @@ Result RangeSolver::Solve(){
     #else 
         noCoCoALiza();
     #endif
+    std::cout << "We are here\n";
     int count = 0;
     while(true){
-        if (count >=5){
-             AlwaysAssert(false);
-        }
+        //if (count >=5){
+            // AlwaysAssert(false);
+        //}
         printSystemState();
         integerField.Simplify(fields, upperBounds);
         std::cout << "FINISHED INTEGERS\n";
@@ -575,6 +587,7 @@ Result RangeSolver::Solve(){
 const std::vector<Node>& RangeSolver::conflict() const { return d_conflict; }
 
 Result RangeSolver::postCheck(Theory::Effort){
+    std::cout << "Hello???\n";
     return Solve();
 }
 
