@@ -347,6 +347,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
     for (int i =0; i< equalities.size(); i++) {
             std::cout << equalities[i] << "\n";
         }
+    substituteVariables();
     checkUnsat();
     if (status == Result::UNSAT){
         return false;
@@ -376,7 +377,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
     }
     std::cout << "ADDED ALL EQUALITIES FOR FIELDS\n";
     //std::cout << "SIZE" << equalities.size() << "\n";
-    substituteVariables();
+    //substituteVariables();
     std::cout << "Substitute Vars done \n";
     //substituteEqualities();
     //std::cout << "Substitute Eqs done \n";
