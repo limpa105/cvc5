@@ -362,17 +362,26 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
     std::vector<Node> RHS;
     //RHS.push_back(nm->mkConst(0));
     std::cout << RingPolynomial << "\n";
+    Integer ComDenom =  Integer(extractStr(CommonDenom(RingPolynomial)));
+    //if extractStr()
+    Node randVar = d_symNodes.begin()->second;
     for (CoCoA::SparsePolyIter iter=CoCoA::BeginIter(RingPolynomial); !CoCoA::IsEnded(iter); ++iter)
       {
+        Integer IntCoef;
         if (extractStr(coeff(iter)).find('/') != std::string::npos){
-          goto next_iteration;
+          std::string fraction = extractStr(coeff(iter));
+          size_t pos = fraction.find('/');
+          std::cout << fraction.substr(0, pos) << "\n";
+          Integer Overflow = ComDenom.ceilingDivideQuotient(Integer(fraction.substr(pos+1)));
+          IntCoef = Integer(fraction.substr(0, pos)) * Overflow;
+        } else {
+          IntCoef = Integer(extractStr(coeff(iter))) * ComDenom;
         }
-        Integer IntCoef = Integer(extractStr(coeff(iter)));
         bool positive = IntCoef > 0;
         if (!positive) {
           IntCoef = IntCoef *-1;
         }
-        Node randVar = d_symNodes.begin()->second;
+        //Node randVar = d_symNodes.begin()->second;
         Node Coeff = nm->mkConst(FiniteFieldValue(IntCoef, randVar.getType().getFfSize()));
         std::cout << "coeff: " << coeff(iter)  << "\tPP: " << PP(iter)  << "\n";
         CoCoA::RingElem tempMonomial = CoCoA::monomial(d_polyRing.value(), PP(iter));
@@ -454,27 +463,56 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
           }
         }
       }
+      // if (outside.size() > 0) {
+      //   std::vector<Node> outsideVector(outside.begin(), outside.end());
+      //   Node outsideNode = nm->mkNode(Kind::FINITE_FIELD_MULT, outsideVector);
+      //   if (LHS.size()>0 && RHS.size()>0){
+      //   result.push_back(nm->mkNode(
+      //     Kind::EQUAL, 
+      //     nm->mkNode(Kind::FINITE_FIELD_MULT, outsideNode, 
+      //         nm->mkNode(Kind::FINITE_FIELD_ADD, LHS)),
+      //     nm->mkNode(Kind::FINITE_FIELD_MULT, outsideNode,
+      //         nm->mkNode(Kind::FINITE_FIELD_ADD, RHS))));
+      //   }
+      //   else if(LHS.size()>0){
+      //     result.push_back(nm->mkNode(
+      //     Kind::EQUAL, 
+      //     nm->mkNode(Kind::FINITE_FIELD_MULT, outsideNode, 
+      //         nm->mkNode(Kind::FINITE_FIELD_ADD, LHS)),
+      //     nm->mkConst(FiniteFieldValue::mkZero(size()))));
+      //   } else if(RHS.size()>0){
+      //     result.push_back(nm->mkNode(
+      //     Kind::EQUAL, 
+      //     nm->mkConst(FiniteFieldValue::mkZero(size())),
+      //     nm->mkNode(Kind::FINITE_FIELD_MULT, outsideNode,
+      //         nm->mkNode(Kind::FINITE_FIELD_ADD, RHS))));
+      //   }
+      //   else {
+      //     AlwaysAssert(false);
+      //   }
+      // }
+      
       if (LHS.size()>0 && RHS.size()>0){
-      result.push_back(nm->mkNode(
-        Kind::EQUAL, 
-        nm->mkNode(Kind::FINITE_FIELD_ADD, LHS),
-        nm->mkNode(Kind::FINITE_FIELD_ADD, RHS)));
-      }
-      else if(LHS.size()>0){
         result.push_back(nm->mkNode(
-        Kind::EQUAL, 
-        nm->mkNode(Kind::FINITE_FIELD_ADD, LHS),
-        nm->mkConst(FiniteFieldValue::mkZero(size()))));
-      } else if(RHS.size()>0){
-        result.push_back(nm->mkNode(
-        Kind::EQUAL, 
-        nm->mkConst(FiniteFieldValue::mkZero(size())),
-        nm->mkNode(Kind::FINITE_FIELD_ADD, RHS)));
-      }
-      else {
-        AlwaysAssert(false);
-      }
-      next_iteration: ;
+          Kind::EQUAL, 
+              nm->mkNode(Kind::FINITE_FIELD_ADD, LHS),
+              nm->mkNode(Kind::FINITE_FIELD_ADD, RHS)));
+        }
+        else if(LHS.size()>0){
+          result.push_back(nm->mkNode(
+          Kind::EQUAL,  
+              nm->mkNode(Kind::FINITE_FIELD_ADD, LHS),
+          nm->mkConst(FiniteFieldValue::mkZero(size()))));
+        } else if(RHS.size()>0){
+          result.push_back(nm->mkNode(
+          Kind::EQUAL, 
+          nm->mkConst(FiniteFieldValue::mkZero(size())),
+              nm->mkNode(Kind::FINITE_FIELD_ADD, RHS)));
+        }
+        else {
+          AlwaysAssert(false);
+        }
+      //next_iteration: ;
     }
     return result;
 

@@ -27,6 +27,8 @@ class IntegerField: protected EnvObj{
 
         void addEquality(Node equality);
 
+        void clearEqualities(){equalities.clear();};
+
         void addInequality(Node inequality);
 
         void Lower(Field& field, std::map<std::string, Integer > upperBounds);
@@ -57,6 +59,8 @@ class Field:  protected EnvObj {
 
         void addEquality(Node equality, bool inField);
 
+        void clearEqualities(){equalities.clear();};
+
         void addInequality(Node inequality);
 
         bool checkUnsat();
@@ -64,6 +68,8 @@ class Field:  protected EnvObj {
         bool Simplify(IntegerField& Integers, std::map<std::string, Integer > upperBounds);
 
         Node modOut(Node fact);
+
+        bool newEqualitySinceGB = false;
 
 
     private:

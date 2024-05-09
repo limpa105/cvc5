@@ -196,13 +196,14 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
         }
     //CancelConstants();
     NodeManager* nm = NodeManager::currentNM();
-    std::vector<Node> newPoly =  SimplifyViaGB(equalities, BIGINT, upperBounds, nm);
-
-    for (Node poly: newPoly){
-        std::cout << "New Poly F:" << poly << "\n \n \n";
+    //std::vector<Node> newPoly =  SimplifyViaGB(equalities, BIGINT, upperBounds, nm);
+    //clearEqualities();
+    //for (Node poly: newPoly){
+        //std::cout << "New Poly F:" << poly << "\n \n \n";
         //std::cout << poly << "\n";
-        addEquality(rewrite(poly));
-    }
+        //addEquality(rewrite(poly));
+    //}
+    //AlwaysAssert(equalities.size() == newPoly.size());
     std::cout << "FINISHED ADDING FOR INTEGERS\n";
     for (auto& fieldPair : fields){
         std::cout << "LOWERING\n";
@@ -307,6 +308,7 @@ void Field::addEquality(Node fact, bool inField){
     fact = rewrite(fact);    
     if (std::find(equalities.begin(), equalities.end(), fact) == equalities.end()
         && fact.getKind() != Kind::CONST_BOOLEAN && fact.getKind()!=Kind::NULL_EXPR){
+            newEqualitySinceGB = true;
         AlwaysAssert(fact.getKind() == Kind::EQUAL) << fact.getKind();
         if(inField){
             equalities.push_back(fact);
@@ -339,14 +341,23 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
     for (int i =0; i< equalities.size(); i++) {
             std::cout << equalities[i] << "\n";
         }
+    checkUnsat();
+    if (status == Result::UNSAT){
+        return false;
+    }
     NodeManager* nm = NodeManager::currentNM();
     std::cout << "STARING GB\n";
-    std::vector<Node> newPoly = SimplifyViaGB(equalities, modulos, upperBounds, nm);
-    std::cout <<  "Finished GB\n";
-    for (Node poly: newPoly){
-        std::cout << "New Poly F:" << poly << "\n \n \n";
-        addEquality(rewrite(poly), false);
-        //std::cout << "WHAT\n";
+    if (newEqualitySinceGB){
+        std::vector<Node> newPoly = SimplifyViaGB(equalities, modulos, upperBounds, nm);
+        std::cout <<  "Finished GB\n";
+        clearEqualities();
+        for (Node poly: newPoly){
+            std::cout << "New Poly F:" << poly << "\n \n \n";
+            addEquality(rewrite(poly), false);
+            //std::cout << "WHAT\n";
+        }
+        AlwaysAssert(equalities.size() == newPoly.size());
+        newEqualitySinceGB = false;
     }
     std::cout << "ADDED ALL EQUALITIES FOR FIELDS\n";
     //std::cout << "SIZE" << equalities.size() << "\n";
@@ -354,7 +365,6 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
     std::cout << "Substitute Vars done \n";
     //substituteEqualities();
     //std::cout << "Substitute Eqs done \n";
-    checkUnsat();
     //std::cout << "Checking Unsat is done \n";
     Lift(Integers, upperBounds);
     processedEqualitiesIndex = std::max( int(equalities.size() -1), 0);
@@ -543,7 +553,7 @@ Result RangeSolver::Solve(){
     int count = 0;
     while(true){
         if (count >=5){
-            AlwaysAssert(false);
+             AlwaysAssert(false);
         }
         printSystemState();
         integerField.Simplify(fields, upperBounds);
