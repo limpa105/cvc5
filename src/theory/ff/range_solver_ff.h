@@ -37,7 +37,7 @@ class IntegerField: protected EnvObj{
 
         bool checkUnsat();
 
-        bool status = Result::UNKNOWN;
+        Result status = Result::UNKNOWN;
 
 
     private:
