@@ -23,12 +23,6 @@ class IntegerField: protected EnvObj{
 
         std::vector<Node> inequalities;
 
-        Result status; 
-
-        bool newEqualitySinceGB = false;
-
-    
-
         bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, Integer > upperBounds);
 
         void addEquality(Node equality);
@@ -40,12 +34,6 @@ class IntegerField: protected EnvObj{
         void Lower(Field& field, std::map<std::string, Integer > upperBounds);
 
         void CancelConstants();
-
-        bool checkUnsat();
-        
-        Node subVarHelper(Node fact, Node newf, Node ogf);
-
-        void substituteVariables();
 
 
     private:
