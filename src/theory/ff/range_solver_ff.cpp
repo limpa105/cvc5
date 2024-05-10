@@ -276,7 +276,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
             return false;
         }
     substituteVariables();
-    CancelConstants();
+    std::cout << "Substituted Vars\n";
     checkUnsat();
     NodeManager* nm = NodeManager::currentNM();
       if (newEqualitySinceGB){
