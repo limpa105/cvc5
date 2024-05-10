@@ -529,6 +529,15 @@ RangeSolver::RangeSolver(Env& env)
 
 void RangeSolver::preRegisterTerm(TNode node){ 
       /// Check Field  ONLY WHEN OPERATION IS EQUAL OR NOT EQUAL
+      if (node.getKind() == Kind::VARIABLE) {
+        TypeNode ty = node[0].getType();
+        if (upperBounds.find(node.getName()) == upperBounds.end()){
+            upperBounds[node.getName()] = ty.getFfSize();
+        }
+        else {
+            upperBounds[node.getName()] = std::min(ty.getFfSize(), upperBounds[node.getName()]);
+        }
+      }
       if (node.getKind() == Kind::CONST_FINITE_FIELD){
         Integer constant = node.getConst<FiniteFieldValue>().getValue();
         if (constant == 0 || constant == 1){
