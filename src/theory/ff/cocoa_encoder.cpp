@@ -138,26 +138,26 @@ void CocoaEncoder::endScan()
 
 void CocoaEncoder::endScanIntegers(std::vector<long> upperBoundWeights){
   Assert(d_stage == Stage::Scan);
-  std::cout << "Passed assert\n";
+  //std::cout << "Passed assert\n";
   d_stage = Stage::Encode;
-  std::cout << d_syms.size() << "\n";
+  //std::cout << d_syms.size() << "\n";
   std::vector<std::vector<long>> k = grevlexWeighted(upperBoundWeights);
-  std::cout << "got order \n";
+  //std::cout << "got order \n";
   CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ(), k);
-  std::cout << "Made matrix\n";
+  //std::cout << "Made matrix\n";
   try {
   d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms, CoCoA::NewMatrixOrdering(m, d_syms.size()-1));
   } catch (const CoCoA::ErrorInfo& e) {
-    std::cout << e << "\n";
+    //std::cout << e << "\n";
     AlwaysAssert(false);
   }
-  std::cout << "Made ring\n";
+  //std::cout << "Made ring\n";
 
   for (size_t i = 0, n = d_syms.size(); i < n; ++i)
   {
     d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
   }
-  std::cout << d_polyRing.value() << "\n";
+  //std::cout << d_polyRing.value() << "\n";
 }
 
 void CocoaEncoder::addFact(const Node& fact)
@@ -361,7 +361,7 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
     //LHS.push_back(nm->mkConst(0));
     std::vector<Node> RHS;
     //RHS.push_back(nm->mkConst(0));
-    std::cout << RingPolynomial << "\n";
+    //std::cout << RingPolynomial << "\n";
     Integer ComDenom =  Integer(extractStr(CommonDenom(RingPolynomial)));
     //if extractStr()
     Node randVar = d_symNodes.begin()->second;
@@ -371,7 +371,7 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
         if (extractStr(coeff(iter)).find('/') != std::string::npos){
           std::string fraction = extractStr(coeff(iter));
           size_t pos = fraction.find('/');
-          std::cout << fraction.substr(0, pos) << "\n";
+          //std::cout << fraction.substr(0, pos) << "\n";
           Integer Overflow = ComDenom.ceilingDivideQuotient(Integer(fraction.substr(pos+1)));
           IntCoef = Integer(fraction.substr(0, pos)) * Overflow;
         } else {
@@ -383,7 +383,7 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
         }
         //Node randVar = d_symNodes.begin()->second;
         Node Coeff = nm->mkConst(FiniteFieldValue(IntCoef, randVar.getType().getFfSize()));
-        std::cout << "coeff: " << coeff(iter)  << "\tPP: " << PP(iter)  << "\n";
+        //std::cout << "coeff: " << coeff(iter)  << "\tPP: " << PP(iter)  << "\n";
         CoCoA::RingElem tempMonomial = CoCoA::monomial(d_polyRing.value(), PP(iter));
         int degree = deg(tempMonomial);
         if (degree == 0) {
@@ -418,19 +418,19 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
           }
         } else {
            // we have two or more variables :(
-          std::cout << "INPUT" << extractStr(PP(iter)) << "\n";
+          //std::cout << "INPUT" << extractStr(PP(iter)) << "\n";
           //int multiplication = std::count(extractStr(PP(iter)).begin(), extractStr(PP(iter)).end(), '*');
           // Currently do not support two variables and one variable to a power will change later
-          std::cout << "DEGREE" << degree << "\n";
+          //std::cout << "DEGREE" << degree << "\n";
           //std::cout << "Multiplication" << multiplication << "\n";
           //AlwaysAssert(degree == multiplication);
           std::istringstream tokenStream(extractStr(PP(iter)));
           Node mult = Coeff;
           std::string token;
           while(std::getline(tokenStream, token, '*') ){
-            std::cout << "We are here\n";
+            //std::cout << "We are here\n";
             if (token.find('^') != std::string::npos){ 
-            std::cout << "entered x*y^2 part\n";
+            //std::cout << "entered x*y^2 part\n";
             std::istringstream token_ss(token);
             int count = 0;
             std::string tok;
@@ -451,7 +451,7 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
               }
             }
             } else {
-            std::cout << "did not enter the bad part\n";
+            //std::cout << "did not enter the bad part\n";
             mult = nm->mkNode(Kind::FINITE_FIELD_MULT, mult, d_symNodes[token]);
             }
           }
