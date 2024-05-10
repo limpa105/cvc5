@@ -465,7 +465,7 @@ Node Field::subVarHelper(Node fact, Node ogf, Node newf) {
 
 void Field::substituteVariables(){
     std::vector<Node> new_equalities;
-    for (int i = processedEqualitiesIndex; i<equalities.size(); i++){
+    for (int i = 0; i<equalities.size(); i++){
         Node fact = equalities[i];
         //std::cout << "We are here?" << fact << "\n";
     if ( (fact[0].getKind() == Kind::VARIABLE && 
