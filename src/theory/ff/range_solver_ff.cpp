@@ -190,6 +190,25 @@ bool checkIfConstraintIsMet(Node equality, Integer modulos, std::map<std::string
 }
 
 
+bool IntegerField::checkUnsat(){
+    for(int i=0; i<inequalities.size(); i++){
+        if (inequalities[i].getKind()== Kind::CONST_BOOLEAN &&
+            inequalities[i].getConst<bool>() == true){
+            status = Result::UNSAT;
+            return true;
+            }
+        for(int j=0; j<equalities.size(); j++){
+            if((inequalities[i][0]==equalities[j][0]) &&
+               (inequalities[i][1]==equalities[j][1]) ){
+                std::cout << "WE GOT HEREEEEE \n";
+                status = Result::UNSAT;
+                return true;
+               }
+        }
+    }
+    return false;
+}
+
 /////////////////////////////////////////////////// INTEGERFIELD ////////////////////////////////////////////////////////////////////
 
 IntegerField::IntegerField(Env &env):EnvObj(env){initCocoaGlobalManager();};
@@ -202,6 +221,10 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
         }
     //CancelConstants();
     NodeManager* nm = NodeManager::currentNM();
+    checkUnsat();
+    if (status == Result::UNSAT){
+        return false;
+    }
     //std::vector<Node> newPoly =  SimplifyViaGB(equalities, BIGINT, upperBounds, nm);
     //clearEqualities();
     //for (Node poly: newPoly){
@@ -574,6 +597,9 @@ Result RangeSolver::Solve(){
         //}
         printSystemState();
         integerField.Simplify(fields, upperBounds);
+        if (integerField.status == Result::UNSAT){
+            return Result::UNSAT;
+        }
         std::cout << "FINISHED INTEGERS\n";
         for (auto& fieldPair :fields){
             fieldPair.second.Simplify(integerField, upperBounds);

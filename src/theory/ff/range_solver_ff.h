@@ -35,6 +35,10 @@ class IntegerField: protected EnvObj{
 
         void CancelConstants();
 
+        bool checkUnsat();
+
+        bool status;
+
 
     private:
 
