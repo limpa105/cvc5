@@ -257,11 +257,12 @@ void TheoryArith::postCheck(Effort level)
     }
     return;
   }
-  if (d_localSearchExtension != nullptr && level == Theory::EFFORT_FULL)
+  if (d_localSearchExtension != nullptr)
   {
     if(! (d_localSearchExtension->postCheck(level)) ){
       return;
     }
+    if (Theory::fullEffort(level)){
     std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->conflict();
     for (int i=0; i< static_cast<int>(dls_conflict.size()); i++){
         d_internal->preNotifyFact(std::get<0>(dls_conflict[i]), std::get<1>(dls_conflict[i]), std::get<2>(dls_conflict[i]));
@@ -343,6 +344,15 @@ void TheoryArith::postCheck(Effort level)
       //    for (auto i: dls_conflict2 ){
       //    d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
       //    }
+    }
+    else {
+    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict3 = d_localSearchExtension->getTrivialConflict(false);
+    for (int i=0; i< dls_conflict3.size(); i++){
+        d_internal->preNotifyFact(std::get<0>(dls_conflict3[i]), std::get<1>(dls_conflict3[i]), std::get<2>(dls_conflict3[i]));
+      }
+    d_internal->preCheck(level);
+    return;
+    }
          //d_internal->presolve();
         if (d_internal->postCheck(level))
           {

@@ -142,7 +142,10 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   if (!Theory::fullEffort(level))
   {
     //return;
-    MAXNONIMPROVE = 1000;
+    MAXNONIMPROVE = 100;
+  }
+  else {
+    MAXNONIMPROVE = 10000;
   }
 
   Trace("theory::arith::idl")
@@ -1078,10 +1081,10 @@ std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::getTrivialConf
    });
   orderedCount = vec;
 
-  for (auto pair: orderedCount) {
-    std::cout << "(" << pair.first << "," << pair.second << ")" << ", ";
-  }
-  std::cout <<"\n";
+  // for (auto pair: orderedCount) {
+  //   std::cout << "(" << pair.first << "," << pair.second << ")" << ", ";
+  // }
+  // std::cout <<"\n";
 
   if (!sentSmartConflict || !lookedAtSmart) {
     dls_conflict.clear();
