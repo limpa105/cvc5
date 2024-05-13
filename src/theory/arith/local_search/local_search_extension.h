@@ -110,6 +110,8 @@ class LocalSearchExtension : protected EnvObj
 
   std::vector<std::tuple<TNode, bool, TNode>> dls_conflict;
 
+  context::CDList<std::tuple<TNode, bool, TNode>> d_facts;
+
  private:
   /** -------------------------------------------------------------
    * The variables below are inherited from IDL Extension  */
@@ -130,7 +132,6 @@ class LocalSearchExtension : protected EnvObj
   context::CDList<TNode> d_varList;
 
   /** Context-dependent list of asserted theory literals */
-  context::CDList<std::tuple<TNode, bool, TNode>> d_facts;
 
   /** i,jth entry is true iff there is an edge from i to j. */
   std::vector<std::vector<bool>> d_valid;
@@ -140,7 +141,8 @@ class LocalSearchExtension : protected EnvObj
   /** ---------------------------------------------------------------- **/
 
   /** Parameter after how many iterations should one restart*/
-  int MAXNONIMPROVE = 100000;
+  int MAXNONIMPROVE = 30000;
+  //int MAXNONIMPROVE = 100000;
 
   const int MAXRESTARTCOUNT = 1;
 
@@ -155,7 +157,7 @@ class LocalSearchExtension : protected EnvObj
 
   bool sentSmartConflict;
 
-  double mean;
+  int mean;
 
   std::vector<std::pair<int, int>> orderedCount;
 

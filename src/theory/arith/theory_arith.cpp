@@ -259,31 +259,47 @@ void TheoryArith::postCheck(Effort level)
   }
   if (d_localSearchExtension != nullptr && level == Theory::EFFORT_FULL)
   {
-    //std::cout << "Starting local search\n";
-    localSearchTime.start();
-    if (!d_localSearchExtension->postCheck(level)){
-      std::cout << "Local search found an assignment\n";
-       localSearchTime.stop();
-       return;
-     } 
-    localSearchTime.stop();
+    if(! (d_localSearchExtension->postCheck(level)) ){
+      return;
+    }
     std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->conflict();
-    std::vector<int> conflict_ids;
-    //goto trivial_conflict;
-     bool lookedAtSmart = true; 
-    if (dls_conflict.size() <= 10){
-      lookedAtSmart = false;
-      goto trivial_conflict;
-    }
-    for( auto triple: dls_conflict){
-      conflict_ids.push_back(std::get<2>(triple).getId());
-    }
-    std::sort(conflict_ids.begin(), conflict_ids.end());
-    if (!previous_conflicts_ids.insert(conflict_ids).second) {
-        std::cout << "This conflict has already been seen..." << std::endl;
-        lookedAtSmart = false;
-        goto trivial_conflict;
-    } 
+    for (int i=0; i< static_cast<int>(dls_conflict.size()); i++){
+        d_internal->preNotifyFact(std::get<0>(dls_conflict[i]), std::get<1>(dls_conflict[i]), std::get<2>(dls_conflict[i]));
+      }
+    if (d_internal -> preCheck(Theory::EFFORT_STANDARD)){
+      std::cout << "found an initital conflict";
+      return;
+    };
+    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict(true);
+    for (int i=0; i< dls_conflict2.size(); i++){
+        d_internal->preNotifyFact(std::get<0>(dls_conflict2[i]), std::get<1>(dls_conflict2[i]), std::get<2>(dls_conflict2[i]));
+      }
+
+    //std::cout << "Starting local search\n";
+    // localSearchTime.start();
+    // if (!d_localSearchExtension->postCheck(level)){
+    //   std::cout << "Local search found an assignment\n";
+    //    localSearchTime.stop();
+    //    return;
+    //  } 
+    // localSearchTime.stop();
+    // std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->conflict();
+    // std::vector<int> conflict_ids;
+    // //goto trivial_conflict;
+    //  bool lookedAtSmart = true; 
+    // if (dls_conflict.size() <= 10){
+    //   lookedAtSmart = false;
+    //   //goto trivial_conflict;
+    // }
+    // for( auto triple: dls_conflict){
+    //   conflict_ids.push_back(std::get<2>(triple).getId());
+    // }
+    // std::sort(conflict_ids.begin(), conflict_ids.end());
+    // if (!previous_conflicts_ids.insert(conflict_ids).second) {
+    //     std::cout << "This conflict has already been seen..." << std::endl;
+    //     lookedAtSmart = false;
+    //    // goto trivial_conflict;
+    // } 
     //Node body =  std::get<2>(dls_conflict[0]);
     //NodeManager* nm = NodeManager::currentNM();
     // for (int i =1 ; i<dls_conflict.size(); i++){
@@ -297,39 +313,38 @@ void TheoryArith::postCheck(Effort level)
     
     //else {
       //localSearchTime.stop();
-      simplexTime.start();
+      // simplexTime.start();
 
 
-      d_im.clearPending();
-      d_im.clearWaitingLemmas();
-      //d_internal->notifyRestart();
-      // Step 1: Get conflict 
-      // TODO rewrite this to be cleaner 
-      //std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->conflict();
-       for (auto i: dls_conflict ){
-        d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
-       }
+      // d_im.clearPending();
+      // d_im.clearWaitingLemmas();
+      // //d_internal->notifyRestart();
+      // // Step 1: Get conflict 
+      // // TODO rewrite this to be cleaner 
+      // //std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->conflict();
+      //  for (auto i: dls_conflict ){
+      //   d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
+      //  }
       //d_internal->presolve();
-      if (d_internal->postCheck(level)){
-      //   // simplex found a real conflict :) 
-        simplexTime.stop();
-        std::cout << "simplex found a conflict in smart\n";
-         return;
-      }
-      if (d_im.hasSent()){
-        std::cout << "d_im.hasSent()\n";
-        return;
-      } else {
-        trivial_conflict:
-        //d_internal->notifyRestart();
-         std::cout << "simplex did not find a conflict in smart\n";
-          std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict(lookedAtSmart);
-         simplexTime.start();
-         for (auto i: dls_conflict2 ){
-         d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
-         }
-         d_internal->presolve();
-         if (d_internal->postCheck(level))
+      // if (d_internal->postCheck(Theory::EFFORT_STANDARD)){
+      // //   // simplex found a real conflict :) 
+      //   simplexTime.stop();
+      //   std::cout << "simplex found a conflict in smart\n";
+      //    return;
+      // }
+      // if (d_im.hasSent()){
+      //   std::cout << "d_im.hasSent()\n";
+      //   return;
+      // } else {
+      //   //d_internal->notifyRestart();
+      //    std::cout << "simplex did not find a conflict in smart\n";
+      //     std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict(lookedAtSmart);
+      //    simplexTime.start();
+      //    for (auto i: dls_conflict2 ){
+      //    d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
+      //    }
+         //d_internal->presolve();
+        if (d_internal->postCheck(level))
           {
             std::cout << "simplex found a conflict in trivial...\n";
             return;
@@ -339,12 +354,11 @@ void TheoryArith::postCheck(Effort level)
           std::cout << "d_im.hasSent()\n";
           return;
         }
-           std::cout << "simplex did not find a conflict in trivial...\n";
-           if (d_internal->foundNonlinear())
+        if (d_internal->foundNonlinear())
           {
             std::cout << "simplex found a non linear solution...\n";
       // set incomplete
-          d_im.setModelUnsound(IncompleteId::ARITH_NL_DISABLED);
+        d_im.setModelUnsound(IncompleteId::ARITH_NL_DISABLED);
           }
     // If we won't be doing a last call effort check (which implies that
     // models will be computed), we must sanity check the integer model
@@ -367,7 +381,7 @@ void TheoryArith::postCheck(Effort level)
     // Now, finalize the model cache, which constructs a substitution to be
     // used for getEqualityStatus.
       finalizeModelCache();
-
+        return;
         }
         //d_internal->postCheck(level);
         //simplexTime.stop();
@@ -415,7 +429,7 @@ void TheoryArith::postCheck(Effort level)
       // //std::cout << "Got a conflict\n";
     //}
     
-  }
+  //}
   return;
   simplexTime.start();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;

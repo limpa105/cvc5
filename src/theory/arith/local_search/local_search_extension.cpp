@@ -122,6 +122,7 @@ void LocalSearchExtension::presolve()
 void LocalSearchExtension::notifyFact(
     TNode atom, bool pol, TNode fact, bool isPrereg, bool isInternal)
 {
+  std::cout << "Notify Face\n";
   Trace("theory::arith::idl")
       << "IdlExtension::notifyFact(): processing " << fact << std::endl;
   d_facts.push_back(std::make_tuple(atom, pol, fact));
@@ -153,6 +154,7 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   d_Bounds.clear();
   unsatLiterals.clear();
   idxToCount.clear();
+  totalAsserts = 0;
   idxToMainIdx.clear();
   sentSmartConflict = false;
   //if (level == Theory::EFFORT_FULL) 
@@ -178,9 +180,11 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
     processAssertion(std::get<2>(d_facts[i]), i);
   }
   if (LocalSearch()){
+    std::cout  << "LS FOUND A SOLUTION NO SIMPLEX NEEDED TM\n";
     foundASolution = true;
     return false;
   }
+   std::cout  << "LS DID NOT FINND A SOLUTION NO SIMPLEX NEEDED TM\n";
   return true;
 
 
@@ -278,14 +282,22 @@ void LocalSearchExtension::printChange(std::vector<Integer> change)
 
 void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
 {
+  if (totalAsserts != idxToCount.size()){
+    std:: cout << "ASSERTS:" << totalAsserts << "\n";
+    std:: cout << "IDXCOUNT:" <<  idxToCount.size() << "\n";
+    AlwaysAssert(false);
+  }
+  AlwaysAssert(totalAsserts == idxToCount.size());
   //std::cout << "First:" << assertion << "\n";
   totalAsserts +=1;
   int idx_literal = currentLiteralsIdx.size();
   // CASE 1: Literal has already been processed
   if (idToIdxLiteral.count(assertion.getId())>0){
     currentLiteralsIdx.push_back(idToIdxLiteral.at(assertion.getId()));
-    idxToMainIdx[currentLiteralsIdx[idx_literal]] = MainIdx;
-    idxToCount[currentLiteralsIdx[idx_literal]]= 0;
+    idxToMainIdx[idx_literal] = MainIdx;
+    //std::cout << "Added to idx count old\n";
+    AlwaysAssert(idxToCount.count(idx_literal)==0);
+    idxToCount[idx_literal]= 0;
     allLiterals[currentLiteralsIdx[idx_literal]].delta = allLiterals[currentLiteralsIdx[idx_literal]].calculateDelta(variablesValues);
     allLiterals[currentLiteralsIdx[idx_literal]].weight = 1;
     Literal literal = allLiterals[currentLiteralsIdx[idx_literal]];
@@ -301,6 +313,7 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
 
     return;
   }
+  //idxToCount[currentLiteralsIdx[allLiterals.size()]]= 0;
   // CASE 2: Has not been processed
   bool isNot = assertion.getKind() == Kind::NOT;
   TNode atom = isNot ? assertion[0] : assertion;
@@ -433,10 +446,12 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
   {
     unsatLiterals.insert(idx_literal);
   }
+  //std::cout << "Added to idx count\n";
   idToIdxLiteral[assertion.getId()] = allLiterals.size();
   currentLiteralsIdx.push_back(allLiterals.size());
-  idxToMainIdx[currentLiteralsIdx[allLiterals.size()]] = MainIdx;
-  idxToCount[currentLiteralsIdx[allLiterals.size()]]= 0;
+  idxToMainIdx[idx_literal] = MainIdx;
+  AlwaysAssert(idxToCount.count(idx_literal)==0);
+  idxToCount[idx_literal]= 0;
   allLiterals.push_back(literal);
 }
 
@@ -857,17 +872,17 @@ void LocalSearchExtension::applyPAWS()
 
 bool LocalSearchExtension::LocalSearch()
 {
-  if (ConflictFound == true){
-    return false;
-  }
-  for (int i = 0; i < variablesValues.size(); i++ ){
-    if (upperBound[i].has_value() && lowerBound[i].has_value() && upperBound[i].value().first > lowerBound[i].value().first){
-      dls_conflict.push_back(d_facts[upperBound[i].value().second]);
-      dls_conflict.push_back(d_facts[upperBound[i].value().second]);
-      ConflictFound = true;
-      return false;
-    }
-  }
+  // if (ConflictFound == true){
+  //   return false;
+  // }
+  // for (int i = 0; i < variablesValues.size(); i++ ){
+  //   if (upperBound[i].has_value() && lowerBound[i].has_value() && upperBound[i].value().first > lowerBound[i].value().first){
+  //     dls_conflict.push_back(d_facts[upperBound[i].value().second]);
+  //     dls_conflict.push_back(d_facts[upperBound[i].value().second]);
+  //     ConflictFound = true;
+  //     return false;
+  //   }
+  // }
   std::random_device rd;
     
     // Choose a random number between 1 and 10000 as part of the file name
@@ -1009,17 +1024,22 @@ bool LocalSearchExtension::LocalSearch()
 }
 
 std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::conflict(){
-  if (ConflictFound){
-    return dls_conflict;
-  };
+  AlwaysAssert(idxToCount.size() == d_facts.size());
+  // if (ConflictFound){
+  //   return dls_conflict;
+  // };
   // std::vector<Node> d_conflict;
   // std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(d_conflict));
   // return d_conflict;
   // No explicit conflict has been then sort the conflicts 
+  std::cout << "IDXTOCOUNDSIZE" << idxToCount.size() << "\n";
+  std::cout << "Asserts" << totalAsserts << "\n";
+   std::cout << "facts SIZE:" << d_facts.size() << "\n";
+
+
 
   std::vector<std::pair<int, int>> vec(idxToCount.begin(), idxToCount.end());
 
-  orderedCount = vec;
 
   // // Sort the vector by value using a custom comparator
   std::sort(vec.begin(), vec.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
@@ -1030,43 +1050,63 @@ std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::conflict(){
         return acc + pair.second;
    });
   
-   mean = static_cast<double>(total) / vec.size();
+   mean = static_cast<int>(total) / vec.size();
 
-
+   orderedCount = vec;
 
    for (const auto& pair : orderedCount) {
          if (pair.second >= mean) {
-             dls_conflict.push_back(d_facts[idxToMainIdx[pair.first]]);
+             dls_conflict.push_back(d_facts[pair.first]);
         }
      }
-    for (const int idx: d_Bounds){
-      dls_conflict.push_back(d_facts[idx]);
-    }
-
+    // for (const int idx: d_Bounds){
+    //   dls_conflict.push_back(d_facts[idx]);
+    // }
+  std:: cout << mean << "\n";
   sentSmartConflict = true;
+  std::cout << "SMART CONFLICT SIZE:" << dls_conflict.size() << "\n";
   
   return dls_conflict;
 
 }
 
 std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::getTrivialConflict(bool lookedAtSmart){
+  std::cout << "ORDERCOUT";
+  std::vector<std::pair<int, int>> vec(idxToCount.begin(), idxToCount.end());
+  std::sort(vec.begin(), vec.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+       return a.second < b.second; // Compare by value
+   });
+  orderedCount = vec;
+
+  for (auto pair: orderedCount) {
+    std::cout << "(" << pair.first << "," << pair.second << ")" << ", ";
+  }
+  std::cout <<"\n";
+
   if (!sentSmartConflict || !lookedAtSmart) {
     dls_conflict.clear();
-    std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(dls_conflict));
+    for( auto&i: orderedCount){
+      dls_conflict.push_back(d_facts[i.first]);
+    }
+    //std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(dls_conflict));
     AlwaysAssert(dls_conflict.size() == d_facts.size());
     std::cout << d_facts.size() << "\n";
     return dls_conflict;
   }
-  else {
+ else {
     dls_conflict.clear();
+    std:: cout << mean << "\n";
     for (const auto& pair : orderedCount) {
          if (pair.second < mean) {
-             dls_conflict.push_back(d_facts[idxToMainIdx[pair.first]]);
+             dls_conflict.push_back(d_facts[pair.first]);
         }
      }
-    for (const int idx: d_Bounds){
-      dls_conflict.push_back(d_facts[idx]);
-    }
+    // for (const int idx: d_Bounds){
+    //   dls_conflict.push_back(d_facts[idx]);
+    // }
+    std::cout << "Other CONFLICT SIZE:" << dls_conflict.size() << "\n";
+
+    std::cout << "facts SIZE:" << d_facts.size() << "\n";
     return dls_conflict;
 
   }
