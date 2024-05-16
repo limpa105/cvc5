@@ -181,6 +181,7 @@ enum class InferenceId
   ARITH_NL_ICP_CONFLICT,
   // propagation / contraction of variable bounds from icp
   ARITH_NL_ICP_PROPAGATION,
+  LOCAL_SEARCH_LEMMA,
   //-------------------- ff inference
   // ---------------------------------- end arith theory
 

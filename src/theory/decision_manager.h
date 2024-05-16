@@ -85,7 +85,8 @@ class DecisionManager
     //----- decision strategies that are optimizations
     STRAT_ARRAYS,
 
-    STRAT_LAST
+    STRAT_LAST,
+    STRAT_LOCAL_SEARCH_GUARD,
   };
   /** The scope of a strategy, used in registerStrategy below */
   enum StrategyScope

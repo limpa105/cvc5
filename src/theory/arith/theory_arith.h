@@ -118,6 +118,10 @@ class TheoryArith : public Theory {
 
   std::pair<bool, Node> entailmentCheck(TNode lit) override;
 
+  std::vector<Node> facts;
+
+  std::map<Node, Node> d_conflict_guard;
+
   /** Return a reference to the arith::InferenceManager. */
   InferenceManager& getInferenceManager()
   {

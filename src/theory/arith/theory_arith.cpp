@@ -15,16 +15,17 @@
 
 #include "theory/arith/theory_arith.h"
 
+#include "cvc5/cvc5_proof_rule.h"
 #include "options/smt_options.h"
 #include "printer/smt2/smt2_printer.h"
 #include "proof/proof_checker.h"
-#include "cvc5/cvc5_proof_rule.h"
 #include "smt/logic_exception.h"
 #include "theory/arith/arith_evaluator.h"
 #include "theory/arith/arith_rewriter.h"
 #include "theory/arith/equality_solver.h"
 #include "theory/arith/linear/theory_arith_private.h"
 #include "theory/arith/nl/nonlinear_extension.h"
+#include "theory/decision_manager.h"
 #include "theory/ext_theory.h"
 #include "theory/rewriter.h"
 #include "theory/theory_model.h"
@@ -220,13 +221,72 @@ void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 
 bool TheoryArith::preCheck(Effort level)
 {
-  Trace("arith-check") << "TheoryArith::preCheck " << level << std::endl;
-  bool newFacts = !done();
-  return d_internal.preCheck(level, newFacts);
+  // Trace("arith-check") << "TheoryArith::preCheck " << level << std::endl;
+  // bool newFacts = !done();
+  // return d_internal.preCheck(level, newFacts);
 }
 
 void TheoryArith::postCheck(Effort level)
 {
+  if (options().arith.optionalConflicts)
+  {
+    if (!Theory::fullEffort(level))
+    {
+      Trace("arith") << "We did nothing on a standard check\n";
+      // Do nothing on standard checks
+      return;
+    }
+    else
+    {
+      NodeManager* nm = NodeManager::currentNM();
+      // AlwaysAssert(facts.size()!=0);
+      Node body = nm->mkNode(Kind::AND, facts);
+      if (d_conflict_guard.size() > 1)
+      {
+        Trace("arith") << "We did it! Optional Conflicts work\n";
+      }
+      if (d_conflict_guard.count(body) > 0)
+      {
+        bool value;
+        Node guard = d_conflict_guard[body];
+        if (d_astate.getValuation().hasSatValue(guard, value))
+        {
+          if (value)
+          {
+            AlwaysAssert(false)
+                << "guard was set to true, this should never happen";
+          }
+          else
+          {
+            AlwaysAssert(false) << "guard was set to false, this should not "
+                                   "happen for these examples";
+          }
+        }
+        else
+        {
+          AlwaysAssert(false) << "guard has no value, this should never happen";
+        }
+      }
+      else
+      {
+        SkolemManager* sm = nm->getSkolemManager();
+        Node sk = sm->mkDummySkolem("CeLiteral", nm->booleanType());
+        Node lit = d_astate.getValuation().ensureLiteral(sk);
+        d_im.addPendingPhaseRequirement(lit, true);
+        DecisionStrategy* ds = new DecisionStrategySingleton(
+            d_env, "CeLiteral", lit, d_astate.getValuation());
+        d_im.getDecisionManager()->registerStrategy(
+            DecisionManager::STRAT_LOCAL_SEARCH_GUARD, ds);
+        Node lem = nm->mkNode(Kind::OR, lit.negate(), body.negate());
+        bool added = d_im.lemma(
+            lem, InferenceId::CONFLICT_REWRITE_LIT, LemmaProperty(0));
+        d_conflict_guard[body] = lit;
+        Trace("arith") << "Added guard for the following clauses:" << body;
+        AlwaysAssert(added);
+        return;
+      }
+    }
+  }
   d_im.reset();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
@@ -318,6 +378,11 @@ bool TheoryArith::preNotifyFact(
   }
   // we also always also notify the internal solver
   d_internal.preNotifyFact(fact);
+
+  if (options().arith.optionalConflicts)
+  {
+    facts.push_back(fact);
+  }
   return ret;
 }
 
