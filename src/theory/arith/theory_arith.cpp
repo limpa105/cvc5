@@ -181,8 +181,8 @@ void TheoryArith::preRegisterTerm(TNode n)
 
 void TheoryArith::notifySharedTerm(TNode n)
 {
-  n = n.getKind() == Kind::TO_REAL ? n[0] : n;
-  d_internal->notifySharedTerm(n);
+  //n = n.getKind() == Kind::TO_REAL ? n[0] : n;
+  //d_internal->notifySharedTerm(n);
 }
 
 TrustNode TheoryArith::ppRewrite(TNode atom, std::vector<SkolemLemma>& lems)
@@ -383,38 +383,49 @@ void TheoryArith::postCheck(Effort level)
           }
           //std::cout << "simplex did not find a conflict in trivial...\n";
         if (d_im.hasSent()){
+          Trace("arith") << "Simplex sent something" << endl;
           //std::cout << "d_im.hasSent()\n";
           return;
         }
-        if (d_internal->foundNonlinear())
-          {
-            //std::cout << "simplex found a non linear solution...\n";
+
+    
+  if (Theory::fullEffort(level))
+  {
+    d_arithModelCache.clear();
+    d_arithModelCacheIllTyped.clear();
+    d_arithModelCacheSubs.clear();
+    d_arithModelCacheSet = false;
+    std::set<Node> termSet;
+    if (d_nonlinearExtension != nullptr)
+    {
+      updateModelCache(termSet);
+      // Check at full effort. This may either send lemmas or otherwise
+      // buffer lemmas that we send at last call.
+      d_nonlinearExtension->checkFullEffort(d_arithModelCache, termSet);
+      // if we already sent a lemma, we are done
+      if (d_im.hasSent())
+      {
+        return;
+      }
+    }
+    else if (d_internal->foundNonlinear())
+    {
       // set incomplete
-        d_im.setModelUnsound(IncompleteId::ARITH_NL_DISABLED);
-          }
+      d_im.setModelUnsound(IncompleteId::ARITH_NL_DISABLED);
+    }
     // If we won't be doing a last call effort check (which implies that
     // models will be computed), we must sanity check the integer model
     // from the linear solver now. We also must update the model cache
     // if we did not do so above.
-      d_arithModelCache.clear();
-      d_arithModelCacheIllTyped.clear();
-      d_arithModelCacheSubs.clear();
-      d_arithModelCacheSet = false;
-      std::set<Node> termSet;
-      if (d_nonlinearExtension == nullptr)
-      {
-        updateModelCache(termSet);
-      }
-      if(sanityCheckIntegerModel()){
-        finalizeModelCache();
-        std::cout << "We left!!!\n";
-        return;
-      }
+    if (d_nonlinearExtension == nullptr)
+    {
+      updateModelCache(termSet);
+    }
+    sanityCheckIntegerModel();
     // Now, finalize the model cache, which constructs a substitution to be
     // used for getEqualityStatus.
-      finalizeModelCache();
-        return;
-      }
+    finalizeModelCache();
+    }
         //d_internal->postCheck(level);
         //simplexTime.stop();
         //return;
@@ -460,7 +471,7 @@ void TheoryArith::postCheck(Effort level)
       // //d_conflict_guard[body] = lit;
       // //std::cout << "Got a conflict\n";
     //}
-    
+  }
   //}
   //simplexTime.start();
   Trace("arith") << "TheoryArith::postCheck " << level << std::endl;
@@ -794,12 +805,14 @@ bool TheoryArith::sanityCheckIntegerModel()
     // must branch and bound
     std::vector<TrustNode> lems =
         d_bab.branchIntegerVariable(p.first, p.second.getConst<Rational>());
+     Trace("arith-check") << "lems:" << lems.size() << std::endl;  
     for (const TrustNode& lem : lems)
     {
       if (d_im.trustedLemma(lem, InferenceId::ARITH_BB_LEMMA))
       {
         addedLemma = true;
       }
+      Trace("arith-check") << "for some reason lemma was not sent\n";
     }
     badAssignment = true;
   }
