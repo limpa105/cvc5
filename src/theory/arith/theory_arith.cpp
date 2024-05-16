@@ -237,14 +237,29 @@ void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 
 bool TheoryArith::preCheck(Effort level)
 {
-
   Trace("arith-check") << "TheoryArith::preCheck " << level << std::endl;
+  // if (d_localSearchExtension != nullptr)
+  // {
+  //   if(!(d_localSearchExtension->postCheck(level)) ){
+  //     return false;
+  //   }
+  // else {
+  // Trace("arith") << "local search could not find a solution so we defaulted to simplex" << endl;
+  // // std::vector<std::tuple<TNode, bool, TNode>> dls_conflict3 = d_localSearchExtension->getTrivialConflict(false);
+  // // AlwaysAssert(dls_conflict3.size()!=0);
+  // // for (int i=0; i< dls_conflict3.size(); i++){
+  // //       d_internal->preNotifyFact(std::get<0>(dls_conflict3[i]), std::get<1>(dls_conflict3[i]), std::get<2>(dls_conflict3[i]));
+  // //     }
+  // return  d_internal->preCheck(level);
+  // }
+  // }
   return d_internal->preCheck(level);
 }
 
 void TheoryArith::postCheck(Effort level)
 {
-  std::cout << level << "\n";
+  Trace("arith") << "postChecking" << level << endl;
+  //std::cout << level << "\n";
   d_im.reset();
   if (level == Theory::EFFORT_LAST_CALL)
   {
@@ -267,10 +282,11 @@ void TheoryArith::postCheck(Effort level)
     for (int i=0; i< static_cast<int>(dls_conflict.size()); i++){
         d_internal->preNotifyFact(std::get<0>(dls_conflict[i]), std::get<1>(dls_conflict[i]), std::get<2>(dls_conflict[i]));
       }
-    if (d_internal -> preCheck(Theory::EFFORT_STANDARD)){
-      std::cout << "found an initital conflict";
+    if (d_internal -> postCheck(Theory::EFFORT_STANDARD)){
+      Trace("arith") << "Simplex found a conflict in smart conflicts" << endl;
       return;
     };
+    Trace("arith") << "Simplex DID NOT find a conflict in smart conflicts" << endl;
     std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict(true);
     for (int i=0; i< dls_conflict2.size(); i++){
         d_internal->preNotifyFact(std::get<0>(dls_conflict2[i]), std::get<1>(dls_conflict2[i]), std::get<2>(dls_conflict2[i]));
@@ -346,27 +362,33 @@ void TheoryArith::postCheck(Effort level)
       //    }
     }
     else {
+    Trace("arith") << "Simplex attempting to find conflict in total conflicts" << endl;
     std::vector<std::tuple<TNode, bool, TNode>> dls_conflict3 = d_localSearchExtension->getTrivialConflict(false);
     for (int i=0; i< dls_conflict3.size(); i++){
         d_internal->preNotifyFact(std::get<0>(dls_conflict3[i]), std::get<1>(dls_conflict3[i]), std::get<2>(dls_conflict3[i]));
       }
-    d_internal->preCheck(level);
-    return;
+    // bool result = d_internal->postCheck(level);
+    // if (result) {
+    //    Trace("arith") << "Simplex found a conflict" << endl;
+    // } else {
+    //   Trace("arith") << "Simplex did NOT find a conflict" << endl;
+    //}
     }
          //d_internal->presolve();
         if (d_internal->postCheck(level))
           {
-            std::cout << "simplex found a conflict in trivial...\n";
+             Trace("arith") << "Simplex found a conflict" << endl;
+            //std::cout << "simplex found a conflict in trivial...\n";
             return;
           }
-          std::cout << "simplex did not find a conflict in trivial...\n";
+          //std::cout << "simplex did not find a conflict in trivial...\n";
         if (d_im.hasSent()){
-          std::cout << "d_im.hasSent()\n";
+          //std::cout << "d_im.hasSent()\n";
           return;
         }
         if (d_internal->foundNonlinear())
           {
-            std::cout << "simplex found a non linear solution...\n";
+            //std::cout << "simplex found a non linear solution...\n";
       // set incomplete
         d_im.setModelUnsound(IncompleteId::ARITH_NL_DISABLED);
           }
@@ -392,7 +414,7 @@ void TheoryArith::postCheck(Effort level)
     // used for getEqualityStatus.
       finalizeModelCache();
         return;
-        }
+      }
         //d_internal->postCheck(level);
         //simplexTime.stop();
         //return;
@@ -440,9 +462,8 @@ void TheoryArith::postCheck(Effort level)
     //}
     
   //}
-  return;
-  simplexTime.start();
-  Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
+  //simplexTime.start();
+  Trace("arith") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
   {
     // Make sure we don't have old lemmas floating around. This can happen if we
@@ -471,7 +492,7 @@ void TheoryArith::postCheck(Effort level)
     // linear solver emitted a conflict or lemma, return
     return;
   }
-  simplexTime.stop();
+  //simplexTime.stop();
   if (d_im.hasSent())
   {
     return;
@@ -522,6 +543,7 @@ bool TheoryArith::preNotifyFact(
   if (d_localSearchExtension != nullptr)
   {
     d_localSearchExtension->notifyFact(atom, pol, fact, isPrereg, isInternal);
+    return true;
   }
 
   Trace("arith-check") << "TheoryArith::preNotifyFact: " << fact
@@ -537,7 +559,7 @@ bool TheoryArith::preNotifyFact(
     ret = d_eqSolver->preNotifyFact(atom, pol, fact, isPrereg, isInternal);
   }
   // we also always also notify the internal solver
-  //d_internal->preNotifyFact(atom, pol, fact);
+  d_internal->preNotifyFact(atom, pol, fact);
   return ret;
 }
 

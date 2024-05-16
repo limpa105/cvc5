@@ -122,7 +122,6 @@ void LocalSearchExtension::presolve()
 void LocalSearchExtension::notifyFact(
     TNode atom, bool pol, TNode fact, bool isPrereg, bool isInternal)
 {
-  std::cout << "Notify Face\n";
   Trace("theory::arith::idl")
       << "IdlExtension::notifyFact(): processing " << fact << std::endl;
   d_facts.push_back(std::make_tuple(atom, pol, fact));
@@ -139,6 +138,7 @@ Node LocalSearchExtension::ppStaticRewrite(TNode atom)
 
 bool LocalSearchExtension::postCheck(Theory::Effort level)
 {
+  foundASolution = false;
   if (!Theory::fullEffort(level))
   {
     //return;
@@ -183,11 +183,11 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
     processAssertion(std::get<2>(d_facts[i]), i);
   }
   if (LocalSearch()){
-    std::cout  << "LS FOUND A SOLUTION NO SIMPLEX NEEDED TM\n";
+    Trace("arith") << "local search found a solution"  << std::endl;
     foundASolution = true;
     return false;
   }
-   std::cout  << "LS DID NOT FINND A SOLUTION NO SIMPLEX NEEDED TM\n";
+  Trace("arith") << "simplex needed"  << std::endl;
   return true;
 
 

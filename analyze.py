@@ -39,6 +39,8 @@ if __name__ == "__main__":
         df["CVC5::SolutionFoundBySimplex"] =0
     if "Simplex::RunTime" not in df.columns:
         df["Simplex::RunTime"] ='0'
+    if "LS::RunTime" not in df.columns:
+        df["LS::RunTime"] ='0'
     df["CVC5::SolutionFoundByLS"] = df["CVC5::SolutionFoundByLS"].fillna('0').astype(int)
     df["CVC5::SolutionFoundBySimplex"] = df["CVC5::SolutionFoundBySimplex"].fillna('0').astype(int)
     df["LS::RunTime"] = df["LS::RunTime"].str.replace('ms', '').fillna('0').astype(int).sum()
