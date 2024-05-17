@@ -118,7 +118,7 @@ class TheoryArith : public Theory {
 
   std::pair<bool, Node> entailmentCheck(TNode lit) override;
 
-  std::vector<Node> facts;
+  context::CDList<Node> facts;
 
   std::map<Node, Node> d_conflict_guard;
 

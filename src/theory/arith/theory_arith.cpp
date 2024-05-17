@@ -53,7 +53,8 @@ TheoryArith::TheoryArith(Env& env, OutputChannel& out, Valuation valuation)
       d_arithPreproc(env, d_im, d_pnm, d_opElim),
       d_rewriter(nodeManager(), d_opElim),
       d_arithModelCacheSet(false),
-      d_checker(nodeManager())
+      d_checker(nodeManager()),
+      facts(env.getContext())
 {
 #ifdef CVC5_USE_COCOA
   // must be initialized before using CoCoA.
@@ -240,7 +241,9 @@ void TheoryArith::postCheck(Effort level)
     {
       NodeManager* nm = NodeManager::currentNM();
       // AlwaysAssert(facts.size()!=0);
-      Node body = nm->mkNode(Kind::AND, facts);
+      std::vector<Node> d_conflict{};
+      std::copy(facts.begin(), facts.end(), std::back_inserter(d_conflict));
+      Node body = nm->mkNode(Kind::AND, d_conflict);
       if (d_conflict_guard.size() > 1)
       {
         Trace("arith") << "We did it! Optional Conflicts work\n";
