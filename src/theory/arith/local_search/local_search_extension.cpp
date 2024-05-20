@@ -81,7 +81,8 @@ LocalSearchExtension::LocalSearchExtension(Env& env, TheoryArith& parent)
       d_varMap(context()),
       d_varList(context()),
       d_facts(context()),
-      d_numVars(0)
+      d_numVars(0),
+      currentLiteralsIdx(context())
 {
 }
 
@@ -101,6 +102,7 @@ void LocalSearchExtension::preRegisterTerm(TNode node)
     // add those bounds
     variablesValues.push_back(0);
 
+    
     // at the start no variable is present in any literal
     variablesToLiterals.push_back(std::set<int>());
 
@@ -125,6 +127,7 @@ void LocalSearchExtension::notifyFact(
   Trace("theory::arith::idl")
       << "IdlExtension::notifyFact(): processing " << fact << std::endl;
   d_facts.push_back(std::make_tuple(atom, pol, fact));
+  processAssertion(fact, d_facts.size()-1);
 
 }
 
@@ -142,46 +145,48 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   if (!Theory::fullEffort(level))
   {
     //return;
-    MAXNONIMPROVE = 100;
+    MAXNONIMPROVE = 10;
   }
   else {
     MAXNONIMPROVE = 10000;
   }
 
-  Trace("theory::arith::idl")
-      << "IdlExtension::postCheck(): number of facts = " << d_facts.size()
+  Trace("arith")
+      << "starting setup"
       << std::endl;
 
-  auto start = high_resolution_clock::now();
-  currentLiteralsIdx.clear();
-  d_Bounds.clear();
-  unsatLiterals.clear();
-  idxToCount.clear();
-  totalAsserts = 0;
-  idxToMainIdx.clear();
-  sentSmartConflict = false;
-  //if (level == Theory::EFFORT_FULL) 
-  dls_conflict.clear();
-  ConflictFound = false;
   std::vector<std::set<int>> tempMap(variablesValues.size(), std::set<int>());
   variablesToLiterals = tempMap;
-  std::vector<std::optional<std::pair<Integer,int>>> tempUp(variablesValues.size(), std::nullopt);
-  upperBound = tempUp;
-  std::vector<std::optional<std::pair<Integer,int>>> tempEq(variablesValues.size(), std::nullopt);
-  equalBound = tempEq;
-  std::vector<std::optional<std::pair<Integer,int>>> tempLower(variablesValues.size(), std::nullopt);
-  lowerBound = tempLower;
-  auto stop = high_resolution_clock::now();
-  auto duration = duration_cast<microseconds>(stop - start);
-  //std::cout << duration.count() << "\n";
-  for (int i =0; i<d_facts.size(); i++)
-  {
-    // For simplicity, we reprocess all the literals that have been asserted to
-    // this theory solver. A better implementation would process facts in
-    // notifyFact().
-
-    processAssertion(std::get<2>(d_facts[i]), i);
+  std::vector<int> tempMap2(currentLiteralsIdx.size(), 0);
+  idxToCount = tempMap2;
+  totalAsserts = 0;
+  sentSmartConflict = false;
+  dls_conflict.clear();
+  ConflictFound = false;
+  std::cout << currentLiteralsIdx.size() << "\n";
+  std::cout <<  allLiterals.size() << "\n";
+  for (int i =0; i< currentLiteralsIdx.size(); i++){
+    int idx = currentLiteralsIdx[i];
+    AlwaysAssert(idx <= allLiterals.size());
+    for (const int var: allLiterals[idx].variables){
+      variablesToLiterals[var].insert(i);
+    }
   }
+
+  restart();
+   Trace("arith")
+      << "Done with set up"
+      << std::endl;
+  //restart();
+  // std::vector<std::optional<std::pair<Integer,int>>> tempUp(variablesValues.size(), std::nullopt);
+  // upperBound = tempUp;
+  // std::vector<std::optional<std::pair<Integer,int>>> tempEq(variablesValues.size(), std::nullopt);
+  // equalBound = tempEq;
+  // std::vector<std::optional<std::pair<Integer,int>>> tempLower(variablesValues.size(), std::nullopt);
+  // lowerBound = tempLower;
+  // auto stop = high_resolution_clock::now();
+  // auto duration = duration_cast<microseconds>(stop - start);
+  //std::cout << duration.count() << "\n";
   if (LocalSearch()){
     Trace("arith") << "local search found a solution"  << std::endl;
     foundASolution = true;
@@ -285,12 +290,12 @@ void LocalSearchExtension::printChange(std::vector<Integer> change)
 
 void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
 {
-  if (totalAsserts != idxToCount.size()){
-    std:: cout << "ASSERTS:" << totalAsserts << "\n";
-    std:: cout << "IDXCOUNT:" <<  idxToCount.size() << "\n";
-    AlwaysAssert(false);
-  }
-  AlwaysAssert(totalAsserts == idxToCount.size());
+  //if (totalAsserts != idxToCount.size()){
+    //std:: cout << "ASSERTS:" << totalAsserts << "\n";
+    //std:: cout << "IDXCOUNT:" <<  idxToCount.size() << "\n";
+    //AlwaysAssert(false);
+  //}
+  //AlwaysAssert(totalAsserts == allLiterals.size());
   //std::cout << "First:" << assertion << "\n";
   totalAsserts +=1;
   int idx_literal = currentLiteralsIdx.size();
@@ -299,8 +304,8 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
     currentLiteralsIdx.push_back(idToIdxLiteral.at(assertion.getId()));
     idxToMainIdx[idx_literal] = MainIdx;
     //std::cout << "Added to idx count old\n";
-    AlwaysAssert(idxToCount.count(idx_literal)==0);
-    idxToCount[idx_literal]= 0;
+    //AlwaysAssert(idxToCount.count(idx_literal)==0);
+    idxToCount.push_back(0);
     allLiterals[currentLiteralsIdx[idx_literal]].delta = allLiterals[currentLiteralsIdx[idx_literal]].calculateDelta(variablesValues);
     allLiterals[currentLiteralsIdx[idx_literal]].weight = 1;
     Literal literal = allLiterals[currentLiteralsIdx[idx_literal]];
@@ -453,8 +458,8 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
   idToIdxLiteral[assertion.getId()] = allLiterals.size();
   currentLiteralsIdx.push_back(allLiterals.size());
   idxToMainIdx[idx_literal] = MainIdx;
-  AlwaysAssert(idxToCount.count(idx_literal)==0);
-  idxToCount[idx_literal]= 0;
+  //AlwaysAssert(idxToCount.count(idx_literal)==0);
+  idxToCount.push_back(0);
   allLiterals.push_back(literal);
 }
 
@@ -557,6 +562,7 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
 
 
 bool LocalSearchExtension::checkBounds(Integer value, int idx){
+  return true;
   if (upperBound[idx].has_value()){
      if (upperBound[idx].value().first > value){
        return false;
@@ -755,7 +761,7 @@ int LocalSearchExtension::stepForward(std::vector<Integer> change,
   // record satLiterals to update unsatLiterals later on
   std::set<int> satLiterals = std::set<int>();
   int score = 0;
-  for (auto& literal_idx : variablesToLiterals[varIdx])
+  for (const auto& literal_idx : variablesToLiterals[varIdx])
   {
     Literal literal = allLiterals[currentLiteralsIdx[literal_idx]];
     Integer oldDelta = literal.delta;
@@ -816,17 +822,17 @@ void LocalSearchExtension::restart()
   doNotMove = tempVec;
   std::vector<Integer> tempVec2(variablesValues.size(), Integer(0));
   variablesValues = tempVec2;
-  for (int i=0; i<variablesValues.size(); i++){
-    if (upperBound[i].has_value()){
-      variablesValues[i] = upperBound[i].value().first;
-    }
-    if (lowerBound[i].has_value()){
-      variablesValues[i] = lowerBound[i].value().first;
-    }
-    if (equalBound[i].has_value()){
-      variablesValues[i] = equalBound[i].value().first;
-    }
-  }
+  // for (int i=0; i<variablesValues.size(); i++){
+  //   if (upperBound[i].has_value()){
+  //     variablesValues[i] = upperBound[i].value().first;
+  //   }
+  //   if (lowerBound[i].has_value()){
+  //     variablesValues[i] = lowerBound[i].value().first;
+  //   }
+  //   if (equalBound[i].has_value()){
+  //     variablesValues[i] = equalBound[i].value().first;
+  //   }
+  // }
   unsatLiterals = std::set<int>();
   for (int i = 0; i < currentLiteralsIdx.size(); i++)
   {
@@ -886,12 +892,12 @@ bool LocalSearchExtension::LocalSearch()
   //     return false;
   //   }
   // }
-  std::random_device rd;
+  // std::random_device rd;
     
-    // Choose a random number between 1 and 10000 as part of the file name
-  std::default_random_engine eng(rd());
-  std::uniform_int_distribution<int> distr(1, 10000);
-  int random_number = distr(eng);
+  //   // Choose a random number between 1 and 10000 as part of the file name
+  // std::default_random_engine eng(rd());
+  // std::uniform_int_distribution<int> distr(1, 10000);
+  // int random_number = distr(eng);
     
     // Generate a random file name
   // std::string filename = "~/Documents/WINTER2024/fake/cvc5/expr/file_" + std::to_string(random_number) + ".txt";
@@ -906,9 +912,8 @@ bool LocalSearchExtension::LocalSearch()
   // Initialize doNotMove and random generator
   std::vector<int> tempVec(variablesValues.size() * 2 + 1, 0);
   doNotMove = tempVec;
-  //std::random_device rd;
-  std::mt19937 gen(rd());
-  rd_generator = gen;
+  std::random_device rd;
+  std::mt19937 rd_generator(rd());
   //rd_generator.seed(1);
   std::uniform_int_distribution<> tempDistribution(0, 10);
   doNotMoveDistribution = tempDistribution;
@@ -937,7 +942,7 @@ bool LocalSearchExtension::LocalSearch()
       return true;
     } else {
       for (const int& val : unsatLiterals) {
-        idxToCount[val] +=1;
+        idxToCount[val] = idxToCount[val]+1;
     }
     }
     // First try computing a decreasing change using regular score
@@ -1040,8 +1045,11 @@ std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::conflict(){
    std::cout << "facts SIZE:" << d_facts.size() << "\n";
 
 
-
-  std::vector<std::pair<int, int>> vec(idxToCount.begin(), idxToCount.end());
+  std::vector<std::pair<int, int>> vec;
+    for (size_t i = 0; i < idxToCount.size(); ++i) {
+        vec.emplace_back(i, idxToCount[i]);
+    }
+  //std::vector<std::pair<int, int>> vec(idxToCount.begin(), idxToCount.end());
 
 
   // // Sort the vector by value using a custom comparator
@@ -1075,7 +1083,15 @@ std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::conflict(){
 
 std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::getTrivialConflict(bool lookedAtSmart){
   std::cout << "ORDERCOUT";
-  std::vector<std::pair<int, int>> vec(idxToCount.begin(), idxToCount.end());
+  if (!lookedAtSmart){
+    std::vector<std::tuple<TNode, bool, TNode>> vec(d_facts.begin(), d_facts.end());
+    return vec;
+  }
+  //std::vector<std::pair<int, int>> vec(idxToCount.begin(), idxToCount.end());
+   std::vector<std::pair<int, int>> vec;
+    for (size_t i = 0; i < idxToCount.size(); ++i) {
+        vec.emplace_back(i, idxToCount[i]);
+    }
   std::sort(vec.begin(), vec.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
        return a.second < b.second; // Compare by value
    });

@@ -404,6 +404,7 @@ void TheoryArithPrivate::revertOutOfConflict(){
   d_partialModel.revertAssignmentChanges();
   clearUpdates();
   d_currentPropagationList.clear();
+  Trace("arrith") << "cleared propagation list" << endl;
 }
 
 void TheoryArithPrivate::clearUpdates(){
@@ -547,7 +548,7 @@ bool TheoryArithPrivate::AssertLower(ConstraintP constraint){
       }
     }
   }
-
+  Trace("arith") << "added constraint to propagtion list" << endl;
   d_currentPropagationList.push_back(constraint);
   d_currentPropagationList.push_back(d_partialModel.getLowerBoundConstraint(x_i));
 
@@ -686,7 +687,7 @@ bool TheoryArithPrivate::AssertUpper(ConstraintP constraint){
       }
     }
   }
-
+  Trace("arith") << "added constraint to propagtion list" << endl;
   d_currentPropagationList.push_back(constraint);
   d_currentPropagationList.push_back(d_partialModel.getUpperBoundConstraint(x_i));
   //It is fine if this is NullConstraint
@@ -775,6 +776,7 @@ bool TheoryArithPrivate::AssertEquality(ConstraintP constraint){
 
   // Don't bother to check whether x_i != c_i is in d_diseq
   // The a and (not a) should never be on the fact queue
+  Trace("arith") << "added constraint to propagtion list" << endl;
   d_currentPropagationList.push_back(constraint);
   d_currentPropagationList.push_back(d_partialModel.getLowerBoundConstraint(x_i));
   d_currentPropagationList.push_back(d_partialModel.getUpperBoundConstraint(x_i));
@@ -3068,6 +3070,7 @@ bool TheoryArithPrivate::hasFreshArithLiteral(Node n) const{
 
 bool TheoryArithPrivate::preCheck(Theory::Effort level)
 {
+  Trace("arith") << "Size:" << d_currentPropagationList.size() << endl;
   Assert(d_currentPropagationList.empty());
   if(TraceIsOn("arith::consistency")){
     Assert(unenqueuedVariablesAreConsistent());
@@ -4484,8 +4487,11 @@ bool TheoryArithPrivate::rowImplicationCanBeApplied(RowIndex ridx, bool rowUp, C
     //   * coeffs[0] is for implied
     //   * coeffs[i+1] is for explain[i]
     d_linEq.propagateRow(explain, ridx, rowUp, implied, coeffs);
+    Trace("arith") << "prop length:" << d_tableau.getRowLength(ridx) << endl;
+    Trace("arith") << "options length:" << options().arith.arithPropAsLemmaLength << endl;
     if (d_tableau.getRowLength(ridx) <= options().arith.arithPropAsLemmaLength)
     {
+      Trace("arith") << "We got here" << endl;
       if (TraceIsOn("arith::prop::pf")) {
         for (const auto & constraint : explain) {
           Assert(constraint->hasProof());
@@ -4498,6 +4504,7 @@ bool TheoryArithPrivate::rowImplicationCanBeApplied(RowIndex ridx, bool rowUp, C
 
       if (isProofEnabled())
       {
+        Trace("arith") << "proof is enabeled" << endl;
         // We can prove this lemma from Farkas...
         std::vector<std::shared_ptr<ProofNode>> conflictPfs;
         Node pfLit = implied->getNegation()->getProofLiteral();
@@ -4561,6 +4568,9 @@ bool TheoryArithPrivate::rowImplicationCanBeApplied(RowIndex ridx, bool rowUp, C
     }
     else
     {
+      Trace("arith::prop") << "Implied:" << implied->negationHasProof() << endl;
+      Trace("arith::prop") << "Options:" << options().arith.localSearchExt << endl;
+
       Assert(!implied->negationHasProof());
       implied->impliedByFarkas(explain, coeffs, false);
       implied->tryToPropagate();

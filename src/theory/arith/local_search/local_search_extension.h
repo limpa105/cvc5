@@ -21,8 +21,11 @@
 #include <iostream>
 #include <random>
 #include <unordered_map>
+#include <list>
 
 #include "context/cdlist.h"
+#include "context/cdhashset.h"
+#include "context/cdhashmap.h"
 #include "smt/env_obj.h"
 #include "theory/skolem_lemma.h"
 #include "theory/theory.h"
@@ -83,6 +86,8 @@ class LocalSearchExtension : protected EnvObj
   LocalSearchExtension(Env& env, TheoryArith& parent);
   ~LocalSearchExtension();
 
+
+
   /** Register a term that is in the formula */
   void preRegisterTerm(TNode);
 
@@ -121,7 +126,7 @@ class LocalSearchExtension : protected EnvObj
 
   std::unordered_map<int, int> idxToMainIdx;
 
-  std::map<int, int> idxToCount;
+  std::vector<int> idxToCount;
   /** The owner of this extension */
   TheoryArith& d_parent;
 
@@ -165,7 +170,7 @@ class LocalSearchExtension : protected EnvObj
   std::mt19937 rd_generator;
 
   /** A list of current parsed literals **/
-  std::vector<int> currentLiteralsIdx;
+  context::CDList<int> currentLiteralsIdx;
 
   /** A list of ALL literals in the problem **/
   std::vector<Literal> allLiterals;
