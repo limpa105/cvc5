@@ -24,7 +24,7 @@ for file in "$TEST_DIR"/*; do
         echo -n "NEW FILE" >> "$output_file"
         echo -n "$file " >> "$output_file"
 	echo >> "$output_file"
-	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >> "$output_file" 2>&1
+	    $CVC5 --local-search-ext --produce-models --check-models --stats-internal --tlimit=1200000  "$file" >> "$output_file" 2>&1
         echo "Processed $file"
     fi
 done 
@@ -35,7 +35,7 @@ for file in "$TEST_DIR"/*/*; do
         echo -n "NEW FILE" >> "$output_file"
         echo -n "$file \n" >> "$output_file"
 	echo >> "$output_file"
-	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >> "$output_file" 2>&1
+	    $CVC5 --local-search-ext --produce-models --check-models --stats-internal --tlimit=1200000  "$file" >> "$output_file" 2>&1
         echo "Processed $file"
     fi
 done 
@@ -46,7 +46,7 @@ for file in "$TEST_DIR"/*/*/*; do
         echo -n "NEW FILE" >> "$output_file"
         echo -n "$file \n" >> "$output_file"
 	echo >> "$output_file"
-	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >> "$output_file" 2>&1
+	    $CVC5 --local-search-ext --produce-models --check-models --stats-internal --tlimit=1200000  "$file" >> "$output_file" 2>&1
         echo "Processed $file"
     fi
 done 
@@ -58,7 +58,7 @@ for file in "$TEST_DIR"/*/*/*/*; do
         echo -n "NEW FILE" >> "$output_file"
         echo -n "$file \n" >> "$output_file"
 	echo >> "$output_file"
-	    $CVC5 --local-search-ext --produce-models --check-models --stats --tlimit=1200000  "$file" >>  "$output_file" 2>&1
+	    $CVC5 --local-search-ext --produce-models --check-models --stats-internal --tlimit=1200000  "$file" >>  "$output_file" 2>&1
         echo "Processed $file"
     fi
 done  

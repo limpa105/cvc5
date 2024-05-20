@@ -41,6 +41,8 @@ if __name__ == "__main__":
         df["Simplex::RunTime"] ='0'
     if "LS::RunTime" not in df.columns:
         df["LS::RunTime"] ='0'
+    if "theory::arith::pivots" not in df.columns:
+        df["theory::arith::pivots"] = 0
     df["CVC5::SolutionFoundByLS"] = df["CVC5::SolutionFoundByLS"].fillna('0').astype(int)
     df["CVC5::SolutionFoundBySimplex"] = df["CVC5::SolutionFoundBySimplex"].fillna('0').astype(int)
     df["LS::RunTime"] = df["LS::RunTime"].str.replace('ms', '').fillna('0').astype(int).sum()
@@ -49,8 +51,10 @@ if __name__ == "__main__":
     print("Solved:", df["CVC5::SolutionFoundByLS"].sum() + df["CVC5::SolutionFoundBySimplex"].sum())
     print("Solutions Found By LS", df["CVC5::SolutionFoundByLS"].sum())
     print("Solutions Found By Simplex", df["CVC5::SolutionFoundBySimplex"].sum() )
-    print("Avg LS running time", df["LS::RunTime"].sum()*0.001 )
-    print("Avg Simplex running time", df["Simplex::RunTime"].sum() * 0.001 )
-    print("LS to Simplex Time Ratio", (df["LS::RunTime"]/df["Simplex::RunTime"]).sum() * 0.001)    
+    print("Avg LS running time", df["LS::RunTime"].sum()/df.shape[0])
+    print("Avg Simplex running time", df["Simplex::RunTime"].sum()/df.shape[0])
+    print("LS to Simplex Time Ratio", (df["LS::RunTime"]/df["Simplex::RunTime"]).sum() * 0.001) 
+    print("LS to Simplex Time Ratio", (df["LS::RunTime"]/df["Simplex::RunTime"]).sum() * 0.001)  
+    print("Avg number of pivots", (df["theory::arith::pivots"].sum()/df.shape[0]))     
 
     

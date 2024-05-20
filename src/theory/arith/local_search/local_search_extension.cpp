@@ -102,9 +102,10 @@ void LocalSearchExtension::preRegisterTerm(TNode node)
     // add those bounds
     variablesValues.push_back(0);
 
-    
+    context::CDHashSet<int> var(context());
+
     // at the start no variable is present in any literal
-    variablesToLiterals.push_back(std::set<int>());
+    variablesToLiterals.emplace(variablesValues.size(), context());
 
     // also add the node for the solution
     d_varList.push_back(node);
@@ -155,8 +156,8 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
       << "starting setup"
       << std::endl;
 
-  std::vector<std::set<int>> tempMap(variablesValues.size(), std::set<int>());
-  variablesToLiterals = tempMap;
+  //std::vector<std::set<int>> tempMap(variablesValues.size(), std::set<int>());
+  //variablesToLiterals = tempMap;
   std::vector<int> tempMap2(currentLiteralsIdx.size(), 0);
   idxToCount = tempMap2;
   totalAsserts = 0;
@@ -165,13 +166,13 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   ConflictFound = false;
   std::cout << currentLiteralsIdx.size() << "\n";
   std::cout <<  allLiterals.size() << "\n";
-  for (int i =0; i< currentLiteralsIdx.size(); i++){
-    int idx = currentLiteralsIdx[i];
-    AlwaysAssert(idx <= allLiterals.size());
-    for (const int var: allLiterals[idx].variables){
-      variablesToLiterals[var].insert(i);
-    }
-  }
+  // for (int i =0; i< currentLiteralsIdx.size(); i++){
+  //   int idx = currentLiteralsIdx[i];
+  //   AlwaysAssert(idx <= allLiterals.size());
+  //   for (const int var: allLiterals[idx].variables){
+  //     variablesToLiterals[var].insert(i);
+  //   }
+  // }
 
   restart();
    Trace("arith")
@@ -311,8 +312,15 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
     Literal literal = allLiterals[currentLiteralsIdx[idx_literal]];
     for (const auto& var : literal.variables)
     {
-    // add ability to map from variables to literal
-    variablesToLiterals[var].insert(idx_literal);
+    auto result = variablesToLiterals.emplace(var, context());
+
+// Check if the emplacement was successful or the key already existed
+    if (!result.second) {
+    // The key `var` already existed, and no new element was emplaced
+    // result.first is an iterator pointing to the existing element
+    }    
+// Now, insert your `idx_literal` into the `CDHashSet`
+    result.first->second.insert(idx_literal);
     }
     if (!checkIfSat(literal, literal.delta))
     {
@@ -448,7 +456,19 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
   for (const auto& var : literal.variables)
   {
     // add ability to map from variables to literal
-    variablesToLiterals[var].insert(idx_literal);
+    auto result = variablesToLiterals.emplace(var, context());
+
+// Check if the emplacement was successful or the key already existed
+    if (!result.second) {
+    // The key `var` already existed, and no new element was emplaced
+    // result.first is an iterator pointing to the existing element
+    }    
+// Now, insert your `idx_literal` into the `CDHashSet`
+    result.first->second.insert(idx_literal);
+    if (!checkIfSat(literal, literal.delta))
+    {
+    unsatLiterals.insert(idx_literal);
+    }
   }
   if (!checkIfSat(literal, literal.delta))
   {
@@ -678,7 +698,16 @@ int LocalSearchExtension::computeScore(std::vector<Integer> change, int varIdx)
   // score: how many new SAT clauses we get from a new assignment -
   // new UNSAT clauses we get from a new assignment
   int score = 0;
-  for (int literalIdx : variablesToLiterals[varIdx])
+  auto result = variablesToLiterals.emplace(varIdx, context());
+
+// Check if the emplacement was successful or the key already existed
+  if (!result.second) {
+    // The key `var` already existed, and no new element was emplaced
+    // result.first is an iterator pointing to the existing element
+    }    
+// Now, insert your `idx_literal` into the `CDHashSet`
+  //result.first->second.insert(varIdx);
+  for (int literalIdx : result.first->second)
   {
     Literal literal = allLiterals[currentLiteralsIdx[literalIdx]];
     Integer newDelta = literal.calculateDelta(change);
@@ -761,7 +790,16 @@ int LocalSearchExtension::stepForward(std::vector<Integer> change,
   // record satLiterals to update unsatLiterals later on
   std::set<int> satLiterals = std::set<int>();
   int score = 0;
-  for (const auto& literal_idx : variablesToLiterals[varIdx])
+  auto result1 = variablesToLiterals.emplace(varIdx, context());
+
+// Check if the emplacement was successful or the key already existed
+  if (!result1.second) {
+    // The key `var` already existed, and no new element was emplaced
+    // result.first is an iterator pointing to the existing element
+    }    
+// Now, insert your `idx_literal` into the `CDHashSet`
+  //result.first->second.insert(varIdx);
+  for (const auto& literal_idx :  result1.first->second)
   {
     Literal literal = allLiterals[currentLiteralsIdx[literal_idx]];
     Integer oldDelta = literal.delta;
@@ -982,7 +1020,14 @@ bool LocalSearchExtension::LocalSearch()
         int direction = std::get<1>(move);
         int varIdxInSlv = std::get<2>(move);
         Integer score = 0;
-        for (int literal_idx : variablesToLiterals[varIdxInSlv])
+        
+        auto result1 = variablesToLiterals.emplace(varIdxInSlv, context());
+
+// Check if the emplacement was successful or the key already existed
+      if (!result1.second) {
+      }
+
+        for (int literal_idx : result1.first->second)
         {
           Literal literal = allLiterals[currentLiteralsIdx[literal_idx]];
           score +=

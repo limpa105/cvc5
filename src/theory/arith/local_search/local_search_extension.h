@@ -194,7 +194,7 @@ class LocalSearchExtension : protected EnvObj
 
   /** ith entry is the set of literals that ith variable in
    * variablesValues is present */
-  std::vector<std::set<int>> variablesToLiterals;
+  std::unordered_map<int, context::CDHashSet<int>> variablesToLiterals;
 
   /** A map of variable name to its index in values **/
   std::map<std::string, int> nameToIdx;
