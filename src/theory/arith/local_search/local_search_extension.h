@@ -24,6 +24,7 @@
 #include <list>
 
 #include "context/cdlist.h"
+#include "context/cdqueue.h"
 #include "context/cdhashset.h"
 #include "context/cdhashmap.h"
 #include "smt/env_obj.h"
@@ -93,7 +94,7 @@ class LocalSearchExtension : protected EnvObj
 
   std::vector<std::tuple<TNode, bool, TNode>> conflict();
 
-  std::vector<std::tuple<TNode, bool, TNode>> getTrivialConflict(bool lookedAtSmart);
+  std::vector<std::tuple<TNode, bool, TNode>> getTrivialConflict(Theory::Effort level);
 
   /** Set up the solving data structures */
   void presolve();
@@ -117,12 +118,21 @@ class LocalSearchExtension : protected EnvObj
 
   context::CDList<std::tuple<TNode, bool, TNode>> d_facts;
 
+
+  context::CDQueue<std::tuple<TNode, bool, TNode>> temp_conflicts;
+
+  context::CDHashMap<Node, int> NodetoIdx;
+
+  int getClauseNumber();
+
  private:
   /** -------------------------------------------------------------
    * The variables below are inherited from IDL Extension  */
   typedef context::CDHashMap<TNode, size_t> TNodeToUnsignedCDMap;
 
   bool ConflictFound; 
+
+  bool LocalSearchRun = false;
 
   std::unordered_map<int, int> idxToMainIdx;
 

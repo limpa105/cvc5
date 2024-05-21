@@ -279,7 +279,7 @@ void TheoryArith::postCheck(Effort level)
       if (!(d_localSearchExtension->postCheck(level))){
         return;
       }
-    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->getTrivialConflict(true);
+    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->getTrivialConflict(level);
     for (int i=0; i< static_cast<int>(dls_conflict.size()); i++){
         d_internal->preNotifyFact(std::get<0>(dls_conflict[i]), std::get<1>(dls_conflict[i]), std::get<2>(dls_conflict[i]));
       }
@@ -288,7 +288,7 @@ void TheoryArith::postCheck(Effort level)
       return;
     };
     Trace("arith") << "Simplex DID NOT find a conflict in smart conflicts" << endl;
-    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict(true);
+    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict(level);
     for (int i=0; i< dls_conflict2.size(); i++){
         d_internal->preNotifyFact(std::get<0>(dls_conflict2[i]), std::get<1>(dls_conflict2[i]), std::get<2>(dls_conflict2[i]));
       }
@@ -365,16 +365,16 @@ void TheoryArith::postCheck(Effort level)
     else {
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distrib(0, 10);
+    std::uniform_int_distribution<> distrib(0, 1);
     int random_number = distrib(gen);
-    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict3 = d_localSearchExtension->getTrivialConflict(false);
+    int size = d_localSearchExtension->getClauseNumber();
     if (random_number == 0){
-    if (dls_conflict3.size()<500 && !(d_localSearchExtension->postCheck(level))){
+    if (size<500 && !(d_localSearchExtension->postCheck(level))){
        return;
       }
      }
     Trace("arith") << "Simplex attempting to find conflict in total conflicts" << endl;
-    
+     std::vector<std::tuple<TNode, bool, TNode>> dls_conflict3 = d_localSearchExtension->getTrivialConflict(level);
     for (int i=0; i< dls_conflict3.size(); i++){
         d_internal->preNotifyFact(std::get<0>(dls_conflict3[i]), std::get<1>(dls_conflict3[i]), std::get<2>(dls_conflict3[i]));
       }

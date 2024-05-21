@@ -82,7 +82,9 @@ LocalSearchExtension::LocalSearchExtension(Env& env, TheoryArith& parent)
       d_varList(context()),
       d_facts(context()),
       d_numVars(0),
-      currentLiteralsIdx(context())
+      currentLiteralsIdx(context()),
+      NodetoIdx(context()),
+      temp_conflicts(context())
 {
 }
 
@@ -127,7 +129,11 @@ void LocalSearchExtension::notifyFact(
 {
   Trace("theory::arith::idl")
       << "IdlExtension::notifyFact(): processing " << fact << std::endl;
+  NodetoIdx[fact] = d_facts.size();
   d_facts.push_back(std::make_tuple(atom, pol, fact));
+  temp_conflicts.push_back(std::make_tuple(atom, pol, fact));
+
+
   processAssertion(fact, d_facts.size()-1);
 
 }
@@ -188,6 +194,7 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   // auto stop = high_resolution_clock::now();
   // auto duration = duration_cast<microseconds>(stop - start);
   //std::cout << duration.count() << "\n";
+  LocalSearchRun = true;
   if (LocalSearch()){
     Trace("arith") << "local search found a solution"  << std::endl;
     foundASolution = true;
@@ -1120,60 +1127,107 @@ std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::conflict(){
     // }
   std:: cout << mean << "\n";
   sentSmartConflict = true;
-  std::cout << "SMART CONFLICT SIZE:" << dls_conflict.size() << "\n";
+  //std::cout << "SMART CONFLICT SIZE:" << dls_conflict.size() << "\n";
   
   return dls_conflict;
 
 }
 
-std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::getTrivialConflict(bool lookedAtSmart){
-  std::cout << "ORDERCOUT";
-  if (!lookedAtSmart){
-    std::vector<std::tuple<TNode, bool, TNode>> vec(d_facts.begin(), d_facts.end());
-    return vec;
+int LocalSearchExtension::getClauseNumber(){
+  return d_facts.size();
+}
+
+std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::getTrivialConflict(Theory::Effort level){
+  //TODO NEED TO HANDLE VALUES WHEN TEMP_CONFLICSTS IS ZERO ZERO BECAUSE WE SENT ALL OF THEM BEFORE AND DID NOT FIND A CONFLICT...
+  // RQ: Will it break if we just return something empty? 
+  std::vector<std::tuple<TNode, bool, TNode>> d_conflict;
+  if (temp_conflicts.size() == 0){
+    return d_conflict;
   }
-  //std::vector<std::pair<int, int>> vec(idxToCount.begin(), idxToCount.end());
-   std::vector<std::pair<int, int>> vec;
-    for (size_t i = 0; i < idxToCount.size(); ++i) {
-        vec.emplace_back(i, idxToCount[i]);
+  if (LocalSearchRun &&  temp_conflicts.size() >= 50 && Theory::fullEffort(level)){
+    LocalSearchRun = false;
+    Trace("arith") << "Returning smart conflicts \n";
+    int sum = 0;
+    for (auto& count : idxToCount) {
+        sum += count;
     }
-  std::sort(vec.begin(), vec.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
-       return a.second < b.second; // Compare by value
-   });
-  orderedCount = vec;
-
-  // for (auto pair: orderedCount) {
-  //   std::cout << "(" << pair.first << "," << pair.second << ")" << ", ";
-  // }
-  // std::cout <<"\n";
-
-  if (!sentSmartConflict || !lookedAtSmart) {
-    dls_conflict.clear();
-    for( auto&i: orderedCount){
-      dls_conflict.push_back(d_facts[i.first]);
+    double mean = sum/idxToCount.size();
+    context::CDQueue<std::tuple<TNode, bool, TNode>> temp(context());
+    while (!temp_conflicts.empty()) {
+      if (idxToCount[NodetoIdx[std::get<2>(temp_conflicts.front())]] >= mean){
+        d_conflict.push_back(temp_conflicts.front());
+      } else {
+        temp.push_back(temp_conflicts.front());
+      }
+      temp_conflicts.pop();
     }
-    //std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(dls_conflict));
-    AlwaysAssert(dls_conflict.size() == d_facts.size());
-    std::cout << d_facts.size() << "\n";
-    return dls_conflict;
+    while(!temp.empty()){
+      temp_conflicts.push_back(temp.front());
+      temp.pop();
+    }
+    return d_conflict;
   }
- else {
-    dls_conflict.clear();
-    std:: cout << mean << "\n";
-    for (const auto& pair : orderedCount) {
-         if (pair.second < mean) {
-             dls_conflict.push_back(d_facts[pair.first]);
-        }
-     }
-    // for (const int idx: d_Bounds){
-    //   dls_conflict.push_back(d_facts[idx]);
-    // }
-    std::cout << "Other CONFLICT SIZE:" << dls_conflict.size() << "\n";
-
-    std::cout << "facts SIZE:" << d_facts.size() << "\n";
-    return dls_conflict;
-
+  else {
+    LocalSearchRun = false;
+    while (!temp_conflicts.empty()) {
+      d_conflict.push_back(temp_conflicts.front());
+      temp_conflicts.pop();
+    }
+    return d_conflict;
   }
+
+
+
+
+
+
+//   std::cout << "ORDERCOUT";
+//   if (!lookedAtSmart){
+//     std::vector<std::tuple<TNode, bool, TNode>> vec(d_facts.begin(), d_facts.end());
+//     return vec;
+//   }
+//   //std::vector<std::pair<int, int>> vec(idxToCount.begin(), idxToCount.end());
+//    std::vector<std::pair<int, int>> vec;
+//     for (size_t i = 0; i < idxToCount.size(); ++i) {
+//         vec.emplace_back(i, idxToCount[i]);
+//     }
+//   std::sort(vec.begin(), vec.end(), [](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+//        return a.second < b.second; // Compare by value
+//    });
+//   orderedCount = vec;
+
+//   // for (auto pair: orderedCount) {
+//   //   std::cout << "(" << pair.first << "," << pair.second << ")" << ", ";
+//   // }
+//   // std::cout <<"\n";
+
+//   if (!sentSmartConflict || !lookedAtSmart) {
+//     dls_conflict.clear();
+//     for( auto&i: orderedCount){
+//       dls_conflict.push_back(d_facts[i.first]);
+//     }
+//     //std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(dls_conflict));
+//     AlwaysAssert(dls_conflict.size() == d_facts.size());
+//     std::cout << d_facts.size() << "\n";
+//     return dls_conflict;
+//   }
+//  else {
+//     dls_conflict.clear();
+//     std:: cout << mean << "\n";
+//     for (const auto& pair : orderedCount) {
+//          if (pair.second < mean) {
+//              dls_conflict.push_back(d_facts[pair.first]);
+//         }
+//      }
+//     // for (const int idx: d_Bounds){
+//     //   dls_conflict.push_back(d_facts[idx]);
+//     // }
+//     std::cout << "Other CONFLICT SIZE:" << dls_conflict.size() << "\n";
+
+//     std::cout << "facts SIZE:" << d_facts.size() << "\n";
+//     return dls_conflict;
+
+//   }
 }
 
 }  // namespace local_search
