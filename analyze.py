@@ -45,6 +45,7 @@ if __name__ == "__main__":
         df["theory::arith::pivots"] = 0
     df["CVC5::SolutionFoundByLS"] = df["CVC5::SolutionFoundByLS"].fillna('0').astype(int)
     df["CVC5::SolutionFoundBySimplex"] = df["CVC5::SolutionFoundBySimplex"].fillna('0').astype(int)
+    df["theory::arith::pivots"] = df["theory::arith::pivots"].fillna('0').astype(int)
     df["LS::RunTime"] = df["LS::RunTime"].str.replace('ms', '').fillna('0').astype(int).sum()
     df["global::totalTime"] = df["global::totalTime"].str.replace('ms', '').fillna('0').astype(int).sum()
     df["Simplex::RunTime"] = df["Simplex::RunTime"].str.replace('ms', '').fillna('0').astype(int).sum()
