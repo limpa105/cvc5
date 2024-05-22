@@ -378,16 +378,16 @@ void TheoryArith::postCheck(Effort level)
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> distrib(0, 1);
     int random_number = distrib(gen);
-    int size = d_localSearchExtension->getClauseNumber();
-    if (random_number == 0){
-    Trace("arith") << "Local Search Start 2" << endl;
-    localSearchTime.start();
-    if (size<500 && !(d_localSearchExtension->postCheck(level))){
-      localSearchTime.stop();
-       return;
-      }
-    localSearchTime.stop();
-     }
+    //int size = d_localSearchExtension->getClauseNumber();
+    // if (random_number == 0){
+    // Trace("arith") << "Local Search Start 2" << endl;
+    // localSearchTime.start();
+    // if (size<500 && !(d_localSearchExtension->postCheck(level))){
+    //   localSearchTime.stop();
+    //    return;
+    //   }
+    // localSearchTime.stop();
+    //  }
     Trace("arith") << "Simplex attempting to find conflict in total conflicts" << endl;
      std::vector<std::tuple<TNode, bool, TNode>> dls_conflict3 = d_localSearchExtension->getTrivialConflict(level);
      Trace("arith") << "Simplex start 1" << endl;
