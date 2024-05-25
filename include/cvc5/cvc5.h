@@ -3517,6 +3517,7 @@ class CVC5_EXPORT Solver
    */
   Sort mkFiniteFieldSort(const std::string& size, uint32_t base = 10) const;
 
+  Sort mkIntegerRingSort() const;
   /**
    * Create a datatype sort.
    * @param dtypedecl The datatype declaration from which the sort is created.
@@ -3980,6 +3981,9 @@ class CVC5_EXPORT Solver
    */
   Term mkFiniteFieldElem(const std::string& value,
                          const Sort& sort,
+                         uint32_t base = 10) const;
+
+  Term mkIntegerRingElem(const std::string& value,
                          uint32_t base = 10) const;
 
   /**

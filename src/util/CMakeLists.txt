@@ -37,6 +37,8 @@ libcvc5_add_sources(
   divisible.h
   finite_field_value.cpp
   finite_field_value.h
+  integer_ring_value.cpp
+  integer_ring_value.h
   floatingpoint.cpp
   floatingpoint.h
   floatingpoint_size.cpp

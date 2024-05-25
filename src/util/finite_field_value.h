@@ -28,6 +28,8 @@
 #include "base/check.h"
 #include "base/exception.h"
 #include "util/integer.h"
+#include "expr/node.h"
+#include "expr/node_manager_template.h"
 
 namespace cvc5::internal {
 
@@ -61,8 +63,9 @@ class FiniteFieldValue
  public:
   FiniteFieldValue(const Integer& val, const FfSize& size)
       : d_size(size),
+      d_value(val)
         // normalize value into [0, size)
-        d_value(val.floorDivideRemainder(size))
+       // d_value(val.floorDivideRemainder(size))
   {
   }
 
@@ -146,9 +149,10 @@ class FiniteFieldValue
   /* Create bit-vector representing value 1 of given size. */
   static FiniteFieldValue mkOne(const Integer& modulus);
 
- private:
-  /** bring d_value back into the range below */
+   /** bring d_value back into the range below */
   void normalize();
+
+ private:
 
   /**
    * Class invariants:

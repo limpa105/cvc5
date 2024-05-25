@@ -210,6 +210,11 @@ TypeNode NodeManager::mkFiniteFieldType(const Integer& modulus)
                                            FfSize(modulus));
 }
 
+TypeNode NodeManager::mkIntegerRingType()
+{
+  return mkConstInternal<TypeNode, TypeConstant>(Kind::TYPE_CONSTANT, INTEGER_RING_TYPE);
+}
+
 TypeNode NodeManager::sExprType()
 {
   return mkConstInternal<TypeNode, TypeConstant>(Kind::TYPE_CONSTANT,

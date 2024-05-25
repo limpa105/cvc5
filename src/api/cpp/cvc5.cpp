@@ -76,6 +76,7 @@
 #include "util/bitvector.h"
 #include "util/divisible.h"
 #include "util/finite_field_value.h"
+#include "util/integer_ring_value.h"
 #include "util/floatingpoint.h"
 #include "util/iand.h"
 #include "util/random.h"
@@ -240,6 +241,10 @@ const static std::unordered_map<Kind, std::pair<internal::Kind, std::string>>
         KIND_ENUM(Kind::FINITE_FIELD_BITSUM,
                   internal::Kind::FINITE_FIELD_BITSUM),
         KIND_ENUM(Kind::FINITE_FIELD_LT, internal::Kind::FINITE_FIELD_LT),
+        KIND_ENUM(Kind::INTEGER_RING_LT, internal::Kind::INTEGER_RING_LT),
+        KIND_ENUM(Kind::INTEGER_RING_MULT, internal::Kind::INTEGER_RING_MULT),
+        KIND_ENUM(Kind::INTEGER_RING_ADD, internal::Kind::INTEGER_RING_ADD),
+        KIND_ENUM(Kind::INTEGER_RING_EQ, internal::Kind::INTEGER_RING_EQ),
         KIND_ENUM(Kind::FINITE_FIELD_MULT, internal::Kind::FINITE_FIELD_MULT),
         KIND_ENUM(Kind::FINITE_FIELD_ADD, internal::Kind::FINITE_FIELD_ADD),
         KIND_ENUM(Kind::FINITE_FIELD_NEG, internal::Kind::FINITE_FIELD_NEG),
@@ -5567,6 +5572,16 @@ Sort Solver::mkFiniteFieldSort(const std::string& modulus, uint32_t base) const
   CVC5_API_TRY_CATCH_END;
 }
 
+Sort Solver::mkIntegerRingSort() const
+{
+  CVC5_API_TRY_CATCH_BEGIN;
+  //////// all checks before this line
+  return Sort(d_nm, d_nm->mkIntegerRingType());
+  ////////
+  CVC5_API_TRY_CATCH_END;
+}
+
+
 Sort Solver::mkFloatingPointSort(uint32_t exp, uint32_t sig) const
 {
   CVC5_API_TRY_CATCH_BEGIN;
@@ -6033,6 +6048,23 @@ Term Solver::mkFiniteFieldElem(const std::string& value,
   internal::FiniteFieldValue f(v, sort.d_type->getFfSize());
 
   return mkValHelper<internal::FiniteFieldValue>(d_nm, f);
+  ////////
+  CVC5_API_TRY_CATCH_END;
+}
+
+Term Solver::mkIntegerRingElem(const std::string& value,
+                               uint32_t base) const
+{
+  CVC5_API_TRY_CATCH_BEGIN;
+  //////// all checks before this line
+  //internal::Integer v(value, base);
+  internal::Integer v(value, base);
+  internal::IntegerRingValue ir(v);
+  //internal::Node res = d_nm->mkConst(v);
+  //(void)res.getType(true); /* kick off type checking */
+  //return Term(d_nm, res);
+  return mkValHelper<internal::IntegerRingValue>(d_nm, ir);
+
   ////////
   CVC5_API_TRY_CATCH_END;
 }

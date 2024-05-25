@@ -92,12 +92,16 @@ void TheoryFiniteFields::postCheck(Effort level)
 {
 std::cout << "Post Checking \n";
 if (options().ff.ffRangeSolver){
+  if (level != Theory::EFFORT_FULL){
+    return;
+  }
   Result r = d_rangeSolver->postCheck(level);
   if (r.getStatus() == Result::UNSAT){
     NodeManager* nm = NodeManager::currentNM();
     const Node conflict = nm->mkAnd(d_rangeSolver->conflict());
     d_im.conflict(conflict, InferenceId::FF_LEMMA);
-    std::cout << "WE DID IT!\n";
+    std::cout << conflict << "\n";
+    std::cout << "One UNSAT returned\n";
   }
   return;
 }

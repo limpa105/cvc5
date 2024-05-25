@@ -92,6 +92,7 @@ std::ostream& operator<<(std::ostream& o, Token t)
     case Token::INCLUDE_TOK: o << "INCLUDE_TOK"; break;
     case Token::INDEX_TOK: o << "INDEX_TOK"; break;
     case Token::INTEGER_LITERAL: o << "INTEGER_LITERAL"; break;
+    case Token::INTEGER_RING_LITERAL: o << "INTEGER_RING_LITERAL"; break;
     case Token::INV_CONSTRAINT_TOK: o << "INV_CONSTRAINT_TOK"; break;
     case Token::KEYWORD: o << "KEYWORD"; break;
     case Token::LET_TOK: o << "LET_TOK"; break;

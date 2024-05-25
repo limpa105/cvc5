@@ -17,6 +17,7 @@
 
 #include "util/cardinality.h"
 #include "util/finite_field_value.h"
+#include "util/integer_ring_value.h"
 
 namespace cvc5::internal {
 namespace theory {
@@ -44,6 +45,19 @@ TypeNode FiniteFieldConstantTypeRule::computeType(NodeManager* nodeManager,
       n.getConst<FiniteFieldValue>().getFieldSize());
 }
 
+TypeNode IntegerRingConstantTypeRule::preComputeType(NodeManager* nm, TNode n)
+{
+  return TypeNode::null();
+}
+TypeNode IntegerRingConstantTypeRule::computeType(NodeManager* nodeManager,
+                                                  TNode n,
+                                                  bool check,
+                                                  std::ostream* errOut)
+{
+  return nodeManager->mkIntegerRingType();
+}
+
+
 TypeNode FiniteFieldFixedFieldTypeRule::preComputeType(NodeManager* nm, TNode n)
 {
   return TypeNode::null();
@@ -59,7 +73,7 @@ TypeNode FiniteFieldFixedFieldTypeRule::computeType(NodeManager* nodeManager,
     TypeNode tc = nc.getType(check);
     if (check)
     {
-      if (!tc.isMaybeKind(Kind::FINITE_FIELD_TYPE))
+      if (!tc.isMaybeKind(Kind::FINITE_FIELD_TYPE) )
       {
         if (errOut)
         {
@@ -93,6 +107,62 @@ TypeNode FiniteFieldFixedFieldTypeRule::computeType(NodeManager* nodeManager,
   return t;
 }
 
+
+TypeNode IntegerRingFixedFieldTypeRule::preComputeType(NodeManager* nm, TNode n)
+{
+  return TypeNode::null();
+}
+TypeNode IntegerRingFixedFieldTypeRule::computeType(NodeManager* nodeManager,
+                                                    TNode n,
+                                                    bool check,
+                                                    std::ostream* errOut)
+{
+  TypeNode t;
+  for (const Node& nc : n)
+  {
+    TypeNode tc = nc.getType(check);
+    if (check)
+    {
+      if (!( tc.getKind() == Kind::TYPE_CONSTANT
+        && (tc.getConst<TypeConstant>() == INTEGER_RING_TYPE)))
+      {
+        if (errOut)
+        {
+          (*errOut) << "expecting integer ring terms";
+        }
+        return TypeNode::null();
+      }
+    }
+    // if first child
+    if (t.isNull())
+    {
+      t = tc;
+      continue;
+    }
+    std::cout << t.getKind() << "\n";
+    std::cout << t << "\n";
+    std::cout << tc.getKind() << "\n";
+    std::cout << tc << "\n";
+    t = t.leastUpperBound(tc);
+    if (t.isNull())
+    {
+      if (errOut)
+      {
+        (*errOut) << "expecting comparable integer ring terms";
+      }
+      return TypeNode::null();
+    }
+  }
+  // if all arguments are fully abstract, ensure we return the abstract finite
+  // field type
+  if (t.isFullyAbstract())
+  {
+    return nodeManager->mkAbstractType(Kind::FINITE_FIELD_TYPE);
+  }
+  return t;
+}
+
+
 TypeNode FiniteFieldRelationFieldTypeRule::preComputeType(NodeManager* nm, TNode n){
   return nm->booleanType();
 }
@@ -103,6 +173,19 @@ TypeNode FiniteFieldRelationFieldTypeRule::computeType(NodeManager* nodeManager,
                                                     std::ostream* errOut){
   return nodeManager->booleanType();
 }
+
+
+TypeNode IntegerRingRelationFieldTypeRule::preComputeType(NodeManager* nm, TNode n){
+  return nm->booleanType();
+}
+
+TypeNode IntegerRingRelationFieldTypeRule::computeType(NodeManager* nodeManager,
+                                                    TNode n,
+                                                    bool check,
+                                                    std::ostream* errOut){
+  return nodeManager->booleanType();
+}
+
 
 }  // namespace ff
 }  // namespace theory

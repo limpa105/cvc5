@@ -139,6 +139,10 @@ void Smt2State::addFiniteFieldOperators()
   addOperator(cvc5::Kind::FINITE_FIELD_NEG, "ff.neg");
   addOperator(cvc5::Kind::FINITE_FIELD_BITSUM, "ff.bitsum");
   addOperator(cvc5::Kind::FINITE_FIELD_LT, "ff.lt");
+  addOperator(cvc5::Kind::INTEGER_RING_LT, "zz.lt");
+  addOperator(cvc5::Kind::INTEGER_RING_MULT, "zz.mul");
+  addOperator(cvc5::Kind::INTEGER_RING_EQ, "zz.eq");
+  addOperator(cvc5::Kind::INTEGER_RING_ADD, "zz.add");
 }
 
 void Smt2State::addDatatypesOperators()
@@ -1743,6 +1747,11 @@ Sort Smt2State::getIndexedSort(const std::string& name,
       parseError("Illegal finite field type.");
     }
     ret = d_solver->mkFiniteFieldSort(numerals.front());
+  }
+  else if (name == "IntegerRing")
+  {
+    std::cout << "We are here\n";
+    ret = d_solver->mkIntegerRingSort();
   }
   else if (name == "FloatingPoint")
   {

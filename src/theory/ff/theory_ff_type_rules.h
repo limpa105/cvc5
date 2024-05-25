@@ -44,6 +44,18 @@ class FiniteFieldConstantTypeRule
                               std::ostream* errOut);
 };
 
+class IntegerRingConstantTypeRule 
+{
+  public:
+  static TypeNode preComputeType(NodeManager* nm, TNode n);
+  static TypeNode computeType(NodeManager* nodeManager,
+                              TNode n,
+                              bool check,
+                              std::ostream* errOut);
+
+};
+
+
 /* -------------------------------------------------------------------------- */
 
 class FiniteFieldFixedFieldTypeRule
@@ -56,7 +68,27 @@ class FiniteFieldFixedFieldTypeRule
                               std::ostream* errOut);
 };
 
+class IntegerRingFixedFieldTypeRule
+{
+ public:
+  static TypeNode preComputeType(NodeManager* nm, TNode n);
+  static TypeNode computeType(NodeManager* nodeManager,
+                              TNode n,
+                              bool check,
+                              std::ostream* errOut);
+};
+
 class FiniteFieldRelationFieldTypeRule 
+{
+  public:
+    static TypeNode preComputeType(NodeManager* nm, TNode n);
+    static TypeNode computeType(NodeManager* nodeManager,
+                              TNode n,
+                              bool check,
+                              std::ostream* errOut);
+};
+
+class IntegerRingRelationFieldTypeRule 
 {
   public:
     static TypeNode preComputeType(NodeManager* nm, TNode n);

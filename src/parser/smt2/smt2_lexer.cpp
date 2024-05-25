@@ -172,6 +172,13 @@ Token Smt2Lexer::computeNextToken()
             parseError("Error expected decimal for finite field size");
           }
           return Token::FIELD_LITERAL;
+        case 'z':
+          pushToToken(ch);
+          if (!parseNonEmptyCharList(CharacterClass::DECIMAL_DIGIT))
+          {
+            parseError("Error expected decimal for finite field value");
+          }
+          return Token::INTEGER_RING_LITERAL;
         default:
           // otherwise error
           parseError("Error finding token following #");

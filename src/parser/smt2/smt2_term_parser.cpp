@@ -294,6 +294,7 @@ Term Smt2TermParser::parseTerm()
       break;
       case Token::FIELD_LITERAL:
       {
+        std::cout << "We are here??\n";
         std::string ffStr = d_lex.tokenStr();
         Assert(ffStr.find("#f") == 0);
         size_t mPos = ffStr.find("m");
@@ -302,6 +303,15 @@ Term Smt2TermParser::parseTerm()
         std::string ffModStr = ffStr.substr(mPos + 1);
         Sort ffSort = d_state.getSolver()->mkFiniteFieldSort(ffModStr);
         ret = d_state.getSolver()->mkFiniteFieldElem(ffValStr, ffSort);
+      }
+      break;
+      case Token::INTEGER_RING_LITERAL:
+      {
+        std::cout << "WE GOT HERE\n";
+        std::string ffStr = d_lex.tokenStr();
+        Assert(ffStr.find("#z") == 0);
+        std::string ffValStr = ffStr.substr(2);
+        ret = d_state.getSolver()->mkIntegerRingElem(ffValStr);
       }
       break;
       case Token::STRING_LITERAL:

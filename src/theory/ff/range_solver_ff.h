@@ -107,7 +107,11 @@ class RangeSolver : protected EnvObj
 
         void preRegisterTerm(TNode node);
 
-        const std::vector<Node>& conflict() const;
+        void processFact(TNode node);
+
+       std::vector<Node>& conflict() ;
+
+        std::vector<Node> d_conflict;
 
     private:
 
@@ -116,8 +120,6 @@ class RangeSolver : protected EnvObj
         std::map<Integer, Field> fields; 
 
         Result Solve();
-
-        std::vector<Node> d_conflict{};
 
         void printSystemState();
 

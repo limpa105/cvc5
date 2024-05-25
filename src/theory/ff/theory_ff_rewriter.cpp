@@ -110,6 +110,7 @@ Node postRewriteFfAdd(TNode t)
   }
   NodeManager* const nm = NodeManager::currentNM();
   std::vector<Node> summands;
+  constantTerm.normalize();
   if (scalarTerms.empty() || !constantTerm.getValue().isZero())
   {
     summands.push_back(nm->mkConst(constantTerm));
@@ -202,6 +203,7 @@ Node postRewriteFfMult(TNode t)
     }
   }
   NodeManager* const nm = NodeManager::currentNM();
+  constantTerm.normalize();
   if (constantTerm.getValue().isZero())
   {
     factors.clear();

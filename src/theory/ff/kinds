@@ -15,12 +15,23 @@ properties parametric
 properties check
 
 # Finite Fields
+sort INTEGER_RING_TYPE \
+Cardinality::INTEGERS \
+well-founded
+
+constant CONST_INTEGER_RING \
+class \
+IntegerRingValue \
+::cvc5::internal::RationalHashFunction \
+"util/integer_ring_value.h" \
+"a multiple-precision integer constant; payload is an instance of the cvc5::internal::Rational class"
+
 constant FINITE_FIELD_TYPE \
   struct \
   FfSize \
   "::cvc5::internal::FfSizeHashFunction" \
   "util/finite_field_value.h" \
-  "finite field type"
+  "finite field type" \
 
 cardinality FINITE_FIELD_TYPE \
     "::cvc5::internal::theory::ff::FiniteFieldProperties::computeCardinality(%TYPE%)" \
@@ -48,12 +59,23 @@ operator FINITE_FIELD_NEG 1 "unary negation of a field element"
 operator FINITE_FIELD_ADD 2: "addition of two or more field elements"
 operator FINITE_FIELD_BITSUM 2: "bitsum of field elements"
 operator FINITE_FIELD_LT 2: "element 1 is less than element 2 and greater than or equal to 0"
+operator INTEGER_RING_LT 2: "element 1 is less than element 2 and greater than or equal to 0"
+operator INTEGER_RING_MULT 2: "multiplication of two or more field elements"
+operator INTEGER_RING_EQ 3: "modular equality"
+operator INTEGER_RING_ADD 2: "modular equality"
 
 typerule CONST_FINITE_FIELD ::cvc5::internal::theory::ff::FiniteFieldConstantTypeRule
+typerule CONST_INTEGER_RING ::cvc5::internal::theory::ff::IntegerRingConstantTypeRule
 typerule FINITE_FIELD_MULT ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
 typerule FINITE_FIELD_NEG ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
 typerule FINITE_FIELD_ADD ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
 typerule FINITE_FIELD_BITSUM ::cvc5::internal::theory::ff::FiniteFieldFixedFieldTypeRule
 typerule FINITE_FIELD_LT ::cvc5::internal::theory::ff::FiniteFieldRelationFieldTypeRule
+typerule INTEGER_RING_LT ::cvc5::internal::theory::ff::IntegerRingRelationFieldTypeRule
+typerule INTEGER_RING_MULT ::cvc5::internal::theory::ff::IntegerRingFixedFieldTypeRule
+typerule INTEGER_RING_EQ ::cvc5::internal::theory::ff::IntegerRingRelationFieldTypeRule
+typerule INTEGER_RING_ADD ::cvc5::internal::theory::ff::IntegerRingFixedFieldTypeRule
+
+
 
 endtheory

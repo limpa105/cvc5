@@ -2061,7 +2061,16 @@ enum ENUM(Kind) : int32_t
    */
   EVALUE(FINITE_FIELD_MULT),
 
+  EVALUE(INTEGER_RING_MULT),
 
+  EVALUE(INTEGER_RING_ADD),
+
+  EVALUE(INTEGER_RING_EQ),
+
+  EVALUE(INTEGER_RING_LT),
+
+
+  EVALUE(CONST_INTEGER_RING),
   /* FP -------------------------------------------------------------------- */
 
   /**
@@ -5884,6 +5893,16 @@ enum ENUM(SortKind) : int32_t
    *   - Solver::mkFiniteFieldSort(const std::string&, uint32_t base) const
    */
   EVALUE(FINITE_FIELD_SORT),
+
+  /**
+   * A finite field sort, parameterized by a size.
+   *
+   * - Create Sort of this Kind with:
+   *
+   *   - Solver::mkIntegerRingSort() const
+   */
+
+  EVALUE(INTEGER_RING_SORT),
   /**
    * A floating-point sort, parameterized by two integers denoting its
    * exponent and significand bit-widths.
