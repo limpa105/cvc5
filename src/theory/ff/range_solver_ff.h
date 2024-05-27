@@ -39,6 +39,8 @@ class IntegerField: protected EnvObj{
 
         Result status = Result::UNKNOWN;
 
+        void clearAll(){inequalities.clear(); equalities.clear(); status=Result::UNKNOWN;};
+
 
     private:
 
@@ -55,7 +57,7 @@ class Field:  protected EnvObj {
 
         Field(Env & env, Integer modulos);
 
-        Integer modulos; 
+        Integer modulos;
  
         std::vector<Node> equalities;
 
@@ -74,6 +76,12 @@ class Field:  protected EnvObj {
         Node modOut(Node fact);
 
         bool newEqualitySinceGB = false;
+
+        bool LearnLemmas(Node fact);
+
+        std::vector<Node> lemmas;
+
+        void clearAll(){inequalities.clear(); equalities.clear(); lemmas.clear(); status=Result::UNKNOWN;};
 
 
     private:
@@ -112,6 +120,11 @@ class RangeSolver : protected EnvObj
        std::vector<Node>& conflict() ;
 
         std::vector<Node> d_conflict;
+
+        bool learnedLemma = false;
+
+        Node Lemma;
+
 
     private:
 

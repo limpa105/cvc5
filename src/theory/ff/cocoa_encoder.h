@@ -114,6 +114,8 @@ class CocoaEncoder : public FieldObj
     /** all symbols */
   std::vector<CoCoA::symbol> d_syms{};
 
+  std::set<Node> getCurVars();
+
  private:
   /**
    * Get a fresh symbol that starts with varName.

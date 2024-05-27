@@ -107,6 +107,35 @@ std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field
     return std::make_pair(pos_sum, neg_sum);
 }
 
+std::set<Node> getVarsHelper(Node eq){
+    std::set<Node> answer;
+    if (eq.getKind() == Kind::CONST_FINITE_FIELD){
+        return answer;;
+    }
+     if (isVariableOrSkolem(eq)){
+        answer.insert(eq);
+        return answer;
+    }
+    if (eq.getNumChildren() > 1){
+        for (int i =0; i<eq.getNumChildren(); i++){
+        std::set<Node> moreVars = getVarsHelper(eq[i]);
+        answer.insert(moreVars.begin(), moreVars.end());
+        }
+        return answer;       
+    }
+    AlwaysAssert(false);
+}
+
+
+std::set<Node> getVars(std::vector<Node> eqs){
+    std::set<Node> answer;
+    for (auto eq: eqs){
+        std::set<Node> moreVars = getVarsHelper(eq);
+        answer.insert(moreVars.begin(), moreVars.end());
+    }
+    return answer;
+}
+
 void noCoCoALiza()
 {
     std::cout << "cvc5 can't solve field problems since it was not configured with "
@@ -136,40 +165,60 @@ std::vector<long> getWeights(std::vector<CoCoA::symbol> symbols, std::map<std::s
     return answer;
 } 
 
-std::vector<Node> SimplifyViaGB(std::vector<Node> equalities, Integer modulous, std::map<std::string, Integer > upperBounds, NodeManager* nm){
-      if (equalities.size() <= 1) {
-        return equalities;
+std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperBounds, NodeManager* nm){
+      if ((*F).equalities.size() <= 1) {
+        return (*F).equalities;
       }
-      std::cout << "Got here" << modulous << "\n";
-      CocoaEncoder enc((FfSize(modulous)) );
+      std::cout << "Got here" << (*F).modulos << "\n";
+      CocoaEncoder enc((FfSize((*F).modulos)) );
       std::cout << "Made encoder \n";
       // collect leaves
-      for (const Node& node : equalities)
+      for (const Node& node : (*F).equalities)
       {
         enc.addFact(node);
       }
       std::cout << "Added facts first time \n";
       std::vector<long> boundWeights = getWeights(enc.d_syms, upperBounds);
+      for (auto i: boundWeights){
+        std::cout << i << ",";
+      }
+      std::cout << "\n";
       enc.endScanIntegers(boundWeights);
       std::cout << "Scanned Integers \n";
       std::cout << "Got ring\n";
       std::cout << "Got weights \n";
       // assert facts
-      for (const Node& node : equalities)
+      for (const Node& node :(*F).equalities)
       {
         enc.addFact(node);
       }
-      std::cout << "Added facts a second time \n";
+      //std::cout << "Added facts a second time \n";
 
       // compute a GB
       std::vector<CoCoA::RingElem> generators;
       generators.insert(
           generators.end(), enc.polys().begin(), enc.polys().end());
-      std::cout << "Computed generators \n";
+    //   std::cout << "Computed generators \n";
+    //   for (auto i: generators){
+    //     std::cout << i << "\n";
+    //   };
+      std::vector<Node> newPoly;
+      if ((*F).inequalities.size()>0){
+        std::vector<Node> intersection;
+        std::set<Node> eqVars = enc.getCurVars();
+        std::set<Node> neqVars = getVars((*F).inequalities);
+        std::set_intersection(eqVars.begin(), eqVars.end(),
+                            neqVars.begin(), neqVars.end(),
+                            std::back_inserter(intersection));
+        if (intersection.empty()){
+            (*F).status = Result::SAT;
+            return newPoly;
+        }
+      }
+            
       CoCoA::ideal ideal = CoCoA::ideal(generators);
       std::cout << "Computed ideal \n";
       auto basis = CoCoA::GBasis(ideal);
-      std::vector<Node> newPoly;
       if (basis.size() == 1 && CoCoA::deg(basis.front()) == 0)
       {
         return newPoly;
@@ -423,6 +472,40 @@ void Field::addEquality(Node fact, bool inField){
     //std::cout <<"Done adding equality:" << fact << "\n";
 };
 
+bool Field::LearnLemmas(Node fact){
+    if (fact[0].getKind() == Kind::VARIABLE
+    && fact[1].getKind() == Kind::FINITE_FIELD_MULT
+    && fact[1][0].getKind() == Kind::VARIABLE
+    && fact[1][1].getKind() == Kind::VARIABLE
+    && fact[0].getName() == fact[1][0].getName()
+    && fact[0].getName() == fact[1][1].getName()
+    & modulos.isProbablePrime()) {
+        NodeManager* nm = NodeManager::currentNM();
+        lemmas.push_back(nm->mkNode(Kind::OR,
+        nm->mkNode(Kind::EQUAL, fact[0], nm->mkConst(FiniteFieldValue::mkZero(fact[0].getType().getFfSize()) )),
+        nm->mkNode(Kind::EQUAL, fact[0], nm->mkConst(FiniteFieldValue::mkOne(fact[0].getType().getFfSize()) ))));
+        status = Result::UNSAT;
+        return true;
+    }
+    if (fact[1].getKind() == Kind::VARIABLE
+    && fact[0].getKind() == Kind::FINITE_FIELD_MULT
+    && fact[0][0].getKind() == Kind::VARIABLE
+    && fact[0][1].getKind() == Kind::VARIABLE
+    && fact[1].getName() == fact[0][0].getName()
+    && fact[1].getName() == fact[0][1].getName()
+    & modulos.isProbablePrime()) {
+        NodeManager* nm = NodeManager::currentNM();
+        lemmas.push_back(nm->mkNode(Kind::OR,
+        nm->mkNode(Kind::EQUAL, fact[1], nm->mkConst(FiniteFieldValue::mkZero(fact[0].getType().getFfSize()) )),
+        nm->mkNode(Kind::EQUAL, fact[1], nm->mkConst(FiniteFieldValue::mkOne(fact[0].getType().getFfSize()) ))));
+        status = Result::UNSAT;
+        return true;
+    }
+    return false;
+
+}
+
+
 void Field::addInequality(Node fact){
     NodeManager* nm = NodeManager::currentNM();
     Node LHS = modOut(fact[0]);
@@ -459,7 +542,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
     NodeManager* nm = NodeManager::currentNM();
     if (newEqualitySinceGB){
         std::cout << "STARING GB\n";
-        std::vector<Node> newPoly = SimplifyViaGB(equalities, modulos, upperBounds, nm);
+        std::vector<Node> newPoly = SimplifyViaGB(this, upperBounds, nm);
         if (newPoly.size() == 0 && equalities.size()!=0){
             std::cout << equalities.size() << "\n";
             std::cout << "BAD BAD BAD\n";
@@ -478,6 +561,13 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
         std::cout << newPoly.size() << "\n";
         AlwaysAssert(equalities.size() == newPoly.size());
         newEqualitySinceGB = false;
+        for (auto i: equalities){
+            std::cout << i << "\n";
+        if (LearnLemmas(i)){
+            std::cout << "OH NO" << "\n";
+            return false;
+        }
+        }
     }
     std::cout << "ADDED ALL EQUALITIES FOR FIELDS\n";
     //std::cout << "SIZE" << equalities.size() << "\n";
@@ -727,12 +817,13 @@ Result RangeSolver::Solve(){
     std::cout << "We are here\n";
     int count = 0;
     while(true){
-        if (count >=5){
-            AlwaysAssert(false);
-        }
+        // if (count >=5){
+        //     AlwaysAssert(false);
+        // }
         printSystemState();
         integerField.Simplify(fields, upperBounds);
         if (integerField.status == Result::UNSAT){
+            integerField.status = Result::UNKNOWN;
             return Result::UNSAT;
         }
         std::cout << "FINISHED INTEGERS\n";
@@ -742,7 +833,19 @@ Result RangeSolver::Solve(){
         std::cout << "FINISHED FIELDS\n";
         for (auto fieldPair :fields){
             if (fieldPair.second.status == Result::UNSAT){
+                if (fieldPair.second.lemmas.size()> 0){
+                    Lemma = fieldPair.second.lemmas[0];
+                    std::cout << "Learnt Lemma" << Lemma << "\n";
+                    fieldPair.second.lemmas.clear();
+                    AlwaysAssert( fieldPair.second.lemmas.size()==0);
+                    fieldPair.second.status = Result::UNKNOWN;
+                    return Result::UNKNOWN;
+
+                }
                 return Result::UNSAT;
+            }
+            if (integerField.status == Result::SAT){
+            return Result::SAT;
             }
 
         }
@@ -757,11 +860,9 @@ Result RangeSolver::Solve(){
     return d_conflict;}
 
 Result RangeSolver::postCheck(Theory::Effort level){
-    integerField.equalities.clear();
-    integerField.inequalities.clear();
-    for(auto f: fields){
-        f.second.equalities.clear();
-        f.second.inequalities.clear();
+    integerField.clearAll();
+    for(auto &f : fields){
+        f.second.clearAll();
     }
     for (auto fact:d_facts){
         processFact(fact);

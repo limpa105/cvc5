@@ -134,7 +134,13 @@ void CocoaEncoder::endScan()
   }
 }
 
-
+std::set<Node> CocoaEncoder::getCurVars(){
+  std::set<Node> answer;
+  for (auto i: d_syms){
+    answer.insert(d_symNodes[extractStr(i)]);
+  }
+  return answer;
+}
 
 void CocoaEncoder::endScanIntegers(std::vector<long> upperBoundWeights){
   Assert(d_stage == Stage::Scan);

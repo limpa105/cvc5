@@ -87,6 +87,8 @@ class TheoryFiniteFields : public Theory
   void preRegisterTerm(TNode node) override;
   TrustNode explain(TNode n) override;
 
+  int fullCheckCount =0;
+
  private:
   TheoryFiniteFieldsRewriter d_rewriter{};
 

@@ -110,7 +110,7 @@ std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights){
   }
   }
   std::cout << "Created first matrix \n";
-  finalMatrix.push_back(weights);
+  finalMatrix.insert(finalMatrix.begin(),weights);
   std::cout << "Created final matrix \n";
   return finalMatrix;
 }

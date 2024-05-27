@@ -36,6 +36,7 @@
 #include "util/result.h"
 #include "util/statistics_registry.h"
 #include "util/utility.h"
+#include "expr/skolem_manager.h"
 
 using namespace cvc5::internal::kind;
 
@@ -90,18 +91,36 @@ void TheoryFiniteFields::finishInit()
 
 void TheoryFiniteFields::postCheck(Effort level)
 {
-std::cout << "Post Checking \n";
+std::cout << "Post Checking" << level << "\n";
 if (options().ff.ffRangeSolver){
   if (level != Theory::EFFORT_FULL){
     return;
   }
+  std::cout << "We are here\n";
+  fullCheckCount +=1;
+  // if (fullCheckCount >=4){
+  //   AlwaysAssert(false);
+  // }
   Result r = d_rangeSolver->postCheck(level);
+  std::cout << "Got status\n";
   if (r.getStatus() == Result::UNSAT){
     NodeManager* nm = NodeManager::currentNM();
     const Node conflict = nm->mkAnd(d_rangeSolver->conflict());
     d_im.conflict(conflict, InferenceId::FF_LEMMA);
-    std::cout << conflict << "\n";
+    std::cout << "CONFLICT" << conflict << "\n";
     std::cout << "One UNSAT returned\n";
+  } else if (r.getStatus() == Result::UNKNOWN){
+    NodeManager* nm = NodeManager::currentNM();
+    SkolemManager* sm = nm->getSkolemManager();
+    d_im.lemma(d_rangeSolver->Lemma, InferenceId::FF_LEMMA);
+    Node restartVar = sm->mkDummySkolem(
+            "restartVar",
+            nm->booleanType(),
+            "A boolean variable asserted to be true to force a restart");
+        d_im.lemma(restartVar, InferenceId::ARITH_DEMAND_RESTART, LemmaProperty(0));
+  } else if (r.getStatus() == Result::SAT){
+    std::cout << "SAT\n";
+    return;
   }
   return;
 }
