@@ -149,14 +149,20 @@ std::vector<long> getWeights(std::vector<CoCoA::symbol> symbols, std::map<std::s
     for (auto i: symbols){
         std::ostringstream oss;
         oss << i;
+        std::string symbol = oss.str();
         //std::cout << i << "\n";
-        if (upperBounds.find(oss.str())!= upperBounds.end()){
-            long result = 10*log2(upperBounds[oss.str()].getDouble());
+        size_t pos = symbol.find("Var__");
+        if (pos != std::string::npos) {
+            symbol.replace(pos, 5, "Var_");
+        }
+        if (upperBounds.find(symbol)!= upperBounds.end()){
+            long result = 10*log2(upperBounds[symbol].getDouble());
             //std::cout << result << "\n";
             answer.push_back(long(result));
         }
         else {
-            AlwaysAssert(false);
+
+            AlwaysAssert(false) << symbol << "has no bound??";
             float result = BIGINTLOG;
             //std::cout << "NOBOUND" << result << "\n";
             answer.push_back(long(result));
@@ -746,6 +752,9 @@ void RangeSolver::preRegisterTerm(TNode node){
     //         upperBounds[node.getName()] = std::min(ty.getFfSize(), upperBounds[node.getName()]);
     //     }
     //   }
+        if (node.getKind() == Kind::VARIABLE ){
+            upperBounds[node.getName()] = node.getType().getFfSize();
+        }
       if (node.getKind() == Kind::CONST_FINITE_FIELD){
         Integer constant = node.getConst<FiniteFieldValue>().getValue();
         if (constant < 0){constant = constant * -1;};
@@ -763,9 +772,6 @@ void RangeSolver::preRegisterTerm(TNode node){
             fields.insert(std::make_pair(ty.getFfSize(), Field(d_env,ty.getFfSize())));
         }
       }
-        if (node.getKind() == Kind::VARIABLE ){
-            upperBounds[node.getName()] = node.getType().getFfSize();
-        }
 
     }
 }
@@ -788,6 +794,7 @@ void RangeSolver::processFact(TNode fact){
                 NodeManager* nm = NodeManager::currentNM();
                 SkolemManager* sm = nm->getSkolemManager();
                 Node sk = sm->mkDummySkolem("Var", nm->mkFiniteFieldType(fact[1].getType().getFfSize() ));
+                upperBounds[sk.getName()] = Bound;
                 Node new_node = nm->mkNode(Kind::EQUAL, sk, fact[0]);
                 auto it = fields.find(new_node[0].getType().getFfSize());
                 if (it != fields.end()) {
@@ -796,7 +803,7 @@ void RangeSolver::processFact(TNode fact){
                 } else {;
                     AlwaysAssert(false);
                 }
-                upperBounds[sk.getName()] = Bound;
+                std::cout << sk.getName() << "\n";
 
             }
             else {
