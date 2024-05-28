@@ -42,11 +42,6 @@ class IntegerField: protected EnvObj{
         void clearAll(){inequalities.clear(); equalities.clear(); status=Result::UNKNOWN;};
 
 
-    private:
-
-        int processedEqualitiesIndex = 0;
-
-        int processedInEqualitiesIndex = 0;
 
 };
 
@@ -77,18 +72,11 @@ class Field:  protected EnvObj {
 
         bool newEqualitySinceGB = false;
 
-        bool LearnLemmas(Node fact);
+        bool LearnLemmas(Node fact, std::map<std::string, Integer > upperBounds);
 
         std::vector<Node> lemmas;
 
         void clearAll(){inequalities.clear(); equalities.clear(); lemmas.clear(); status=Result::UNKNOWN;};
-
-
-    private:
-
-        int processedEqualitiesIndex = 0;
-
-        int processedInEqualitiesIndex = 0;
 
         void Lift(IntegerField& integerField, std::map<std::string, Integer> upperBounds);
 
