@@ -98,9 +98,6 @@ if (options().ff.ffRangeSolver){
   }
   std::cout << "We are here\n";
   fullCheckCount +=1;
-  // if (fullCheckCount >=4){
-  //   AlwaysAssert(false);
-  // }
   Result r = d_rangeSolver->postCheck(level);
   std::cout << "Got status\n";
   if (r.getStatus() == Result::UNSAT){

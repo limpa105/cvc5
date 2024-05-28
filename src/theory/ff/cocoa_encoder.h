@@ -116,6 +116,8 @@ class CocoaEncoder : public FieldObj
 
   std::set<Node> getCurVars();
 
+  std::unordered_map<std::string, Node> d_symNodes{};
+
  private:
   /**
    * Get a fresh symbol that starts with varName.
@@ -164,8 +166,7 @@ class CocoaEncoder : public FieldObj
   std::unordered_map<Node, CoCoA::symbol> d_diseqSyms{};
   /** map: symbol name to polynomial */
   std::unordered_map<std::string, Poly> d_symPolys{};
-  /** map: symbol name to term */
-  std::unordered_map<std::string, Node> d_symNodes{};
+
 
   // populated at the end of Stage::Scan
 

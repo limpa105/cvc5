@@ -144,17 +144,28 @@ void noCoCoALiza()
 }
 
 // TODO: Need to find max by iterating through equations.
-std::vector<long> getWeights(std::vector<CoCoA::symbol> symbols, std::map<std::string, Integer > upperBounds){
+std::vector<long> getWeights(std::vector<CoCoA::symbol> symbols, std::unordered_map<std::string, Node> d_symNodes, std::map<std::string, Integer > upperBounds){
     std::vector<long> answer;
     for (auto i: symbols){
         std::ostringstream oss;
         oss << i;
-        std::string symbol = oss.str();
+        std::string symbol = d_symNodes[oss.str()].getName();
         //std::cout << i << "\n";
-        size_t pos = symbol.find("Var__");
-        if (pos != std::string::npos) {
-            symbol.replace(pos, 5, "Var_");
-        }
+        // size_t pos = symbol.find("___");
+        // if (pos != std::string::npos) {
+        //     while ((pos = symbol.find("___", pos)) != std::string::npos) {
+        //     symbol.replace(pos, 3, "__");
+        //     pos += 2;
+        //     }
+        // } else  {
+        // size_t pos = symbol.find("__");
+        // if (pos != std::string::npos) {
+        //     while ((pos = symbol.find("__", pos)) != std::string::npos) {
+        //     symbol.replace(pos, 2, "_");
+        //     pos += 1;
+        // }
+        
+        
         if (upperBounds.find(symbol)!= upperBounds.end()){
             long result = 10*log2(upperBounds[symbol].getDouble());
             //std::cout << result << "\n";
@@ -184,7 +195,7 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
         enc.addFact(node);
       }
       //std::cout << "Added facts first time \n";
-      std::vector<long> boundWeights = getWeights(enc.d_syms, upperBounds);
+      std::vector<long> boundWeights = getWeights(enc.d_syms, enc.d_symNodes, upperBounds);
     //   for (auto i: boundWeights){
     //     std::cout << i << ",";
     //   }
@@ -846,9 +857,9 @@ Result RangeSolver::Solve(){
     std::cout << "We are here\n";
     int count = 0;
     while(true){
-        // if (count >=5){
-        //     AlwaysAssert(false);
-        // }
+         if (count >=5){
+            AlwaysAssert(false);
+         }
         printSystemState();
         integerField.Simplify(fields, upperBounds);
         if (integerField.status == Result::UNSAT){
@@ -864,7 +875,7 @@ Result RangeSolver::Solve(){
             if (fieldPair.second.status == Result::UNSAT){
                 if (fieldPair.second.lemmas.size()> 0){
                     Lemma = fieldPair.second.lemmas[0];
-                    std::cout << "Learnt Lemma" << Lemma << "\n";
+                    std::cout << "LEARNED NEW LEMMA" << Lemma << "\n";
                     fieldPair.second.lemmas.clear();
                     AlwaysAssert( fieldPair.second.lemmas.size()==0);
                     fieldPair.second.status = Result::UNKNOWN;
@@ -874,6 +885,7 @@ Result RangeSolver::Solve(){
                 return Result::UNSAT;
             }
             if (integerField.status == Result::SAT){
+            std::cout << "WE GOT SAT\n";
             return Result::SAT;
             }
 
