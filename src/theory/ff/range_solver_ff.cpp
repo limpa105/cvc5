@@ -172,7 +172,6 @@ std::vector<long> getWeights(std::vector<CoCoA::symbol> symbols, std::unordered_
             answer.push_back(long(result));
         }
         else {
-
             AlwaysAssert(false) << symbol << "has no bound??";
             float result = BIGINTLOG;
             //std::cout << "NOBOUND" << result << "\n";
@@ -182,7 +181,7 @@ std::vector<long> getWeights(std::vector<CoCoA::symbol> symbols, std::unordered_
     return answer;
 } 
 
-std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperBounds, NodeManager* nm){
+std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperBounds, NodeManager* nm, bool WeightedGB){
       if ((*F).equalities.size() <= 1) {
         return (*F).equalities;
       }
@@ -194,6 +193,7 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
       {
         enc.addFact(node);
       }
+      if (WeightedGB){
       //std::cout << "Added facts first time \n";
       std::vector<long> boundWeights = getWeights(enc.d_syms, enc.d_symNodes, upperBounds);
     //   for (auto i: boundWeights){
@@ -201,15 +201,19 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
     //   }
       //std::cout << "\n";
       enc.endScanIntegers(boundWeights);
-      //std::cout << "Scanned Integers \n";
-      //std::cout << "Got ring\n";
+      }
+      else {
+        std::cout << "NORMAL GB SCAN\n";
+        enc.endScan();
+      }
+      std::cout << "Scanned Integers \n";
       //std::cout << "Got weights \n";
       // assert facts
       for (const Node& node :(*F).equalities)
       {
         enc.addFact(node);
       }
-      //std::cout << "Added facts a second time \n";
+      std::cout << "Added facts a second time \n";
 
       // compute a GB
       std::vector<CoCoA::RingElem> generators;
@@ -234,8 +238,15 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
       }
             
       CoCoA::ideal ideal = CoCoA::ideal(generators);
-      //std::cout << "Computed ideal \n";
-      auto basis = CoCoA::GBasis(ideal);
+      std::cout << "Computed ideal \n";
+      std::vector<CoCoA::RingElem> basis ;
+      try {
+      basis = CoCoA::GBasis(ideal);
+      } catch (const CoCoA::ErrorInfo& e) {
+        std::cout << e << "\n";
+        AlwaysAssert(false);
+      }
+
       if (basis.size() == 1 && CoCoA::deg(basis.front()) == 0)
       {
         return newPoly;
@@ -555,7 +566,7 @@ void Field::addInequality(Node fact){
 };
 
 
-bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upperBounds){
+bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upperBounds, bool WeightedGB){
     //std::cout << "Starting field simplifcation \n";
     for (int i =0; i< equalities.size(); i++) {
             std::cout << equalities[i] << "\n";
@@ -578,7 +589,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
     NodeManager* nm = NodeManager::currentNM();
     if (newEqualitySinceGB){
         //std::cout << "STARING GB\n";
-        std::vector<Node> newPoly = SimplifyViaGB(this, upperBounds, nm);
+        std::vector<Node> newPoly = SimplifyViaGB(this, upperBounds, nm, WeightedGB);
         if (newPoly.size() == 0 && equalities.size()!=0){
             std::cout << equalities.size() << "\n";
             //std::cout << "BAD BAD BAD\n";
@@ -856,9 +867,13 @@ Result RangeSolver::Solve(){
     #endif
     std::cout << "We are here\n";
     int count = 0;
+    bool WeightedGB = true;
     while(true){
-         if (count >=5){
+         if (count >=20){
             AlwaysAssert(false);
+         }
+         if (count >=15){
+            WeightedGB = false;
          }
         printSystemState();
         integerField.Simplify(fields, upperBounds);
@@ -868,7 +883,7 @@ Result RangeSolver::Solve(){
         }
         std::cout << "FINISHED INTEGERS\n";
         for (auto& fieldPair :fields){
-            fieldPair.second.Simplify(integerField, upperBounds);
+            fieldPair.second.Simplify(integerField, upperBounds, WeightedGB);
         }
         std::cout << "FINISHED FIELDS\n";
         for (auto fieldPair :fields){

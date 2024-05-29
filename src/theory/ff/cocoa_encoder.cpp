@@ -127,7 +127,7 @@ void CocoaEncoder::endScan()
 {
   Assert(d_stage == Stage::Scan);
   d_stage = Stage::Encode;
-  d_polyRing = CoCoA::NewPolyRing(coeffRing(), d_syms);
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms);
   for (size_t i = 0, n = d_syms.size(); i < n; ++i)
   {
     d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
@@ -368,7 +368,12 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
     std::vector<Node> RHS;
     //RHS.push_back(nm->mkConst(0));
     std::cout << RingPolynomial << "\n";
-    Integer ComDenom =  Integer(extractStr(CommonDenom(RingPolynomial)));
+    Integer ComDenom;
+    try {
+     ComDenom =  Integer(extractStr(CommonDenom(RingPolynomial)));
+    } catch (const CoCoA::ErrorInfo& e) {
+      ComDenom = Integer(1);
+    }
     //if extractStr()
     Node randVar = d_symNodes.begin()->second;
     for (CoCoA::SparsePolyIter iter=CoCoA::BeginIter(RingPolynomial); !CoCoA::IsEnded(iter); ++iter)

@@ -66,7 +66,7 @@ class Field:  protected EnvObj {
 
         bool checkUnsat();
 
-        bool Simplify(IntegerField& Integers, std::map<std::string, Integer > upperBounds);
+        bool Simplify(IntegerField& Integers, std::map<std::string, Integer > upperBounds,bool WeightedGB);
 
         Node modOut(Node fact);
 
