@@ -242,10 +242,15 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
       //tracer.setFunctionPointers();
       CoCoA::ideal ideal = CoCoA::ideal(generators);
       CoCoA::GReductor tempRed = CoCoA::GReductor(
-        CoCoA::GRingInfo(enc.d_polyRing.value(),false,false,CoCoA::NewDivMaskNull(), CoCoA::CpuTimeLimit(2.0)), generators);
+        CoCoA::GRingInfo(enc.d_polyRing.value(),false,false,CoCoA::NewDivMaskNull(), CoCoA::CpuTimeLimit(10.0)), generators);
       std::cout << "This worked\n";
       const int numRed = 1;
+      try {
       tempRed.myDoGBasis();
+       } catch (const CoCoA::ErrorInfo& e) {
+        std::cout << e << "\n";
+        AlwaysAssert(false);
+        }
       std::cout << "Computed basis?\n";
       std::vector<CoCoA::RingElem> basis;
       std::list<CoCoA::GPoly> basis2;
@@ -905,9 +910,9 @@ Result RangeSolver::Solve(){
          if (count >=20){
             AlwaysAssert(false);
          }
-         if (count >=15){
-            WeightedGB = false;
-         }
+        //  if (count >=15){
+        //     WeightedGB = false;
+        //  }
         printSystemState();
         integerField.Simplify(fields, upperBounds);
         if (integerField.status == Result::UNSAT){
