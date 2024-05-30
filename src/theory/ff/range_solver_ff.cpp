@@ -31,6 +31,8 @@
 #include <CoCoA/QuotientRing.H>
 #include <CoCoA/RingZZ.H>
 #include <CoCoA/RingQQ.H>
+#include <CoCoA/TmpGReductor.H>
+#include <CoCoA/GBEnv.H>
 #include <CoCoA/SparsePolyOps-ideal.H>
 #include <CoCoA/ring.H>
 #include <CoCoA/SparsePolyRing.H>
@@ -236,16 +238,46 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
             return newPoly;
         }
       }
-            
+      //ff::Tracer tracer(generators);
+      //tracer.setFunctionPointers();
       CoCoA::ideal ideal = CoCoA::ideal(generators);
-      std::cout << "Computed ideal \n";
-      std::vector<CoCoA::RingElem> basis ;
-      try {
-      basis = CoCoA::GBasis(ideal);
-      } catch (const CoCoA::ErrorInfo& e) {
-        std::cout << e << "\n";
-        AlwaysAssert(false);
+      CoCoA::GReductor tempRed = CoCoA::GReductor(
+        CoCoA::GRingInfo(enc.d_polyRing.value(),false,false,CoCoA::NewDivMaskNull(), CoCoA::CpuTimeLimit(2.0)), generators);
+      std::cout << "This worked\n";
+      const int numRed = 1;
+      tempRed.myDoGBasis();
+      std::cout << "Computed basis?\n";
+      std::vector<CoCoA::RingElem> basis;
+      std::list<CoCoA::GPoly> basis2;
+      tempRed.myGBasis(basis);
+      std::cout << "Finished something?\n";
+      for (auto i : basis ){
+        std::cout << i << "\n";
       }
+      //std::cout << tempRed.GetNReductions() << "\n";
+      //basis.clear();
+      //basis = CoCoA::GBasis(ideal);
+      
+      //std::cout << "This also worked??\n";
+      //std::cout << "NEW\n";
+      //std::ostringstream oss;
+      //std::cout << tempRed.GetNReductions() << "\n";
+      //std::cout << oss.str() << "\n";
+    
+    //   tempRed.myMinGens(basis);
+    //   std::cout << "Finished something?\n";
+    //   for (int i = 0; i<basis.size(); i++){
+    //     std::cout << basis[i] << "\n";
+    //   }
+      //AlwaysAssert(false);
+
+    
+      //tracer.unsetFunctionPointers();
+      //std::vector<size_t> coreIndices = tracer.trace(basis.front());
+      //for (size_t i : coreIndices)
+            //{
+
+  
 
       if (basis.size() == 1 && CoCoA::deg(basis.front()) == 0)
       {
@@ -587,6 +619,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
         return false;
     }
     NodeManager* nm = NodeManager::currentNM();
+    newEqualitySinceGB = true;
     if (newEqualitySinceGB){
         //std::cout << "STARING GB\n";
         std::vector<Node> newPoly = SimplifyViaGB(this, upperBounds, nm, WeightedGB);

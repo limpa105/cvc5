@@ -149,10 +149,10 @@ void CocoaEncoder::endScanIntegers(std::vector<long> upperBoundWeights){
   std::cout << d_syms.size() << "\n";
   std::vector<std::vector<long>> k = grevlexWeighted(upperBoundWeights);
   std::cout << "got order \n";
-  CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ(), k);
+  CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingZZ(), k);
   std::cout << "Made matrix\n";
   try {
-  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms, CoCoA::NewMatrixOrdering(m, d_syms.size()-1));
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingZZ(), d_syms, CoCoA::NewMatrixOrdering(m, d_syms.size()-1));
   } catch (const CoCoA::ErrorInfo& e) {
     std::cout << e << "\n";
     AlwaysAssert(false);

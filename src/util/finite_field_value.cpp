@@ -49,9 +49,9 @@ size_t FiniteFieldValue::hash() const
 void FiniteFieldValue::normalize()
 {
   d_value = d_value.floorDivideRemainder(d_size.d_val);
-  if (( d_value > d_size.d_val.floorDivideQuotient(2)) && d_value * -1 < d_size ){
-    d_value = d_value - d_size;
-  }
+    if (( d_value > d_size.d_val.floorDivideQuotient(2)) && d_value * -1 < d_size ){
+       d_value = d_value - d_size;
+     }
 }
 
 /* -----------------------------------------------------------------------

@@ -118,6 +118,9 @@ class CocoaEncoder : public FieldObj
 
   std::unordered_map<std::string, Node> d_symNodes{};
 
+/** the polynomial ring */
+  std::optional<CoCoA::ring> d_polyRing{};
+
  private:
   /**
    * Get a fresh symbol that starts with varName.
@@ -137,6 +140,8 @@ class CocoaEncoder : public FieldObj
   void encodeFact(const Node& f);
 
   std::vector<long> AddCoefToWeights(std::vector<long> weights);
+
+  /** the polynomial ring */
 
   /** Which pass we're in. */
   enum class Stage
@@ -170,8 +175,6 @@ class CocoaEncoder : public FieldObj
 
   // populated at the end of Stage::Scan
 
-  /** the polynomial ring */
-  std::optional<CoCoA::ring> d_polyRing{};
 
   // populated during Stage::Encode
 
