@@ -910,9 +910,9 @@ Result RangeSolver::Solve(){
          if (count >=20){
             AlwaysAssert(false);
          }
-        //  if (count >=15){
-        //     WeightedGB = false;
-        //  }
+          if (count >=15){
+             WeightedGB = false;
+          }
         printSystemState();
         integerField.Simplify(fields, upperBounds);
         if (integerField.status == Result::UNSAT){

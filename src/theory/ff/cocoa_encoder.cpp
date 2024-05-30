@@ -127,7 +127,7 @@ void CocoaEncoder::endScan()
 {
   Assert(d_stage == Stage::Scan);
   d_stage = Stage::Encode;
-  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms);
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingZZ(), d_syms);
   for (size_t i = 0, n = d_syms.size(); i < n; ++i)
   {
     d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
