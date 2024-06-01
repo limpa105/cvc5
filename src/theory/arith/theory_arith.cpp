@@ -48,6 +48,7 @@ TheoryArith::TheoryArith(Env& env, OutputChannel& out, Valuation valuation)
       d_eqSolver(nullptr),
       d_internal(new linear::TheoryArithPrivate(*this, env, d_bab)),
       d_nonlinearExtension(nullptr),
+      d_modularExtension(nullptr),
       d_opElim(d_env),
       d_arithPreproc(env, d_im, d_pnm, d_opElim),
       d_rewriter(d_opElim),
@@ -97,9 +98,16 @@ void TheoryArith::finishInit()
   {
     d_nonlinearExtension.reset(new nl::NonlinearExtension(d_env, *this));
   }
+  if (options().arith.modularRangeSolver)
+  {
+    d_modularExtension.reset(new modular_range_solver::RangeSolver(d_env, *this));
+    return;
+  }
   d_eqSolver->finishInit();
   // finish initialize in the old linear solver
   d_internal->finishInit();
+
+
 
   // Set the congruence manager on the equality solver. If the congruence
   // manager exists, it is responsible for managing the notifications from
@@ -109,6 +117,11 @@ void TheoryArith::finishInit()
 
 void TheoryArith::preRegisterTerm(TNode n)
 {
+  if (d_modularExtension != nullptr)
+  {
+    d_modularExtension->preRegisterTerm(n);
+    return;
+  }
   // handle logic exceptions
   Kind k = n.getKind();
   if (k == Kind::POW)
@@ -220,12 +233,25 @@ void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 
 bool TheoryArith::preCheck(Effort level)
 {
+  if (d_modularExtension != nullptr)
+  {
+    return false;
+  }
   Trace("arith-check") << "TheoryArith::preCheck " << level << std::endl;
   return d_internal->preCheck(level);
 }
 
 void TheoryArith::postCheck(Effort level)
 {
+  if (d_modularExtension != nullptr)
+  {
+    if (Theory::fullEffort(level)){
+    d_modularExtension->postCheck(level);
+    }
+    else {
+      return;
+    }
+  }
   d_im.reset();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
@@ -303,12 +329,19 @@ void TheoryArith::postCheck(Effort level)
 bool TheoryArith::preNotifyFact(
     TNode atom, bool pol, TNode fact, bool isPrereg, bool isInternal)
 {
+  if (d_modularExtension != nullptr)
+  {
+    d_modularExtension->notifyFact(fact);
+    return true;
+    }
+
   Trace("arith-check") << "TheoryArith::preNotifyFact: " << fact
                        << ", isPrereg=" << isPrereg
                        << ", isInternal=" << isInternal << std::endl;
   // We do not assert to the equality engine of arithmetic in the standard way,
   // hence we return "true" to indicate we are finished with this fact.
   bool ret = true;
+ 
   if (options().arith.arithEqSolver)
   {
     // the equality solver may indicate ret = false, after which the assertion
@@ -340,6 +373,10 @@ TrustNode TheoryArith::explain(TNode n)
 }
 
 void TheoryArith::propagate(Effort e) {
+  if (d_modularExtension != nullptr)
+  {
+    return;
+  }
   d_internal->propagate(e);
 }
 
@@ -420,6 +457,10 @@ void TheoryArith::notifyRestart(){
 }
 
 void TheoryArith::presolve(){
+  if (d_modularExtension != nullptr)
+  {
+      return;
+    }
   d_internal->presolve();
 }
 

@@ -121,125 +121,128 @@ Node OperatorElim::eliminateOperators(Node node,
     case Kind::INTS_DIVISION_TOTAL:
     case Kind::INTS_MODULUS_TOTAL:
     {
-      if (partialOnly)
-      {
-        // not eliminating total operators
-        return node;
-      }
-      Node den = rewrite(node[1]);
-      Node num = rewrite(node[0]);
-      Node rw = nm->mkNode(k, num, den);
-      // we use the purification skolem for div
-      Node pterm = nm->mkNode(Kind::INTS_DIVISION_TOTAL, node[0], node[1]);
-      Node v = sm->mkPurifySkolem(pterm);
-      // make the corresponding lemma
-      Node lem;
-      Node leqNum = nm->mkNode(Kind::LEQ, nm->mkNode(Kind::MULT, den, v), num);
-      if (den.isConst())
-      {
-        const Rational& rat = den.getConst<Rational>();
-        if (num.isConst() || rat == 0)
-        {
-          // just rewrite
-          return rewrite(node);
-        }
-        if (rat > 0)
-        {
-          lem = nm->mkNode(
-              Kind::AND,
-              leqNum,
-              nm->mkNode(
-                  Kind::LT,
-                  num,
-                  nm->mkNode(
-                      Kind::MULT,
-                      den,
-                      nm->mkNode(Kind::ADD, v, nm->mkConstInt(Rational(1))))));
-        }
-        else
-        {
-          lem = nm->mkNode(
-              Kind::AND,
-              leqNum,
-              nm->mkNode(
-                  Kind::LT,
-                  num,
-                  nm->mkNode(
-                      Kind::MULT,
-                      den,
-                      nm->mkNode(Kind::ADD, v, nm->mkConstInt(Rational(-1))))));
-        }
-      }
-      else
-      {
-        checkNonLinearLogic(node);
-        lem = nm->mkNode(
-            Kind::AND,
-            nm->mkNode(
-                Kind::IMPLIES,
-                nm->mkNode(Kind::GT, den, nm->mkConstInt(Rational(0))),
-                nm->mkNode(
-                    Kind::AND,
-                    leqNum,
-                    nm->mkNode(
-                        Kind::LT,
-                        num,
-                        nm->mkNode(
-                            Kind::MULT,
-                            den,
-                            nm->mkNode(
-                                Kind::ADD, v, nm->mkConstInt(Rational(1))))))),
-            nm->mkNode(
-                Kind::IMPLIES,
-                nm->mkNode(Kind::LT, den, nm->mkConstInt(Rational(0))),
-                nm->mkNode(
-                    Kind::AND,
-                    leqNum,
-                    nm->mkNode(
-                        Kind::LT,
-                        num,
-                        nm->mkNode(
-                            Kind::MULT,
-                            den,
-                            nm->mkNode(Kind::ADD,
-                                       v,
-                                       nm->mkConstInt(Rational(-1))))))));
-      }
-      // add the skolem lemma to lems
-      lems.push_back(mkSkolemLemma(lem, v));
-      if (k == Kind::INTS_MODULUS_TOTAL)
-      {
-        Node nn = nm->mkNode(Kind::SUB, num, nm->mkNode(Kind::MULT, den, v));
-        return nn;
-      }
-      return v;
+    //   if (partialOnly)
+    //   {
+    //     // not eliminating total operators
+    //     return node;
+    //   }
+       Node den = rewrite(node[1]);
+       Node num = rewrite(node[0]);
+       Node rw = nm->mkNode(k, num, den);
+       return rw;
+       break;
     }
-    case Kind::DIVISION_TOTAL:
-    {
-      if (partialOnly)
-      {
-        // not eliminating total operators
-        return node;
-      }
-      Node num = rewrite(node[0]);
-      Node den = rewrite(node[1]);
-      if (den.isConst())
-      {
-        // No need to eliminate here, can eliminate via rewriting later.
-        // Moreover, rewriting may change the type of this node from real to
-        // int, which impacts certain issues with subtyping.
-        return node;
-      }
-      checkNonLinearLogic(node);
-      Node rw = nm->mkNode(k, num, den);
-      Node v = sm->mkPurifySkolem(rw);
-      Node lem = nm->mkNode(Kind::IMPLIES,
-                            den.eqNode(mkZero(den.getType())).negate(),
-                            mkEquality(nm->mkNode(Kind::MULT, den, v), num));
-      lems.push_back(mkSkolemLemma(lem, v));
-      return v;
-      break;
-    }
+    //   // we use the purification skolem for div
+    //   Node pterm = nm->mkNode(Kind::INTS_DIVISION_TOTAL, node[0], node[1]);
+    //   Node v = sm->mkPurifySkolem(pterm);
+    //   // make the corresponding lemma
+    //   Node lem;
+    //   Node leqNum = nm->mkNode(Kind::LEQ, nm->mkNode(Kind::MULT, den, v), num);
+    //   if (den.isConst())
+    //   {
+    //     const Rational& rat = den.getConst<Rational>();
+    //     if (num.isConst() || rat == 0)
+    //     {
+    //       // just rewrite
+    //       return rewrite(node);
+    //     }
+    //     if (rat > 0)
+    //     {
+    //       lem = nm->mkNode(
+    //           Kind::AND,
+    //           leqNum,
+    //           nm->mkNode(
+    //               Kind::LT,
+    //               num,
+    //               nm->mkNode(
+    //                   Kind::MULT,
+    //                   den,
+    //                   nm->mkNode(Kind::ADD, v, nm->mkConstInt(Rational(1))))));
+    //     }
+    //     else
+    //     {
+    //       lem = nm->mkNode(
+    //           Kind::AND,
+    //           leqNum,
+    //           nm->mkNode(
+    //               Kind::LT,
+    //               num,
+    //               nm->mkNode(
+    //                   Kind::MULT,
+    //                   den,
+    //                   nm->mkNode(Kind::ADD, v, nm->mkConstInt(Rational(-1))))));
+    //     }
+    //   }
+    //   else
+    //   {
+    //     checkNonLinearLogic(node);
+    //     lem = nm->mkNode(
+    //         Kind::AND,
+    //         nm->mkNode(
+    //             Kind::IMPLIES,
+    //             nm->mkNode(Kind::GT, den, nm->mkConstInt(Rational(0))),
+    //             nm->mkNode(
+    //                 Kind::AND,
+    //                 leqNum,
+    //                 nm->mkNode(
+    //                     Kind::LT,
+    //                     num,
+    //                     nm->mkNode(
+    //                         Kind::MULT,
+    //                         den,
+    //                         nm->mkNode(
+    //                             Kind::ADD, v, nm->mkConstInt(Rational(1))))))),
+    //         nm->mkNode(
+    //             Kind::IMPLIES,
+    //             nm->mkNode(Kind::LT, den, nm->mkConstInt(Rational(0))),
+    //             nm->mkNode(
+    //                 Kind::AND,
+    //                 leqNum,
+    //                 nm->mkNode(
+    //                     Kind::LT,
+    //                     num,
+    //                     nm->mkNode(
+    //                         Kind::MULT,
+    //                         den,
+    //                         nm->mkNode(Kind::ADD,
+    //                                    v,
+    //                                    nm->mkConstInt(Rational(-1))))))));
+    //   }
+    //   // add the skolem lemma to lems
+    //   lems.push_back(mkSkolemLemma(lem, v));
+    //   if (k == Kind::INTS_MODULUS_TOTAL)
+    //   {
+    //     Node nn = nm->mkNode(Kind::SUB, num, nm->mkNode(Kind::MULT, den, v));
+    //     return nn;
+    //   }
+    //   return v;
+    // }
+    // case Kind::DIVISION_TOTAL:
+    // {
+    //   if (partialOnly)
+    //   {
+    //     // not eliminating total operators
+    //     return node;
+    //   }
+    //   Node num = rewrite(node[0]);
+    //   Node den = rewrite(node[1]);
+    //   if (den.isConst())
+    //   {
+    //     // No need to eliminate here, can eliminate via rewriting later.
+    //     // Moreover, rewriting may change the type of this node from real to
+    //     // int, which impacts certain issues with subtyping.
+    //     return node;
+    //   }
+    //   checkNonLinearLogic(node);
+    //   Node rw = nm->mkNode(k, num, den);
+    //   Node v = sm->mkPurifySkolem(rw);
+    //   Node lem = nm->mkNode(Kind::IMPLIES,
+    //                         den.eqNode(mkZero(den.getType())).negate(),
+    //                         mkEquality(nm->mkNode(Kind::MULT, den, v), num));
+    //   lems.push_back(mkSkolemLemma(lem, v));
+    //   return v;
+    //   break;
+    // }
     case Kind::DIVISION:
     {
       Node num = rewrite(node[0]);
@@ -276,32 +279,35 @@ Node OperatorElim::eliminateOperators(Node node,
 
     case Kind::INTS_MODULUS:
     {
-      // partial function: mod
-      Node num = rewrite(node[0]);
-      Node den = rewrite(node[1]);
-      Node ret = nm->mkNode(Kind::INTS_MODULUS_TOTAL, num, den);
-      if (!den.isConst() || den.getConst<Rational>().sgn() == 0)
-      {
-        checkNonLinearLogic(node);
-        Node modZeroNum = getArithSkolemApp(num, SkolemFunId::MOD_BY_ZERO);
-        Node denEq0 = nm->mkNode(Kind::EQUAL, den, nm->mkConstInt(Rational(0)));
-        ret = nm->mkNode(Kind::ITE, denEq0, modZeroNum, ret);
-      }
-      return ret;
-      break;
+    //   // partial function: mod
+     Node num = rewrite(node[0]);
+     Node den = rewrite(node[1]);
+     Node ret = nm->mkNode(Kind::INTS_MODULUS_TOTAL, num, den);
+     return ret;
+     break;
     }
+    //   if (!den.isConst() || den.getConst<Rational>().sgn() == 0)
+    //   {
+    //     checkNonLinearLogic(node);
+    //     Node modZeroNum = getArithSkolemApp(num, SkolemFunId::MOD_BY_ZERO);
+    //     Node denEq0 = nm->mkNode(Kind::EQUAL, den, nm->mkConstInt(Rational(0)));
+    //     ret = nm->mkNode(Kind::ITE, denEq0, modZeroNum, ret);
+    //   }
+    //   return ret;
+    //   break;
+    // }
 
-    case Kind::ABS:
-    {
-      return nm->mkNode(
-          Kind::ITE,
-          nm->mkNode(Kind::LT,
-                     node[0],
-                     nm->mkConstRealOrInt(node[0].getType(), Rational(0))),
-          nm->mkNode(Kind::NEG, node[0]),
-          node[0]);
-      break;
-    }
+    // case Kind::ABS:
+    // {
+    //   return nm->mkNode(
+    //       Kind::ITE,
+    //       nm->mkNode(Kind::LT,
+    //                  node[0],
+    //                  nm->mkConstRealOrInt(node[0].getType(), Rational(0))),
+    //       nm->mkNode(Kind::NEG, node[0]),
+    //       node[0]);
+    //   break;
+    // }
     case Kind::SQRT:
     case Kind::ARCSINE:
     case Kind::ARCCOSINE:
