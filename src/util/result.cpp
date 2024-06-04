@@ -39,8 +39,8 @@ Result::Result(Status s, std::string inputName)
       d_unknownExplanation(UnknownExplanation::UNKNOWN_REASON),
       d_inputName(inputName)
 {
-  Assert(s != UNKNOWN)
-      << "Must provide a reason for satisfiability being unknown";
+  // Assert(s != UNKNOWN)
+  //     << "Must provide a reason for satisfiability being unknown";
 }
 
 Result::Result(Status s,

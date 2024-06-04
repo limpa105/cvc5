@@ -34,6 +34,8 @@ class IntegerField: protected EnvObj{
 
         void clearEqualities(){equalities.clear();};
 
+        void clearInequalities(){inequalities.clear();};
+
         void addInequality(Node inequality);
 
         void Lower(Field& field, std::map<std::string, Integer > upperBounds);
@@ -66,6 +68,8 @@ class Field:  protected EnvObj {
         void addEquality(Node equality, bool inField);
 
         void clearEqualities(){equalities.clear();};
+
+        void clearInequalities(){inequalities.clear();};
 
         void addInequality(Node inequality);
 

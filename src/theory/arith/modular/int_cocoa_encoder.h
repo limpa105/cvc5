@@ -105,7 +105,7 @@ class CocoaEncoder
   /**
    * Convert a (coefficient) Scalar to a FiniteFieldValue.
    */
-  FiniteFieldValue cocoaFfToFfVal(const Scalar& elem);
+
 
   std::vector<Node> cocoaToNode( std::vector<CoCoA::RingElem>, NodeManager* nm);
 

@@ -10,7 +10,8 @@ bool isFfLeaf(const Node& n)
          !(n.getKind() == Kind::ADD
               || n.getKind() == Kind::MULT
               || n.getKind() == Kind::NONLINEAR_MULT
-              || n.getKind() == Kind::NEG);
+              || n.getKind() == Kind::NEG
+              || n.getKind() == Kind::EQUAL);
 }
 
 bool isFfTerm(const Node& n) { return true; }

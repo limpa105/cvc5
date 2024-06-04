@@ -70,7 +70,7 @@ std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field
         return {};
     }
     // Constant
-    if (fact.getKind() == Kind::CONST_FINITE_FIELD){
+    if (fact.getKind() == Kind::CONST_INTEGER){
         Integer coef = fact.getConst<Rational>().getNumerator();
         if (new_field.divides(coef)){
             return std::make_pair(Integer(0), Integer(0));
@@ -81,7 +81,7 @@ std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field
         return std::make_pair(Integer(0), coef);
     }
     // Multiplication
-    if (fact.getKind() == Kind::FINITE_FIELD_MULT){
+    if (fact.getKind() == Kind::MULT){
         Integer pos_product = Integer(1);
         Integer neg_product = Integer(1);
         for (int i=0; i<fact.getNumChildren(); i++){
@@ -96,7 +96,7 @@ std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field
         }
         return std::make_pair(pos_product, neg_product);
     }
-    Assert(fact.getKind() == Kind::FINITE_FIELD_ADD);
+    AlwaysAssert(fact.getKind() == Kind::ADD);
     Integer pos_sum = Integer(0);
     Integer neg_sum = Integer(0);
     for (int i=0; i<fact.getNumChildren(); i++){
@@ -114,7 +114,7 @@ std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field
 
 std::set<Node> getVarsHelper(Node eq){
     std::set<Node> answer;
-    if (eq.getKind() == Kind::CONST_FINITE_FIELD){
+    if (eq.getKind() == Kind::CONST_INTEGER){
         return answer;;
     }
      if (isVariableOrSkolem(eq)){
@@ -128,7 +128,7 @@ std::set<Node> getVarsHelper(Node eq){
         }
         return answer;       
     }
-    AlwaysAssert(false);
+    AlwaysAssert(false) << eq;
 }
 
 
@@ -177,6 +177,7 @@ std::vector<long> getWeights(std::vector<CoCoA::symbol> symbols, std::unordered_
             answer.push_back(long(result));
         }
         else {
+            std::cout << oss.str() << "\n";
             AlwaysAssert(false) << symbol << "has no bound??";
             float result = BIGINTLOG;
             //std::cout << "NOBOUND" << result << "\n";
@@ -199,6 +200,7 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
         enc.addFact(node);
       }
       if (WeightedGB){
+        //std::cout << enc.d_syms << "\n";
       //std::cout << "Added facts first time \n";
       std::vector<long> boundWeights = getWeights(enc.d_syms, enc.d_symNodes, upperBounds);
     //   for (auto i: boundWeights){
@@ -208,26 +210,26 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
       enc.endScanIntegers(boundWeights);
       }
       else {
-        std::cout << "NORMAL GB SCAN\n";
+        //std::cout << "NORMAL GB SCAN\n";
         enc.endScan();
       }
-      std::cout << "Scanned Integers \n";
+      //std::cout << "Scanned Integers \n";
       //std::cout << "Got weights \n";
       // assert facts
       for (const Node& node :(*F).equalities)
       {
         enc.addFact(node);
       }
-      std::cout << "Added facts a second time \n";
+      //std::cout << "Added facts a second time \n";
 
       // compute a GB
       std::vector<CoCoA::RingElem> generators;
       generators.insert(
           generators.end(), enc.polys().begin(), enc.polys().end());
-    //   std::cout << "Computed generators \n";
-    //   for (auto i: generators){
-    //     std::cout << i << "\n";
-    //   };
+//    std::cout << "Computed generators \n";
+//    for (auto i: generators){
+//      std::cout << i << "\n";
+//        };
       std::vector<Node> newPoly;
       if ((*F).inequalities.size()>0){
         std::vector<Node> intersection;
@@ -236,17 +238,17 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
         std::set_intersection(eqVars.begin(), eqVars.end(),
                             neqVars.begin(), neqVars.end(),
                             std::back_inserter(intersection));
-        if (intersection.empty()){
-            (*F).status = Result::SAT;
-            return newPoly;
-        }
+        // if (intersection.empty()){
+        //     (*F).status = Result::SAT;
+        //     return newPoly;
+        // }
       }
       //ff::Tracer tracer(generators);
       //tracer.setFunctionPointers();
       CoCoA::ideal ideal = CoCoA::ideal(generators);
       CoCoA::GReductor tempRed = CoCoA::GReductor(
         CoCoA::GRingInfo(enc.d_polyRing.value(),false,false,CoCoA::NewDivMaskNull(), CoCoA::CpuTimeLimit(10.0)), generators);
-      std::cout << "This worked\n";
+      // << "This worked\n";
       const int numRed = 1;
       try {
       tempRed.myDoGBasis();
@@ -254,13 +256,13 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
         std::cout << e << "\n";
         AlwaysAssert(false);
         }
-      std::cout << "Computed basis?\n";
+     // std::cout << "Computed basis?\n";
       std::vector<CoCoA::RingElem> basis;
       std::list<CoCoA::GPoly> basis2;
       tempRed.myGBasis(basis);
-      std::cout << "Finished something?\n";
+      //std::cout << "Finished something?\n";
       for (auto i : basis ){
-        std::cout << i << "\n";
+        //std::cout << i << "\n";
       }
       //std::cout << tempRed.GetNReductions() << "\n";
       //basis.clear();
@@ -352,7 +354,7 @@ bool IntegerField::checkUnsat(){
 IntegerField::IntegerField(Env &env):EnvObj(env){initCocoaGlobalManager();};
 
 bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::string, Integer > upperBounds){
-    std::cout << "STARTED INTEGERS\n";
+    //std::cout << "STARTED INTEGERS\n";
     //CancelConstants();
     NodeManager* nm = NodeManager::currentNM();
     checkUnsat();
@@ -436,7 +438,7 @@ Field::Field(Env & env, Integer mod):EnvObj(env){
     initCocoaGlobalManager();}
 
 Node Field::modOut(Node fact){
-    std::cout << fact << "\n";
+    //s//td::cout << fact << "\n";
      NodeManager* nm = NodeManager::currentNM();
      std::vector<Node> left;
      if (fact.getKind()== Kind::ADD){
@@ -446,7 +448,6 @@ Node Field::modOut(Node fact){
         return nm->mkNode(Kind::ADD, left);
      }
      if(fact.getKind()== Kind::MULT || fact.getKind()==Kind::NONLINEAR_MULT){
-        std::cout<<"Why are not here?\n";
         for(int i =0; i<fact.getNumChildren(); i++) {
         left.push_back(modOut(fact[i]));
         }
@@ -457,19 +458,32 @@ Node Field::modOut(Node fact){
         return fact;
     }
     if(fact.getKind()== Kind::CONST_INTEGER){
-        if(modulos.divides(fact.getConst<Rational>().getNumerator())){
+        //std::cout << "Before mod:" << fact.getConst<Rational>().getNumerator() << "\n";
+        Integer new_value =fact.getConst<Rational>().getNumerator().floorDivideRemainder(modulos);
+        if (( new_value  > modulos.floorDivideQuotient(2)) && new_value * -1 < modulos ){
+             new_value =  new_value- modulos;
+        }
+        //std::cout << "After mod:" << modulos << "\n";
+        if(modulos.divides(new_value)){
             return nm->mkConstInt(0);
         }
-        if (fact.getConst<Rational>().getNumerator() > 0 && modulos.floorDivideQuotient(2) < fact.getConst<FiniteFieldValue>().getValue()){
-            Integer new_value = fact.getConst<Rational>().getNumerator() - modulos;
-            //std::cout << "LOOOk " << new_value << "\n";
-            Node help= nm->mkConstInt(fact.getConst<Rational>().getNumerator() - modulos);
-            //std::cout << "LOOOk " << help.getConst<FiniteFieldValue>().getValue()<< "\n";
-           // std::cout << help << "\n";
-            //std::cout << rewrite(help)<< "\n";
-            return help;
-        }
-        return fact;
+        // if (new_value > 0 && modulos.floorDivideQuotient(2) < new_value){
+        //    //std::cout << "positive to negative\n";
+        //     Node help= nm->mkConstInt(new_value - modulos);
+        //     //std::cout << "LOOOk " << help.getConst<FiniteFieldValue>().getValue()<< "\n";
+        //    // std::cout << help << "\n";
+        //     //std::cout << rewrite(help)<< "\n";
+        //     return help;
+        // }
+        // if (new_value < 0 && (modulos.floorDivideQuotient(2) < Integer(-1) * new_value)){
+        //     //std::cout << "negative to positive\n";
+        //     Node help= nm->mkConstInt(new_value + modulos);
+        //     //std::cout << "LOOOk " << help.getConst<FiniteFieldValue>().getValue()<< "\n";
+        //    // std::cout << help << "\n";
+        //     //std::cout << rewrite(help)<< "\n";
+        //     return help;
+        // } 
+        return nm->mkConstInt(new_value);
     }
     AlwaysAssert(false) << "Unsupported kind type in modout" << fact.getKind();
 
@@ -520,7 +534,9 @@ void Field::addEquality(Node fact, bool inField){
         AlwaysAssert(fact.getKind() == Kind::EQUAL) << fact;
         if(inField){
             equalities.push_back(fact);
+        return;
     } else {
+    //std::cout << "BEFORE" << fact << "\n";
     NodeManager* nm = NodeManager::currentNM();
     Node LHS = modOut(fact[0]);
     Node RHS = modOut(fact[1]);
@@ -530,9 +546,12 @@ void Field::addEquality(Node fact, bool inField){
     //std::cout << "result" << result << "\n";
     //std::cout << rewrite(result) << "\n";
    // std::cout << "CHECK END\n";
+   //std::cout << "After" << result << "\n";
     addEquality(result, true);
+    return;
     }
     }
+    std::cout << "Already existed\n";
     //std::cout <<"Done adding equality:" << fact << "\n";
 };
 
@@ -600,6 +619,7 @@ bool Field::LearnLemmas(Node fact,std::map<std::string, Integer > upperBounds ){
 
 
 void Field::addInequality(Node fact){
+    fact = rewrite(fact);
     NodeManager* nm = NodeManager::currentNM();
     Node LHS = modOut(fact[0]);
     Node RHS = modOut(fact[1]);
@@ -611,7 +631,7 @@ void Field::addInequality(Node fact){
 bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upperBounds, bool WeightedGB){
     //std::cout << "Starting field simplifcation \n";
     for (int i =0; i< equalities.size(); i++) {
-            std::cout << equalities[i] << "\n";
+            //std::cout << equalities[i] << "\n";
         }
     substituteVariables();
     //std::cout << "Started UNSAT\n";
@@ -634,8 +654,11 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
         //std::cout << "STARING GB\n";
         std::vector<Node> newPoly = SimplifyViaGB(this, upperBounds, nm, WeightedGB);
         if (newPoly.size() == 0 && equalities.size()!=0){
-            std::cout << equalities.size() << "\n";
-            //std::cout << "BAD BAD BAD\n";
+            //std::cout << equalities.size() << "\n";
+            std::cout << "BAD BAD BAD\n";
+            for(auto i : equalities){
+                std::cout << i << "\n";
+            }
 
             status = Result::UNSAT;
             return false;
@@ -643,12 +666,18 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
         //std::cout <<  "Finished GB\n";
         clearEqualities();
         for (Node poly: newPoly){
-            //std::cout << "New Poly F:" << poly << "\n \n \n";
+            std::cout << "New Poly F:" << poly << "\n";
+            std::cout << "New Poly F:" << rewrite(poly) << "\n";
             addEquality(rewrite(poly), false);
             //std::cout << "WHAT\n";
         }
-        //std::cout << equalities.size() << "\n";
-        //std::cout << newPoly.size() << "\n";
+        std::cout << "MOD:" << modulos << "\n";
+        std::cout << "Equalities\n";
+        for(auto i : equalities){
+            std::cout << i << "\n";
+        }
+        std::cout << equalities.size() << "\n";
+        std::cout << newPoly.size() << "\n";
         AlwaysAssert(equalities.size() == newPoly.size());
         newEqualitySinceGB = false;
         for (auto i: equalities){
@@ -666,7 +695,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, Integer > upp
     //substituteEqualities();
     //std::cout << "Substitute Eqs done \n";
     //std::cout << "Checking Unsat is done \n";
-    std::cout << "STARTING LIFTING GASP!\n";
+    //std::cout << "STARTING LIFTING GASP!\n";
     Lift(Integers, upperBounds);
     return true;
 };
@@ -708,6 +737,9 @@ void Field::substituteEqualities(){
 }
 
 Node Field::subVarHelper(Node fact, Node ogf, Node newf) {
+    // std::cout << 'Fact' << fact << "\n";
+    // std::cout << 'OGF' << ogf << "\n";
+    // std::cout << "Equality:" << (fact==ogf) << "\n";
     if (fact == ogf){
         return newf;
     }
@@ -724,19 +756,32 @@ Node Field::subVarHelper(Node fact, Node ogf, Node newf) {
 }
 
 void Field::substituteVariables(){
+    if (equalities.size() == 0 || inequalities.size() == 0){
+        return;
+    }
+std::cout << "Substitute variables\n";
     std::vector<Node> new_equalities;
     for (int i = 0; i<equalities.size(); i++){
         Node fact = equalities[i];
         //std::cout << "We are here?" << fact << "\n";
-    if ( (isVariableOrSkolem(fact[0]) &&  isVariableOrSkolem(fact[1]) )|| 
-       (isVariableOrSkolem(fact[0]) && 
-        fact[1].getKind() == Kind::CONST_FINITE_FIELD)){
+    if ( (isVariableOrSkolem(fact[0]) 
+        //&&  isVariableOrSkolem(fact[1]) )|| 
+       //(isVariableOrSkolem(fact[0]) && 
+        //fact[1].getKind() == Kind::CONST_INTEGER
+        )){
             std::vector<Node> new_inequalities;
             for(Node assert: inequalities){
                 if (assert!=fact){
-                Node new_ineq = subVarHelper(assert, fact[1], fact[0]);
+                    std::cout << fact[0] << "\n";
+                    std::cout << fact[1] << "\n";
+                    std::cout << assert << "\n";
+                Node new_ineq = rewrite(subVarHelper(assert, fact[0], fact[1]));
                 if(new_ineq.getKind() == Kind::CONST_BOOLEAN){
                     if (new_ineq.getConst<bool>() == false){
+                        std::cout << "OH NO!!!!!"  << "\n";
+                        std::cout << fact << "\n";
+                        std::cout << assert << "\n";
+                        AlwaysAssert(false);
                     }
                     if (new_ineq.getConst<bool>() == true){
                          status = Result::UNSAT;
@@ -749,9 +794,12 @@ void Field::substituteVariables(){
                     return;
                 }
             }
-            inequalities = new_inequalities;
+            clearInequalities();
+            for(auto i:new_inequalities){
+                addInequality(i);
+            }
     }
-    if (fact[0].getKind() == Kind::CONST_FINITE_FIELD && 
+    if (fact[0].getKind() == Kind::CONST_INTEGER && 
         isVariableOrSkolem(fact[1])){
             std::vector<Node> new_inequalities;
             for(Node assert: inequalities){
@@ -782,6 +830,9 @@ void Field::substituteVariables(){
 
 
 bool Field::checkUnsat(){
+    if (equalities.size() == 0 || inequalities.size() == 0){
+        return false;
+    }
     for(int i=0; i<inequalities.size(); i++){
         if (inequalities[i].getKind()== Kind::CONST_BOOLEAN &&
             inequalities[i].getConst<bool>() == true){
@@ -818,10 +869,10 @@ void RangeSolver::preRegisterTerm(TNode node){
     //     }
     //   }
         if (node.getKind() == Kind::VARIABLE ){
-            upperBounds[node.getName()] = std::numeric_limits<int>::max();
+            upperBounds[node.getName()] = BIGINT;
         }
       if (node.getKind() == Kind::CONST_INTEGER){
-        Integer constant = node.getConst<FiniteFieldValue>().getValue();
+        Integer constant = node.getConst<Rational>().getNumerator();
         if (constant < 0){constant = constant * -1;};
         if (constant == 0 || constant == 1 ){
             return;
@@ -875,7 +926,7 @@ void RangeSolver::processFact(TNode fact){
 
             }
             else {
-            upperBounds[fact[0].getName()] = Bound;
+            upperBounds[fact[0][0].getName()] = Bound;
             }
         }
     else if (fact.getKind() == Kind::EQUAL) {
@@ -928,7 +979,7 @@ Result RangeSolver::Solve(){
     int count = 0;
     bool WeightedGB = true;
     while(true){
-         if (count >=20){
+         if (count >=5){
             AlwaysAssert(false);
          }
           if (count >=15){
@@ -953,9 +1004,12 @@ Result RangeSolver::Solve(){
                     fieldPair.second.lemmas.clear();
                     AlwaysAssert( fieldPair.second.lemmas.size()==0);
                     fieldPair.second.status = Result::UNKNOWN;
-                    return Result::UNKNOWN;
+                    return Result::UNSAT;
 
                 }
+                std::cout << "UNSAT\n";
+                printSystemState();
+                fieldPair.second.status = Result::UNKNOWN;
                 return Result::UNSAT;
             }
             if (integerField.status == Result::SAT){

@@ -266,6 +266,7 @@ const Poly& CocoaEncoder::symPoly(CoCoA::symbol s) const
 
 void CocoaEncoder::encodeTerm(const Node& t)
 {
+  std::cout << "Encoding::" << t << "\n";
   Assert(d_stage == Stage::Encode);
 
   // for all un-encoded descendents:

@@ -151,20 +151,20 @@ std::set<Node> CocoaEncoder::getCurVars(){
 
 void CocoaEncoder::endScanIntegers(std::vector<long> upperBoundWeights){
   Assert(d_stage == Stage::Scan);
-  std::cout << "Passed assert\n";
+  //std::cout << "Passed assert\n";
   d_stage = Stage::Encode;
-  std::cout << d_syms.size() << "\n";
+  //std::cout << d_syms.size() << "\n";
   std::vector<std::vector<long>> k = grevlexWeighted(upperBoundWeights);
-  std::cout << "got order \n";
+  //std::cout << "got order \n";
   CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingZZ(), k);
-  std::cout << "Made matrix\n";
+  //std::cout << "Made matrix\n";
   try {
   d_polyRing = CoCoA::NewPolyRing(CoCoA::RingZZ(), d_syms, CoCoA::NewMatrixOrdering(m, d_syms.size()-1));
   } catch (const CoCoA::ErrorInfo& e) {
     std::cout << e << "\n";
     AlwaysAssert(false);
   }
-  std::cout << "Made ring\n";
+  //std::cout << "Made ring\n";
 
   for (size_t i = 0, n = d_syms.size(); i < n; ++i)
   {
@@ -189,7 +189,7 @@ void CocoaEncoder::addFact(const Node& fact)
       }
       if (isFfLeaf(node) && !node.isConst())
       {
-        Trace("ff::cocoa") << "CoCoA var sym for " << node << std::endl;
+        //std::cout << "CoCoA var sym for " << node << std::endl;
         CoCoA::symbol sym = freshSym(node.getName());
         Assert(!d_varSyms.count(node));
         Assert(!d_symNodes.count(extractStr(sym)));
@@ -276,9 +276,10 @@ void CocoaEncoder::encodeTerm(const Node& t)
   {
     // a rule must put the encoding here
     Poly elem;
+    //std::cout << "Encode1" << node << "\n";
     if (isFfFact(node) || isFfTerm(node))
     {
-      Trace("ff::cocoa::enc") << "Encode " << node;
+      //std::cout << "Encode " << node << "\n";
       // ff leaf
       if (isFfLeaf(node) && !node.isConst())
       {
@@ -325,6 +326,7 @@ void CocoaEncoder::encodeTerm(const Node& t)
       // !!
       else
       {
+        AlwaysAssert(false);
         Unimplemented() << node;
       }
     }
@@ -367,7 +369,7 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
     //LHS.push_back(nm->mkConst(0));
     std::vector<Node> RHS;
     //RHS.push_back(nm->mkConst(0));
-    std::cout << RingPolynomial << "\n";
+    //std::cout << RingPolynomial << "\n";
     Integer ComDenom;
     try {
      ComDenom =  Integer(extractStr(CommonDenom(RingPolynomial)));
@@ -382,7 +384,7 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
         if (extractStr(coeff(iter)).find('/') != std::string::npos){
           std::string fraction = extractStr(coeff(iter));
           size_t pos = fraction.find('/');
-          std::cout << fraction.substr(0, pos) << "\n";
+          //std::cout << fraction.substr(0, pos) << "\n";
           Integer Overflow = ComDenom.ceilingDivideQuotient(Integer(fraction.substr(pos+1)));
           IntCoef = Integer(fraction.substr(0, pos)) * Overflow;
         } else {
@@ -394,7 +396,7 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
         }
         //Node randVar = d_symNodes.begin()->second;
         Node Coeff = nm->mkConstInt(IntCoef);
-        std::cout << "coeff: " << coeff(iter)  << "\tPP: " << PP(iter)  << "\n";
+        //std::cout << "coeff: " << coeff(iter)  << "\tPP: " << PP(iter)  << "\n";
         CoCoA::RingElem tempMonomial = CoCoA::monomial(d_polyRing.value(), PP(iter));
         int degree = deg(tempMonomial);
         if (degree == 0) {
@@ -429,19 +431,19 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
           }
         } else {
            // we have two or more variables :(
-          std::cout << "INPUT" << extractStr(PP(iter)) << "\n";
+          //ut << "INPUT" << extractStr(PP(iter)) << "\n";
           //int multiplication = std::count(extractStr(PP(iter)).begin(), extractStr(PP(iter)).end(), '*');
           // Currently do not support two variables and one variable to a power will change later
-          std::cout << "DEGREE" << degree << "\n";
+          //std::cout << "DEGREE" << degree << "\n";
           //std::cout << "Multiplication" << multiplication << "\n";
           //AlwaysAssert(degree == multiplication);
           std::istringstream tokenStream(extractStr(PP(iter)));
           Node mult = Coeff;
           std::string token;
           while(std::getline(tokenStream, token, '*') ){
-            std::cout << "We are here\n";
+            //std::cout << "We are here\n";
             if (token.find('^') != std::string::npos){ 
-            std::cout << "entered x*y^2 part\n";
+            //std::cout << "entered x*y^2 part\n";
             std::istringstream token_ss(token);
             int count = 0;
             std::string tok;
@@ -462,7 +464,7 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
               }
             }
             } else {
-            std::cout << "did not enter the bad part\n";
+            //std::cout << "did not enter the bad part\n";
             mult = nm->mkNode(Kind::MULT, mult, d_symNodes[token]);
             }
           }
@@ -502,23 +504,38 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
       //     AlwaysAssert(false);
       //   }
       // }
-      
+      Node LHS_node;
+      Node RHS_node;
+
+      if (LHS.size() > 1){
+        LHS_node = nm->mkNode(Kind::ADD, LHS);
+      } else if (LHS.size()>0) {
+        LHS_node = LHS[0];
+      }
+
+      if (RHS.size() > 1){
+        RHS_node = nm->mkNode(Kind::ADD, RHS);
+      } else if (RHS.size()>0) {
+        RHS_node = RHS[0];
+      }
+
+
       if (LHS.size()>0 && RHS.size()>0){
         result.push_back(nm->mkNode(
           Kind::EQUAL, 
-              nm->mkNode(Kind::ADD, LHS),
-              nm->mkNode(Kind::ADD, RHS)));
+              LHS_node,
+              RHS_node));
         }
         else if(LHS.size()>0){
           result.push_back(nm->mkNode(
           Kind::EQUAL,  
-              nm->mkNode(Kind::ADD, LHS),
+              LHS_node,
           nm->mkConstInt(0)));
         } else if(RHS.size()>0){
           result.push_back(nm->mkNode(
           Kind::EQUAL, 
           nm->mkConstInt(0),
-              nm->mkNode(Kind::ADD, RHS)));
+              RHS_node));
         }
         else {
           AlwaysAssert(false);

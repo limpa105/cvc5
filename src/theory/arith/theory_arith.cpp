@@ -246,9 +246,14 @@ void TheoryArith::postCheck(Effort level)
   if (d_modularExtension != nullptr)
   {
     if (Theory::fullEffort(level)){
-    d_modularExtension->postCheck(level);
-    }
-    else {
+    auto result = d_modularExtension->postCheck(level);
+    if (result.getStatus() == Result::UNSAT){
+    NodeManager* nm = NodeManager::currentNM();
+    const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
+    d_im.conflict(conflict, InferenceId::FF_LEMMA);
+    } else {
+      return;}
+    }else {
       return;
     }
   }
