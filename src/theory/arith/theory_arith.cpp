@@ -308,6 +308,20 @@ void TheoryArith::postCheck(Effort level)
             AlwaysAssert(false)
                 << "guard was set to true, this should never happen";
           }
+        SkolemManager* sm = nm->getSkolemManager();
+        Node sk = sm->mkDummySkolem("CeLiteral" + std::to_string(d_conflict_guard.size()), nm->booleanType());
+        Node lit = d_astate.getValuation().ensureLiteral(sk);
+        d_im.addPendingPhaseRequirement(lit, true);
+        DecisionStrategy* ds = new DecisionStrategySingleton(
+            d_env, "CeLiteral", lit, d_astate.getValuation());
+        d_im.getDecisionManager()->registerStrategy(
+            DecisionManager::STRAT_LOCAL_SEARCH_GUARD, ds);
+        Node lem = nm->mkNode(Kind::OR, lit.negate(), body.negate());
+        bool added = d_im.lemma(
+            lem, InferenceId::CONFLICT_REWRITE_LIT, LemmaProperty(0));
+        d_conflict_guard[lit] = body;
+        return;
+
           // else
           // {
           //   AlwaysAssert(false) << "guard was set to false, this should not "
