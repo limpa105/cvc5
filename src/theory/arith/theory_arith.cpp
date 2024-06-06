@@ -333,7 +333,11 @@ void TheoryArith::postCheck(Effort level)
         bool added = d_im.lemma(
             lem, InferenceId::CONFLICT_REWRITE_LIT, LemmaProperty(0));
         d_conflict_guard[body] = lit;
-        Trace("arith") << "Added guard for the following clauses:" << body;
+        Node restartVar = sm->mkDummySkolem(
+            "restartVar",
+            nm->booleanType(),
+            "A boolean variable asserted to be true to force a restart");
+        d_im.lemma(restartVar, InferenceId::ARITH_DEMAND_RESTART, LemmaProperty(0));
         return;
       }
     
@@ -756,6 +760,7 @@ bool TheoryArith::collectModelValues(TheoryModel* m,
       Node eq = p.first.eqNode(p.second);
       Node lem = NodeManager::currentNM()->mkNode(Kind::OR, eq, eq.negate());
       bool added = d_im.lemma(lem, InferenceId::ARITH_SPLIT_FOR_NL_MODEL);
+      
       AlwaysAssert(added) << "The lemma was already in cache. Probably there is something wrong with theory combination...";
     }
     return false;
