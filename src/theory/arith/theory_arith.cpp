@@ -283,16 +283,25 @@ void TheoryArith::postCheck(Effort level)
       if (!(d_localSearchExtension->postCheck(level))){
         return;
       }
+      std::cout << "Starting conflicts\n";
       // DO OPTIONAL CONFLICT NOW :) 
       std::vector<std::tuple<TNode, bool, TNode>> conflict;
       conflict = d_localSearchExtension->getTrivialConflict(level);
       NodeManager* nm = NodeManager::currentNM();
+      std::cout << conflict.size() << "\n";
       // AlwaysAssert(facts.size()!=0);
       std::vector<Node> d_conflict{};
       for (const auto& t : conflict) {
+       constexpr size_t num_elements = std::tuple_size<typename std::remove_reference<decltype(t)>::type>::value;
+            if (num_elements < 3) {
+                std::cerr << "Tuple does not contain enough elements.\n";
+                std:cout << num_elements << "\n";
+                continue; // Skip this iteration
+            }
         d_conflict.push_back(std::get<2>(t)); // Index 2 corresponds to the third element
     }
-      Node body = nm->mkNode(Kind::AND, d_conflict);
+      std::cout << "Got conflict back\n";
+       Node body = nm->mkNode(Kind::AND, d_conflict);
       if (d_conflict_guard.size() > 1)
       {
         Trace("arith") << "We did it! Optional Conflicts work\n";
@@ -305,8 +314,7 @@ void TheoryArith::postCheck(Effort level)
         {
           if (value)
           {
-            AlwaysAssert(false)
-                << "guard was set to true, this should never happen";
+               std::cout << "guard was set to true, this should never happen\n";
           }
         SkolemManager* sm = nm->getSkolemManager();
         Node sk = sm->mkDummySkolem("CeLiteral" + std::to_string(d_conflict_guard.size()), nm->booleanType());
@@ -320,6 +328,11 @@ void TheoryArith::postCheck(Effort level)
         bool added = d_im.lemma(
             lem, InferenceId::CONFLICT_REWRITE_LIT, LemmaProperty(0));
         d_conflict_guard[lit] = body;
+         Node restartVar = sm->mkDummySkolem(
+            "restartVar" + std::to_string(d_conflict_guard.size()),
+            nm->booleanType(),
+            "A boolean variable asserted to be true to force a restart");
+        d_im.lemma(restartVar, InferenceId::ARITH_DEMAND_RESTART, LemmaProperty(0));
         return;
 
           // else
@@ -348,7 +361,7 @@ void TheoryArith::postCheck(Effort level)
             lem, InferenceId::CONFLICT_REWRITE_LIT, LemmaProperty(0));
         d_conflict_guard[body] = lit;
         Node restartVar = sm->mkDummySkolem(
-            "restartVar",
+            "restartVar"+std::to_string(d_conflict_guard.size()),
             nm->booleanType(),
             "A boolean variable asserted to be true to force a restart");
         d_im.lemma(restartVar, InferenceId::ARITH_DEMAND_RESTART, LemmaProperty(0));

@@ -1149,15 +1149,20 @@ int LocalSearchExtension::getClauseNumber(){
 std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::getTrivialConflict(Theory::Effort level){
   //TODO NEED TO HANDLE VALUES WHEN TEMP_CONFLICSTS IS ZERO ZERO BECAUSE WE SENT ALL OF THEM BEFORE AND DID NOT FIND A CONFLICT...
   // RQ: Will it break if we just return something empty? 
+
 std::unordered_set<std::pair<int, int>, pair_hash> allPairs;
     for(size_t i = 0; i < currentLiteralsIdx.size(); ++i) {
         for(size_t j = i + 1; j < currentLiteralsIdx.size(); ++j) {
             allPairs.insert({currentLiteralsIdx[i], currentLiteralsIdx[j]});
         }
   }
+  std::cout << "Finished all Pairs\n ";
+  
   for(const auto& pair : togetherPairs) {
         allPairs.erase(pair);
     }
+
+  std::cout << "Finished getting seperate pairs\n ";
 
     // Step 4: Convert the set of pairs to a set of individual elements
     std::unordered_set<int> notTogetherElements;
@@ -1165,9 +1170,15 @@ std::unordered_set<std::pair<int, int>, pair_hash> allPairs;
         notTogetherElements.insert(pair.first);
         notTogetherElements.insert(pair.second);
   }
+
+  std::cout << "Finished getting together elemnts\n ";
+
   for (const auto& i: notTogetherElements){
-    dls_conflict.push_back(temp_conflicts[i]);
+    dls_conflict.push_back(d_facts[idxToMainIdx[i]]);
   }
+
+  std::cout << "Went through temp conflict\n ";
+  AlwaysAssert(dls_conflict.size()!=0);
 
   return dls_conflict;
 
