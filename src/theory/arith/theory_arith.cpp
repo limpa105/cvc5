@@ -242,6 +242,7 @@ void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 bool TheoryArith::preCheck(Effort level)
 {
   Trace("arith-check") << "TheoryArith::preCheck " << level << std::endl;
+  return false;
   // if (d_localSearchExtension != nullptr)
   // {
   //   if(!(d_localSearchExtension->postCheck(level)) ){
@@ -262,7 +263,8 @@ bool TheoryArith::preCheck(Effort level)
 
 void TheoryArith::postCheck(Effort level)
 {
-  Trace("arith") << "postChecking" << level << endl;
+
+  std::cout << "postChecking" << level << endl;
   //std::cout << level << "\n";
   d_im.reset();
   if (level == Theory::EFFORT_LAST_CALL)
@@ -276,33 +278,82 @@ void TheoryArith::postCheck(Effort level)
     }
     return;
   }
-  if (d_localSearchExtension != nullptr)
+  if (d_localSearchExtension != nullptr && Theory::fullEffort(level))
   {
- 
-    if (Theory::fullEffort(level)){
-      Trace("arith") << "Local Search Start 1" << endl;
-      localSearchTime.start();
       if (!(d_localSearchExtension->postCheck(level))){
-        localSearchTime.stop();
         return;
       }
-    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict = d_localSearchExtension->getTrivialConflict(level);
-    localSearchTime.stop();
-    Trace("arith") << "Simplex start 2" << endl;
-    simplexTime.start();
-    for (int i=0; i< static_cast<int>(dls_conflict.size()); i++){
-        d_internal->preNotifyFact(std::get<0>(dls_conflict[i]), std::get<1>(dls_conflict[i]), std::get<2>(dls_conflict[i]));
-      }
-    if (d_internal -> postCheck(Theory::EFFORT_STANDARD)){
-      Trace("arith") << "Simplex found a conflict in smart conflicts" << endl;
-      simplexTime.stop();
-      return;
-    };
-    Trace("arith") << "Simplex DID NOT find a conflict in smart conflicts" << endl;
-    std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict(level);
-    for (int i=0; i< dls_conflict2.size(); i++){
-        d_internal->preNotifyFact(std::get<0>(dls_conflict2[i]), std::get<1>(dls_conflict2[i]), std::get<2>(dls_conflict2[i]));
+      // DO OPTIONAL CONFLICT NOW :) 
+      std::vector<std::tuple<TNode, bool, TNode>> conflict;
+      conflict = d_localSearchExtension->getTrivialConflict(level);
+      NodeManager* nm = NodeManager::currentNM();
+      // AlwaysAssert(facts.size()!=0);
+      std::vector<Node> d_conflict{};
+      for (const auto& t : conflict) {
+        d_conflict.push_back(std::get<2>(t)); // Index 2 corresponds to the third element
     }
+      Node body = nm->mkNode(Kind::AND, d_conflict);
+      if (d_conflict_guard.size() > 1)
+      {
+        Trace("arith") << "We did it! Optional Conflicts work\n";
+      }
+      if (d_conflict_guard.count(body) > 0)
+      {
+        bool value;
+        Node guard = d_conflict_guard[body];
+        if (d_astate.getValuation().hasSatValue(guard, value))
+        {
+          if (value)
+          {
+            AlwaysAssert(false)
+                << "guard was set to true, this should never happen";
+          }
+          // else
+          // {
+          //   AlwaysAssert(false) << "guard was set to false, this should not "
+          //                          "happen for these examples";
+          // }
+        }
+        else
+        {
+          AlwaysAssert(false) << "guard has no value, this should never happen";
+        }
+      }
+      else
+      {
+        SkolemManager* sm = nm->getSkolemManager();
+        Node sk = sm->mkDummySkolem("CeLiteral", nm->booleanType());
+        Node lit = d_astate.getValuation().ensureLiteral(sk);
+        d_im.addPendingPhaseRequirement(lit, true);
+        DecisionStrategy* ds = new DecisionStrategySingleton(
+            d_env, "CeLiteral", lit, d_astate.getValuation());
+        d_im.getDecisionManager()->registerStrategy(
+            DecisionManager::STRAT_LOCAL_SEARCH_GUARD, ds);
+        Node lem = nm->mkNode(Kind::OR, lit.negate(), body.negate());
+        bool added = d_im.lemma(
+            lem, InferenceId::CONFLICT_REWRITE_LIT, LemmaProperty(0));
+        d_conflict_guard[body] = lit;
+        Trace("arith") << "Added guard for the following clauses:" << body;
+        return;
+      }
+    
+
+    // localSearchTime.stop();
+    // Trace("arith") << "Simplex start 2" << endl;
+    // simplexTime.start();
+    // for (int i=0; i< static_cast<int>(dls_conflict.size()); i++){
+    //     d_internal->preNotifyFact(std::get<0>(dls_conflict[i]), std::get<1>(dls_conflict[i]), std::get<2>(dls_conflict[i]));
+    //   }
+    // if (d_internal -> postCheck(Theory::EFFORT_STANDARD)){
+    //   Trace("arith") << "Simplex found a conflict in smart conflicts" << endl;
+    //   simplexTime.stop();
+    //   return;
+    // };
+    // Trace("arith") << "Simplex DID NOT find a conflict in smart conflicts" << endl;
+    // std::vector<std::tuple<TNode, bool, TNode>> dls_conflict2 = d_localSearchExtension->getTrivialConflict(level);
+    // for (int i=0; i< dls_conflict2.size(); i++){
+    //     d_internal->preNotifyFact(std::get<0>(dls_conflict2[i]), std::get<1>(dls_conflict2[i]), std::get<2>(dls_conflict2[i]));
+    // }
 
     //std::cout << "Starting local search\n";
     // localSearchTime.start();
@@ -372,37 +423,38 @@ void TheoryArith::postCheck(Effort level)
       //    for (auto i: dls_conflict2 ){
       //    d_internal->preNotifyFact(std::get<0>(i), std::get<1>(i), std::get<2>(i));
       //    }
-    }
-    else {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distrib(0, 1);
-    int random_number = distrib(gen);
-    //int size = d_localSearchExtension->getClauseNumber();
-    // if (random_number == 0){
-    // Trace("arith") << "Local Search Start 2" << endl;
-    // localSearchTime.start();
-    // if (size<500 && !(d_localSearchExtension->postCheck(level))){
-    //   localSearchTime.stop();
-    //    return;
+    return;
+    } else {
+    return;
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
+    // std::uniform_int_distribution<> distrib(0, 1);
+    // int random_number = distrib(gen);
+    // //int size = d_localSearchExtension->getClauseNumber();
+    // // if (random_number == 0){
+    // // Trace("arith") << "Local Search Start 2" << endl;
+    // // localSearchTime.start();
+    // // if (size<500 && !(d_localSearchExtension->postCheck(level))){
+    // //   localSearchTime.stop();
+    // //    return;
+    // //   }
+    // // localSearchTime.stop();
+    // //  }
+    // Trace("arith") << "Simplex attempting to find conflict in total conflicts" << endl;
+    //  std::vector<std::tuple<TNode, bool, TNode>> dls_conflict3 = d_localSearchExtension->getTrivialConflict(level);
+    //  Trace("arith") << "Simplex start 1" << endl;
+    // simplexTime.start();
+    // for (int i=0; i< dls_conflict3.size(); i++){
+    //     d_internal->preNotifyFact(std::get<0>(dls_conflict3[i]), std::get<1>(dls_conflict3[i]), std::get<2>(dls_conflict3[i]));
     //   }
-    // localSearchTime.stop();
-    //  }
-    Trace("arith") << "Simplex attempting to find conflict in total conflicts" << endl;
-     std::vector<std::tuple<TNode, bool, TNode>> dls_conflict3 = d_localSearchExtension->getTrivialConflict(level);
-     Trace("arith") << "Simplex start 1" << endl;
-    simplexTime.start();
-    for (int i=0; i< dls_conflict3.size(); i++){
-        d_internal->preNotifyFact(std::get<0>(dls_conflict3[i]), std::get<1>(dls_conflict3[i]), std::get<2>(dls_conflict3[i]));
-      }
-    // bool result = d_internal->postCheck(level);
-    // if (result) {
-    //    Trace("arith") << "Simplex found a conflict" << endl;
-    // } else {
-    //   Trace("arith") << "Simplex did NOT find a conflict" << endl;
-    //}
-    }
-        d_internal->presolve();
+    // // bool result = d_internal->postCheck(level);
+    // // if (result) {
+    // //    Trace("arith") << "Simplex found a conflict" << endl;
+    // // } else {
+    // //   Trace("arith") << "Simplex did NOT find a conflict" << endl;
+    // //}
+    // }
+        //d_internal->presolve();
         if (d_internal->postCheck(level))
           {
              Trace("arith") << "Simplex found a conflict" << endl;
@@ -584,7 +636,8 @@ bool TheoryArith::preNotifyFact(
   if (d_localSearchExtension != nullptr)
   {
     d_localSearchExtension->notifyFact(atom, pol, fact, isPrereg, isInternal);
-    return true;
+    // UNDO THIS LATER!!!!
+    //return true;
   }
 
   Trace("arith-check") << "TheoryArith::preNotifyFact: " << fact

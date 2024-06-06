@@ -40,6 +40,17 @@ class TheoryArith;
 
 namespace local_search {
 
+struct pair_hash {
+    template <class T1, class T2>
+    size_t operator() (const std::pair<T1, T2> &pair) const {
+        auto hash1 = std::hash<T1>{}(pair.first);
+        auto hash2 = std::hash<T2>{}(pair.second);
+        return hash1 ^ (hash2 + 0x9e3779b9 + (hash1 << 6) + (hash1 >> 2)); // Combines the hashes
+    }
+};
+
+
+
 class Literal
 {
  public:
@@ -118,6 +129,7 @@ class LocalSearchExtension : protected EnvObj
 
   context::CDList<std::tuple<TNode, bool, TNode>> d_facts;
 
+  context::CDHashSet<std::pair<int,int>, pair_hash> togetherPairs;
 
   context::CDQueue<std::tuple<TNode, bool, TNode>> temp_conflicts;
 

@@ -42,6 +42,9 @@ namespace theory {
 namespace arith {
 namespace local_search {
 
+
+
+
 Integer Literal::calculateDelta(std::vector<Integer>& assignment)
 {
   Integer sum = 0;
@@ -84,7 +87,8 @@ LocalSearchExtension::LocalSearchExtension(Env& env, TheoryArith& parent)
       d_numVars(0),
       currentLiteralsIdx(context()),
       NodetoIdx(context()),
-      temp_conflicts(context())
+      temp_conflicts(context()),
+      togetherPairs(context())
 {
 }
 
@@ -986,9 +990,14 @@ bool LocalSearchExtension::LocalSearch()
       //file.close();
       return true;
     } else {
-      for (const int& val : unsatLiterals) {
-        idxToCount[val] = idxToCount[val]+1;
+       for(auto it1 = unsatLiterals.begin(); it1 != unsatLiterals.end(); ++it1) {
+        for(auto it2 = next(it1); it2 != unsatLiterals.end(); ++it2) {
+            togetherPairs.insert({std::min(*it1, *it2), std::max(*it1, *it2)});;
+        }
     }
+    //   for (const int& val : unsatLiterals) {
+    //     idxToCount[val] = idxToCount[val]+1;
+    // }
     }
     // First try computing a decreasing change using regular score
     std::vector<std::tuple<std::vector<Integer>, int, int>> possibleMoves =
@@ -1140,7 +1149,32 @@ int LocalSearchExtension::getClauseNumber(){
 std::vector<std::tuple<TNode, bool, TNode>> LocalSearchExtension::getTrivialConflict(Theory::Effort level){
   //TODO NEED TO HANDLE VALUES WHEN TEMP_CONFLICSTS IS ZERO ZERO BECAUSE WE SENT ALL OF THEM BEFORE AND DID NOT FIND A CONFLICT...
   // RQ: Will it break if we just return something empty? 
+std::unordered_set<std::pair<int, int>, pair_hash> allPairs;
+    for(size_t i = 0; i < currentLiteralsIdx.size(); ++i) {
+        for(size_t j = i + 1; j < currentLiteralsIdx.size(); ++j) {
+            allPairs.insert({currentLiteralsIdx[i], currentLiteralsIdx[j]});
+        }
+  }
+  for(const auto& pair : togetherPairs) {
+        allPairs.erase(pair);
+    }
+
+    // Step 4: Convert the set of pairs to a set of individual elements
+    std::unordered_set<int> notTogetherElements;
+    for(const auto& pair : allPairs) {
+        notTogetherElements.insert(pair.first);
+        notTogetherElements.insert(pair.second);
+  }
+  for (const auto& i: notTogetherElements){
+    dls_conflict.push_back(temp_conflicts[i]);
+  }
+
+  return dls_conflict;
+
+
   std::vector<std::tuple<TNode, bool, TNode>> d_conflict;
+
+
   if (temp_conflicts.size() == 0){
     return d_conflict;
   }
