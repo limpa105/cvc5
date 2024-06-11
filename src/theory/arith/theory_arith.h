@@ -30,8 +30,14 @@
 #include "theory/theory_state.h"
 
 namespace cvc5::internal {
+
+
 namespace theory {
 namespace arith {
+namespace local_search {
+class LocalSearchExtension;
+}
+
 namespace nl {
 class NonlinearExtension;
 }
@@ -109,6 +115,8 @@ class TheoryArith : public Theory {
   void ppStaticLearn(TNode in, NodeBuilder& learned) override;
 
   std::string identify() const override { return std::string("TheoryArith"); }
+
+  std::unique_ptr<local_search::LocalSearchExtension> d_localSearchExtension;
 
   EqualityStatus getEqualityStatus(TNode a, TNode b) override;
 

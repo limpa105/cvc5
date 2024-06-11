@@ -24,6 +24,7 @@
 #include "theory/arith/arith_rewriter.h"
 #include "theory/arith/equality_solver.h"
 #include "theory/arith/linear/theory_arith_private.h"
+#include "theory/arith/local_search/local_search_extension.h"
 #include "theory/arith/nl/nonlinear_extension.h"
 #include "theory/ext_theory.h"
 #include "theory/rewriter.h"
@@ -52,7 +53,8 @@ TheoryArith::TheoryArith(Env& env, OutputChannel& out, Valuation valuation)
       d_arithPreproc(env, d_im, d_pnm, d_opElim),
       d_rewriter(nodeManager(), d_opElim),
       d_arithModelCacheSet(false),
-      d_checker(nodeManager())
+      d_checker(nodeManager()),
+      d_localSearchExtension(nullptr)
 {
 #ifdef CVC5_USE_COCOA
   // must be initialized before using CoCoA.
@@ -101,6 +103,12 @@ void TheoryArith::finishInit()
   eq::EqualityEngine* ee = getEqualityEngine();
   d_internal.finishInit(ee);
 
+  if (options().arith.localSearchExt)
+  {
+    d_localSearchExtension.reset(new local_search::LocalSearchExtension(d_env, *this));
+  }
+
+
   // Set the congruence manager on the equality solver. If the congruence
   // manager exists, it is responsible for managing the notifications from
   // the equality engine, which the equality solver forwards to it.
@@ -110,6 +118,14 @@ void TheoryArith::finishInit()
 void TheoryArith::preRegisterTerm(TNode n)
 {
   // handle logic exceptions
+  if (d_localSearchExtension != nullptr)
+  {
+    Trace("arith") << "Local Search Start 3" << endl;
+    //localSearchTime.start();
+    d_localSearchExtension->preRegisterTerm(n);
+    //localSearchTime.stop();
+  }
+  
   Kind k = n.getKind();
   if (k == Kind::POW)
   {
@@ -227,6 +243,13 @@ bool TheoryArith::preCheck(Effort level)
 
 void TheoryArith::postCheck(Effort level)
 {
+  if (d_localSearchExtension != nullptr && Theory::fullEffort(level))
+  {
+      if (!(d_localSearchExtension->postCheck(level))){
+        std::cout << "LS Found Solution \n";
+        return;
+      }
+  }
   d_im.reset();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
@@ -309,6 +332,13 @@ bool TheoryArith::preNotifyFact(
                        << ", isInternal=" << isInternal << std::endl;
   // We do not assert to the equality engine of arithmetic in the standard way,
   // hence we return "true" to indicate we are finished with this fact.
+  if (d_localSearchExtension != nullptr)
+  {
+    d_localSearchExtension->notifyFact(atom, pol, fact, isPrereg, isInternal);
+    // UNDO THIS LATER!!!!
+    //return true;
+  }
+  
   bool ret = true;
   if (options().arith.arithEqSolver)
   {
@@ -351,10 +381,20 @@ bool TheoryArith::collectModelInfo(TheoryModel* m,
   // arbitrary values can be used for arithmetic terms. Hence, we do
   // nothing here. The buffered lemmas will be sent immediately
   // at LAST_CALL effort (see postCheck).
+  if (d_localSearchExtension != nullptr)
+  {
+    if (d_localSearchExtension->foundASolution){
+    std::cout << "CVC5::SolutionFoundByLS=1\n";
+    return d_localSearchExtension->collectModelInfo(m, termSet);
+    }
+    //AlwaysAssert(false);
+  }
+  
   if (d_im.hasPendingLemma())
   {
     return true;
   }
+  AlwaysAssert(false) << "Solution found but not by LS";
   // this overrides behavior to not assert equality engine
   return collectModelValues(m, termSet);
 }

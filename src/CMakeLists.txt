@@ -371,6 +371,8 @@ libcvc5_add_sources(
   smt/unsat_core_manager.h
   smt/witness_form.cpp
   smt/witness_form.h
+  theory/arith/local_search/local_search_extension.h
+  theory/arith/local_search/local_search_extension.cpp
   theory/arith/arith_evaluator.cpp
   theory/arith/arith_evaluator.h
   theory/arith/arith_ite_utils.cpp
