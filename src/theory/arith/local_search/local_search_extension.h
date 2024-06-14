@@ -107,7 +107,11 @@ class LocalSearchExtension : protected EnvObj
   ~LocalSearchExtension();
 
 
+std::vector<Node> inequalities;
 
+std::vector<Node> nonequalities;
+
+std::vector<Node> equalities;
   /** Register a term that is in the formula */
   void preRegisterTerm(TNode);
 
@@ -115,8 +119,14 @@ class LocalSearchExtension : protected EnvObj
 
   std::vector<std::tuple<TNode, bool, TNode>> getTrivialConflict(Theory::Effort level);
 
+  std::pair<std::vector<Node>, std::vector<Node>> substituteVariables(std::vector<Node> equalities, std::vector<Node> inequalities);
+
+  Node subVarHelper(Node fact, Node ogf, Node newf);
+
   /** Set up the solving data structures */
   void presolve();
+
+  Integer evalExpression(Node fact);
 
   /** Called for each asserted literal */
   void notifyFact(
@@ -200,7 +210,10 @@ class LocalSearchExtension : protected EnvObj
   std::mt19937 rd_generator;
 
   /** A list of current parsed literals **/
-  context::CDList<int> currentLiteralsIdx;
+  std::vector<int> currentLiteralsIdx;
+
+  /** A list of current parsed literals **/
+  //context::CDList<int> currentLiteralsIdx;
 
   /** A list of ALL literals in the problem **/
   std::vector<Literal> allLiterals;

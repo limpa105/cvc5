@@ -44,6 +44,122 @@ namespace arith {
 namespace local_search {
 
 
+Node LocalSearchExtension::subVarHelper(Node fact, Node ogf, Node newf) {
+    if (fact == ogf){
+        return newf;
+    }
+    if (fact.getNumChildren()!=0){
+        std::vector<Node> children ;
+        for (int i =0; i<fact.getNumChildren(); i++){
+            children.push_back(subVarHelper(fact[i], ogf, newf));
+        }
+        NodeManager* nm = NodeManager::currentNM();
+        return rewrite(nm->mkNode(fact.getKind(), children));
+    }
+    return fact;
+
+}
+
+Node IsolateVariable(Node eq){
+   Node left = eq[0];
+    Node right = eq[1];
+
+    // We will check if the left side is a plus operator and attempt to isolate the first variable
+  if (left.getKind() == Kind::ADD) {
+      if (left[0].isVar()) {
+            // Create a new equation of the form left[0] = right - left[1]
+         NodeManager* nm = NodeManager::currentNM();
+        Node isolated = nm->mkNode(Kind::EQUAL, left[0], nm->mkNode(Kind::SUB, right, left[1]));
+            return isolated;
+        }
+ AlwaysAssert(false) << "Not yet implemented\n";
+
+}
+}
+
+
+
+std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substituteVariables(std::vector<Node> equalities, std::vector<Node> inequalities){
+    std::vector<Node> done_equalities;
+    if (equalities.size() == 1){
+      return std::make_pair(inequalities,done_equalities);
+    }
+
+    //std::cout << "Equalie" << equalities.size() << "\n";
+    //std::cout << "HELLO\n";
+        // Need to think about case where fact is just not present in any case
+      while(!equalities.empty()) {
+        //std::cout << "In the loop\n";
+        Node currentEquality = equalities.back();
+        done_equalities.push_back(currentEquality);
+        equalities.pop_back();
+        if (currentEquality[0].getKind()!=Kind::VARIABLE){
+          nonequalities.push_back(currentEquality);
+          continue;
+        }
+        // std::cout << "Starting subs\n";
+        // std::cout << currentEquality << "\n";
+      for (int i=0; i<equalities.size(); i++) {
+            Node equality = equalities[i];
+            // std::cout << "Equality\n";
+            // std::cout << equality << "\n";
+            Node result = subVarHelper(equality, currentEquality[0], currentEquality[1]);
+            // std::cout << "Result\n";
+            // std::cout << result.getKind() << "\n";
+            if (result.getKind() == Kind::CONST_BOOLEAN){
+              if (result.getConst<bool>() == true){
+              equalities.erase(equalities.begin()+i);
+             } else {
+              ConflictFound = true;
+               //AlwaysAssert(false) << equality << "," << currentEquality;
+              return std::make_pair(inequalities, done_equalities);
+             }
+            } else {
+            equalities[i] = result;
+            }
+        }
+        for (int i=0; i<inequalities.size(); i++) {
+            Node equality = inequalities[i];
+            // std::cout << "INEquality\n";
+            // std::cout << equality << "\n";
+            Node result = subVarHelper(equality, currentEquality[0], currentEquality[1]);
+            if (result.getKind() == Kind::CONST_BOOLEAN){
+              if (result.getConst<bool>() == true){
+              inequalities.erase(inequalities.begin()+i);
+            } else {
+             
+              ConflictFound = true;
+              //AlwaysAssert(false) << equality << "," << currentEquality<< "," << result;
+              return std::make_pair(inequalities, done_equalities);
+            }
+            } else {
+            inequalities[i] = result;
+            }
+        }
+       for (int i=0; i<nonequalities.size(); i++) {
+            Node equality = nonequalities[i];
+            // std::cout << "NONquality\n";
+            // std::cout << equality << "\n";
+            Node result = subVarHelper(equality, currentEquality[0], currentEquality[1]);
+            if (result.getKind() == Kind::CONST_BOOLEAN){
+              if (result.getConst<bool>() == true){
+              nonequalities.erase(nonequalities.begin()+i);
+            } else{
+              ConflictFound = true;
+               //AlwaysAssert(false) << equality << "," << currentEquality;
+              return std::make_pair(inequalities, done_equalities);;
+            }
+            } else {
+            nonequalities[i] = result;
+            }
+        }
+      // std::cout << "Equalities processed" << "\n";
+      // std::cout << done_equalities.size() << "\n";
+      }
+  return std::make_pair(inequalities, done_equalities);
+}
+
+
 Integer Literal::calculateDelta(std::vector<Integer>& assignment)
 {
   Integer sum = 0;
@@ -84,7 +200,7 @@ LocalSearchExtension::LocalSearchExtension(Env& env, TheoryArith& parent)
       d_varList(context()),
       d_facts(context()),
       d_numVars(0),
-      currentLiteralsIdx(context()),
+      //currentLiteralsIdx(context()),
       NodetoIdx(context()),
       temp_conflicts(context()),
       togetherPairs(context()),
@@ -138,6 +254,7 @@ void LocalSearchExtension::notifyFact(
   NodetoIdx[fact] = d_facts.size();
   d_facts.push_back(std::make_tuple(atom, pol, fact));
   temp_conflicts.push_back(std::make_tuple(atom, pol, fact));
+  
 
 
   //processAssertion(fact, d_facts.size()-1);
@@ -161,7 +278,7 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
     MAXNONIMPROVE = 10;
   }
   else {
-    MAXNONIMPROVE = 10000;
+    MAXNONIMPROVE = 100;
   }
 
   Trace("arith")
@@ -176,8 +293,13 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   sentSmartConflict = false;
   dls_conflict.clear();
   ConflictFound = false;
-  //std::cout << currentLiteralsIdx.size() << "\n";
-  //std::cout <<  allLiterals.size() << "\n";
+  currentLiteralsIdx.clear();
+
+  std::cout <<  allLiterals.size() << "\n";
+  restart();
+  equalities.clear();
+  inequalities.clear();
+  nonequalities.clear();
   // for (int i =0; i< currentLiteralsIdx.size(); i++){
   //   int idx = currentLiteralsIdx[i];
   //   AlwaysAssert(idx <= allLiterals.size());
@@ -188,9 +310,52 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   
   //we need to rewrite d_facts 
 
-  for(int i=0; i< d_facts.size();i++){
-    processAssertion(std::get<2>(d_facts[i]),i);
+  for (auto i :d_facts){
+    Node fact = std::get<2>(i);
+    if (fact.getKind()==Kind::EQUAL){
+    equalities.push_back(fact);
   }
+  if (fact.getKind()==Kind::GEQ){
+    inequalities.push_back(fact);
+  }
+  if (fact.getKind()==Kind::NOT && fact[0].getKind()==Kind::GEQ ){
+    inequalities.push_back(fact);
+  }
+  if (fact.getKind()==Kind::NOT && fact[0].getKind()==Kind::EQUAL ){
+    nonequalities.push_back(fact);
+  }
+  }
+  if (inequalities.size()!= 0){
+  auto result = substituteVariables(equalities, inequalities);
+  equalities = result.second;
+  //std::cout << equalities.size() << "\n";
+  // inequalities = result.first;
+  //   std::cout << "NEW EQUALITIES\n";
+  //   for(auto eq:equalities){
+  //     std::cout << eq << "\n";
+  //   }
+  //   std::cout << "NEW INEQUALITIES\n";
+  //   for(auto eq:inequalities){
+  //     std::cout << eq << "\n";
+  //   }
+  for(int i=0; i<inequalities.size(); i++){
+    processAssertion(inequalities[i], i);
+  }
+  }
+  else {
+    for(int i=0; i<equalities.size(); i++){
+    processAssertion(equalities[i], i);
+  }
+  }
+  for(int i=0; i<nonequalities.size(); i++){
+    processAssertion(nonequalities[i], i);
+  }
+
+
+
+  // for(int i=0; i< d_facts.size();i++){
+  //   processAssertion(std::get<2>(d_facts[i]),i);
+  // }
 
   restart();
    Trace("arith")
@@ -239,12 +404,41 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   // terminate
 }
 
+Integer LocalSearchExtension::evalExpression(Node fact){
+  if (fact.getKind() == Kind::CONST_INTEGER){
+    return fact.getConst<Rational>().getNumerator();
+  }
+  if (fact.getKind() == Kind::VARIABLE){
+    return variablesValues[nameToIdx[fact.getName()]];
+  }
+
+  if (fact.getKind() == Kind::MULT){
+    Integer product = 1;
+    for (int i =0; i<fact.getNumChildren(); i++){
+      product *= evalExpression(fact[i]);
+    }
+    return product;
+  }
+  if (fact.getKind() == Kind::ADD){
+    Integer summation = 0;
+    for (int i =0; i<fact.getNumChildren(); i++){
+      summation += evalExpression(fact[i]);
+    }
+    return summation;
+  }
+  AlwaysAssert(false);
+
+};
+
 bool LocalSearchExtension::collectModelInfo(TheoryModel* m,
                                             const std::set<Node>& termSet)
 {
   NodeManager* nm = NodeManager::currentNM();
   // Assignments are stored in variablesValues so we add the last assignment
   // to the model
+  for (int i=0; i<equalities.size(); i++){
+    variablesValues[nameToIdx[equalities[i][0].getName()]] = evalExpression(equalities[i][1]);
+  }
   for (size_t i = 0; i < variablesValues.size(); i++)
   {
     m->assertEquality(d_varList[i], nm->mkConstInt(variablesValues[i]), true);
@@ -270,6 +464,7 @@ std::set<int> LocalSearchExtension::sampleWithReplacement(
 Integer LocalSearchExtension::getUpperBound(Integer a, Integer b)
 // a/b = 2.5 -> 3 &&  a/b = -2.5 -> -3
 {
+  //std::cout << "Delta" << a << "," << "Coef" << b  << "\n";
   // if result is positivie
   if (a.sgn() == b.sgn())
   {
@@ -310,6 +505,14 @@ void LocalSearchExtension::printChange(std::vector<Integer> change)
 
 void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
 {
+  if (assertion.getKind() == Kind::CONST_BOOLEAN){
+    if (assertion.getConst<bool>() == true){
+      return;
+    } else {
+    ConflictFound = true;
+    return;
+    }
+  }
   //if (totalAsserts != idxToCount.size()){
     //std:: cout << "ASSERTS:" << totalAsserts << "\n";
     //std:: cout << "IDXCOUNT:" <<  idxToCount.size() << "\n";
@@ -607,23 +810,28 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
       }
     }
   }
+   std::random_device rd;
+   std::mt19937 engine(rd());  // Use Mersenne Twister engine
+
+  //   // Shuffle the vector
+   std::shuffle(allowedMoves.begin(), allowedMoves.end(), engine);
   return allowedMoves;
 }
 
 
 bool LocalSearchExtension::checkBounds(Integer value, int idx){
-  std::cout << idx << "," << value << "\n";
+  //std::cout << idx << "," << value << "\n";
   if (upperBound.count(idx)>0){
     Integer result = upperBound[idx];
      if(result > value){
-      std::cout << idx << "Upper Bound";
+      //std::cout << idx << "Upper Bound";
        return false;
      }
   }
   if (equalBound.count(idx)>0){
      Integer result = equalBound[idx];
      if (result != value){
-      std::cout << idx << "Equal Bound";
+      //std::cout << idx << "Equal Bound";
        return false;
     }
   }
@@ -631,7 +839,7 @@ bool LocalSearchExtension::checkBounds(Integer value, int idx){
   if (lowerBound.count(idx)>0){
      Integer result = lowerBound[idx];
      if (result < value){
-        std::cout << idx << "Equal Bound";
+        //std::cout << idx << "Equal Bound";
        return false;
     }
   }
@@ -707,6 +915,8 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
   }
   if (delta == 0)
   {
+    literal.printAllocation();
+    printChange(variablesValues);
     // delta should never be zero
     AlwaysAssert(false);
   }
@@ -720,8 +930,8 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
   }
   std::vector<Integer> change = variablesValues;
   change[varIdxInSlv] -= delta;
-  //std::cout << "Possible change\n";
-  //printChange(change);
+  // std::cout << "Possible change\n";
+  // printChange(change);
   if (checkBounds(change[varIdxInSlv], varIdxInSlv)) {
   results.push_back(std::make_pair(change, direction));
   return results;
@@ -961,7 +1171,7 @@ bool LocalSearchExtension::LocalSearch()
      return false;
   }
   //std::cout << "Starting local search\n";
-  //std::cout << "Starting local search\n";
+  std::cout << "Starting local search\n";
   // std::cout << "Upper Bounds\n";
   // for (const auto& pair : upperBound) {
   //       std::cout << "(" << pair.first << ">=" << pair.second << ")" << " ";
@@ -976,7 +1186,7 @@ bool LocalSearchExtension::LocalSearch()
   // }
   
   
-  //  allLiterals[0].printAllocation();
+    //allLiterals[0].printAllocation();
 
   // //literal.printAllocation();
   // allLiterals[0].calculateDelta(variablesValues);
@@ -1025,11 +1235,12 @@ bool LocalSearchExtension::LocalSearch()
   // This should be a heuristic in the future
   while (restartCount < 2)
   {
+    printUnsat();
     //std::cout << unsatLiterals.size() << "\n";
     //file << unsatLiterals.size() << std::endl;
     // If a solution has been found
-    //printUnsat();
-
+    // std::cout << "Final move:";
+    // printChange(variablesValues);
     if (unsatLiterals.size() == 0)
     {
       // Check that all literals are SAT
