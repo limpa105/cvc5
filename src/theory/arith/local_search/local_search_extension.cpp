@@ -81,8 +81,8 @@ Node IsolateVariable(Node eq){
 
 std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substituteVariables(std::vector<Node> equalities, std::vector<Node> inequalities){
     std::vector<Node> done_equalities;
-    if (equalities.size() == 1){
-      return std::make_pair(inequalities,done_equalities);
+    if (equalities.size() == 0){
+      return std::make_pair(inequalities,equalities);
     }
 
     //std::cout << "Equalie" << equalities.size() << "\n";
@@ -278,7 +278,7 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
     MAXNONIMPROVE = 10;
   }
   else {
-    MAXNONIMPROVE = 100;
+    MAXNONIMPROVE = 5000;
   }
 
   Trace("arith")
@@ -312,7 +312,7 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
 
   for (auto i :d_facts){
     Node fact = std::get<2>(i);
-    if (fact.getKind()==Kind::EQUAL){
+  if (fact.getKind()==Kind::EQUAL){
     equalities.push_back(fact);
   }
   if (fact.getKind()==Kind::GEQ){
@@ -325,24 +325,26 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
     nonequalities.push_back(fact);
   }
   }
+  std::cout << inequalities.size() << "\n";
+  std::cout << equalities.size() << "\n";
   if (inequalities.size()!= 0){
   auto result = substituteVariables(equalities, inequalities);
   equalities = result.second;
-  //std::cout << equalities.size() << "\n";
-  // inequalities = result.first;
-  //   std::cout << "NEW EQUALITIES\n";
-  //   for(auto eq:equalities){
-  //     std::cout << eq << "\n";
-  //   }
-  //   std::cout << "NEW INEQUALITIES\n";
-  //   for(auto eq:inequalities){
-  //     std::cout << eq << "\n";
-  //   }
+  std::cout << equalities.size() << "\n";
+  inequalities = result.first;
+    std::cout << "NEW EQUALITIES\n";
+    for(auto eq:equalities){
+      std::cout << eq << "\n";
+    }
+    std::cout << "NEW INEQUALITIES\n";
+    for(auto eq:inequalities){
+      std::cout << eq << "\n";
+    }
   for(int i=0; i<inequalities.size(); i++){
     processAssertion(inequalities[i], i);
   }
-  }
-  else {
+  } else {
+    std::cout << "HELLO!\n";
     for(int i=0; i<equalities.size(); i++){
     processAssertion(equalities[i], i);
   }
@@ -1235,12 +1237,13 @@ bool LocalSearchExtension::LocalSearch()
   // This should be a heuristic in the future
   while (restartCount < 2)
   {
-    printUnsat();
+    printChange(variablesValues);
+    //printUnsat();
     //std::cout << unsatLiterals.size() << "\n";
     //file << unsatLiterals.size() << std::endl;
     // If a solution has been found
     // std::cout << "Final move:";
-    // printChange(variablesValues);
+    //printChange(variablesValues);
     if (unsatLiterals.size() == 0)
     {
       // Check that all literals are SAT
