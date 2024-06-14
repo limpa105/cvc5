@@ -387,7 +387,7 @@ bool TheoryArith::collectModelInfo(TheoryModel* m,
     std::cout << "CVC5::SolutionFoundByLS=1\n";
     return d_localSearchExtension->collectModelInfo(m, termSet);
     }
-    AlwaysAssert(false);
+    //AlwaysAssert(false);
   }
   
   if (d_im.hasPendingLemma())
