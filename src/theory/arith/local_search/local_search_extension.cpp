@@ -1237,7 +1237,7 @@ bool LocalSearchExtension::LocalSearch()
   // This should be a heuristic in the future
   while (restartCount < 2)
   {
-    printChange(variablesValues);
+    //printChange(variablesValues);
     //printUnsat();
     //std::cout << unsatLiterals.size() << "\n";
     //file << unsatLiterals.size() << std::endl;
