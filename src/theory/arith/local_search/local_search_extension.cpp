@@ -918,7 +918,7 @@ LocalSearchExtension::criticalMove(int varIdxInLit,
   if (delta == 0)
   {
     literal.printAllocation();
-    printChange(variablesValues);
+    //printChange(variablesValues);
     // delta should never be zero
     AlwaysAssert(false);
   }
