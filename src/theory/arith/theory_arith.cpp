@@ -395,7 +395,7 @@ bool TheoryArith::collectModelInfo(TheoryModel* m,
     return true;
   }
   //AlwaysAssert(false) << 
-  std::cout << "Solution found but not by LS" << "\n";
+  std::cout << "CVC5::SolutionFoundBySimplex=1\n";
   // this overrides behavior to not assert equality engine
   return collectModelValues(m, termSet);
 }

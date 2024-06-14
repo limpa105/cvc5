@@ -810,11 +810,11 @@ LocalSearchExtension::getPossibleMoves(bool inDscore)
       }
     }
   }
-   std::random_device rd;
-   std::mt19937 engine(rd());  // Use Mersenne Twister engine
+  //  std::random_device rd;
+  //  std::mt19937 engine(rd());  // Use Mersenne Twister engine
 
-  //   // Shuffle the vector
-   std::shuffle(allowedMoves.begin(), allowedMoves.end(), engine);
+  // //   // Shuffle the vector
+  //  std::shuffle(allowedMoves.begin(), allowedMoves.end(), engine);
   return allowedMoves;
 }
 
