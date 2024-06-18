@@ -332,22 +332,21 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   equalities = result.second;
   // std::cout << equalities.size() << "\n";
   inequalities = result.first;
-  //   std::cout << "NEW EQUALITIES\n";
-  //   for(auto eq:equalities){
-  //     std::cout << eq << "\n";
-  //   }
-  //   std::cout << "NEW INEQUALITIES\n";
-  //   for(auto eq:inequalities){
-  //     std::cout << eq << "\n";
-  //   }
-  // for(int i=0; i<inequalities.size(); i++){
-  //   processAssertion(inequalities[i], i);
-  // }
-  // } else {
-  //   std::cout << "HELLO!\n";
-  //   for(int i=0; i<equalities.size(); i++){
-  //   processAssertion(equalities[i], i);
-  // }
+    // std::cout << "NEW EQUALITIES\n";
+    // for(auto eq:equalities){
+    //   std::cout << eq << "\n";
+    // }
+    // std::cout << "NEW INEQUALITIES\n";
+    // for(auto eq:inequalities){
+    //   std::cout << eq << "\n";
+    // }
+  for(int i=0; i<inequalities.size(); i++){
+    processAssertion(inequalities[i], i);
+  }
+  } else {
+     for(int i=0; i<equalities.size(); i++){
+     processAssertion(equalities[i], i);
+   }
   }
   for(int i=0; i<nonequalities.size(); i++){
     processAssertion(nonequalities[i], i);
