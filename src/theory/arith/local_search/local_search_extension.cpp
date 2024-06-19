@@ -409,7 +409,7 @@ Integer LocalSearchExtension::evalExpression(Node fact){
   if (fact.getKind() == Kind::CONST_INTEGER){
     return fact.getConst<Rational>().getNumerator();
   }
-  if (fact.getKind() == Kind::VARIABLE){
+  if (fact.getKind() == Kind::VARIABLE || fact.getKind() ==Kind::SKOLEM){
     return variablesValues[nameToIdx[fact.getName()]];
   }
 
@@ -427,7 +427,7 @@ Integer LocalSearchExtension::evalExpression(Node fact){
     }
     return summation;
   }
-  AlwaysAssert(false);
+  AlwaysAssert(false) << fact.getKind();
 
 };
 
