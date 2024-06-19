@@ -74,7 +74,7 @@ public:
                             RaiseConflict conflictChannel,
                             TempVarMalloc tvmalloc);
 
- Result::Status findModel(bool exactResult) override;
+ Result::Status findModel(bool exactResult, std::map<Node,Integer> assignment = {}) override;
 
  // other error variables are dropping
  WitnessImprovement dualLikeImproveError(ArithVar evar);

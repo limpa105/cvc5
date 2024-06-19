@@ -243,12 +243,15 @@ bool TheoryArith::preCheck(Effort level)
 
 void TheoryArith::postCheck(Effort level)
 {
+  ranLocalSearch = false;
   if (d_localSearchExtension != nullptr && Theory::fullEffort(level))
   {
       if (!(d_localSearchExtension->postCheck(level))){
         std::cout << "LS Found Solution \n";
         return;
       }
+      ranLocalSearch = true;
+
   }
   d_im.reset();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
@@ -275,10 +278,19 @@ void TheoryArith::postCheck(Effort level)
     return;
   }
   // otherwise, check with the linear solver
+  if(ranLocalSearch){
+    if (d_internal.postCheck(level, d_localSearchExtension->getBestAssignment()))
+  {
+    // linear solver emitted a conflict or lemma, return
+    return;
+  }
+  }
+  else {
   if (d_internal.postCheck(level))
   {
     // linear solver emitted a conflict or lemma, return
     return;
+  }
   }
   if (d_im.hasSent())
   {

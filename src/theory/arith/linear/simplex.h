@@ -168,7 +168,7 @@ public:
   *
   * Corresponds to the "check()" procedure in [Cav06].
   */
- virtual Result::Status findModel(bool exactResult) = 0;
+ virtual Result::Status findModel(bool exactResult, std::map<Node,Integer> assignment ={}) = 0;
 
  void increaseMax() { d_numVariables++; }
 

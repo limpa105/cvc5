@@ -126,6 +126,7 @@ class TheoryArith : public Theory {
 
   std::pair<bool, Node> entailmentCheck(TNode lit) override;
 
+  bool ranLocalSearch;
   /** Return a reference to the arith::InferenceManager. */
   InferenceManager& getInferenceManager()
   {

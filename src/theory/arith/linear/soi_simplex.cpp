@@ -66,7 +66,7 @@ SumOfInfeasibilitiesSPD::Statistics::Statistics(StatisticsRegistry& sr,
 {
 }
 
-Result::Status SumOfInfeasibilitiesSPD::findModel(bool exactResult)
+Result::Status SumOfInfeasibilitiesSPD::findModel(bool exactResult, std::map<Node,Integer> assignment)
 {
   Assert(d_conflictVariables.empty());
   Assert(d_sgnDisagreements.empty());

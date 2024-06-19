@@ -70,9 +70,9 @@ public:
                               RaiseConflict conflictChannel,
                               TempVarMalloc tvmalloc);
 
- Result::Status findModel(bool exactResult) override
+ Result::Status findModel(bool exactResult, std::map<Node,Integer> assignment ={}) override
  {
-   return dualFindModel(exactResult);
+   return dualFindModel(exactResult, assignment);
   }
 
 private:
@@ -83,8 +83,9 @@ private:
    */
   DenseMultiset d_pivotsInRound;
 
-  Result::Status dualFindModel(bool exactResult);
+  Result::Status dualFindModel(bool exactResult, std::map<Node,Integer> assignment ={} );
 
+  
   /**
    * This is the main simplex for DPLL(T) loop.
    * It runs for at most maxIterations.

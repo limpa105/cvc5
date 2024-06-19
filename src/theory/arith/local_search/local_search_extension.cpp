@@ -206,7 +206,8 @@ LocalSearchExtension::LocalSearchExtension(Env& env, TheoryArith& parent)
       togetherPairs(context()),
       upperBound(context()),
       lowerBound(context()),
-      equalBound(context())
+      equalBound(context()),
+      currentLiteralsIdx(context())
 {
 }
 
@@ -257,7 +258,7 @@ void LocalSearchExtension::notifyFact(
   
 
 
-  //processAssertion(fact, d_facts.size()-1);
+  processAssertion(fact, d_facts.size()-1);
 
 }
 
@@ -293,13 +294,13 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   sentSmartConflict = false;
   dls_conflict.clear();
   ConflictFound = false;
-  currentLiteralsIdx.clear();
+  //currentLiteralsIdx.clear();
 
   std::cout <<  allLiterals.size() << "\n";
-  restart();
-  equalities.clear();
-  inequalities.clear();
-  nonequalities.clear();
+  // restart();
+  // equalities.clear();
+  // inequalities.clear();
+  // nonequalities.clear();
   // for (int i =0; i< currentLiteralsIdx.size(); i++){
   //   int idx = currentLiteralsIdx[i];
   //   AlwaysAssert(idx <= allLiterals.size());
@@ -310,47 +311,47 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   
   //we need to rewrite d_facts 
 
-  for (auto i :d_facts){
-    Node fact = std::get<2>(i);
-  if (fact.getKind()==Kind::EQUAL){
-    equalities.push_back(fact);
-  }
-  if (fact.getKind()==Kind::GEQ){
-    inequalities.push_back(fact);
-  }
-  if (fact.getKind()==Kind::NOT && fact[0].getKind()==Kind::GEQ ){
-    inequalities.push_back(fact);
-  }
-  if (fact.getKind()==Kind::NOT && fact[0].getKind()==Kind::EQUAL ){
-    nonequalities.push_back(fact);
-  }
-  }
+  // for (auto i :d_facts){
+  //   Node fact = std::get<2>(i);
+  // if (fact.getKind()==Kind::EQUAL){
+  //   equalities.push_back(fact);
+  // }
+  // if (fact.getKind()==Kind::GEQ){
+  //   inequalities.push_back(fact);
+  // }
+  // if (fact.getKind()==Kind::NOT && fact[0].getKind()==Kind::GEQ ){
+  //   inequalities.push_back(fact);
+  // }
+  // if (fact.getKind()==Kind::NOT && fact[0].getKind()==Kind::EQUAL ){
+  //   nonequalities.push_back(fact);
+  // }
+  // }
   // std::cout << inequalities.size() << "\n";
   // std::cout << equalities.size() << "\n";
-  if (inequalities.size()!= 0){
-  auto result = substituteVariables(equalities, inequalities);
-  equalities = result.second;
-  // std::cout << equalities.size() << "\n";
-  inequalities = result.first;
-    // std::cout << "NEW EQUALITIES\n";
-    // for(auto eq:equalities){
-    //   std::cout << eq << "\n";
-    // }
-    // std::cout << "NEW INEQUALITIES\n";
-    // for(auto eq:inequalities){
-    //   std::cout << eq << "\n";
-    // }
-  for(int i=0; i<inequalities.size(); i++){
-    processAssertion(inequalities[i], i);
-  }
-  } else {
-     for(int i=0; i<equalities.size(); i++){
-     processAssertion(equalities[i], i);
-   }
-  }
-  for(int i=0; i<nonequalities.size(); i++){
-    processAssertion(nonequalities[i], i);
-  }
+  // if (inequalities.size()!= 0){
+  // auto result = substituteVariables(equalities, inequalities);
+  // equalities = result.second;
+  // // std::cout << equalities.size() << "\n";
+  // inequalities = result.first;
+  //   // std::cout << "NEW EQUALITIES\n";
+  //   // for(auto eq:equalities){
+  //   //   std::cout << eq << "\n";
+  //   // }
+  //   // std::cout << "NEW INEQUALITIES\n";
+  //   // for(auto eq:inequalities){
+  //   //   std::cout << eq << "\n";
+  //   // }
+  // for(int i=0; i<inequalities.size(); i++){
+  //   processAssertion(inequalities[i], i);
+  // }
+  // } else {
+  //    for(int i=0; i<equalities.size(); i++){
+  //    processAssertion(equalities[i], i);
+  //  }
+  // }
+  // for(int i=0; i<nonequalities.size(); i++){
+  //   processAssertion(nonequalities[i], i);
+  // }
 
 
 
@@ -431,15 +432,25 @@ Integer LocalSearchExtension::evalExpression(Node fact){
 
 };
 
+std::map<Node, Integer> LocalSearchExtension::getBestAssignment(){
+  std::map<Node, Integer> answer = {};
+  for (size_t i = 0; i < variablesValues.size(); i++)
+  {
+   answer[d_varList[i]] = variablesValues[i];
+  } 
+  return answer;
+}
+
+
 bool LocalSearchExtension::collectModelInfo(TheoryModel* m,
                                             const std::set<Node>& termSet)
 {
   NodeManager* nm = NodeManager::currentNM();
   // Assignments are stored in variablesValues so we add the last assignment
   // to the model
-  for (int i=0; i<equalities.size(); i++){
-    variablesValues[nameToIdx[equalities[i][0].getName()]] = evalExpression(equalities[i][1]);
-  }
+  // for (int i=0; i<equalities.size(); i++){
+  //   variablesValues[nameToIdx[equalities[i][0].getName()]] = evalExpression(equalities[i][1]);
+  // }
   for (size_t i = 0; i < variablesValues.size(); i++)
   {
     m->assertEquality(d_varList[i], nm->mkConstInt(variablesValues[i]), true);
@@ -1233,6 +1244,8 @@ bool LocalSearchExtension::LocalSearch()
   int restartCount = 0;
   nonImprove = 0;
   int oldUnsat = unsatLiterals.size();
+  bestScore = unsatLiterals.size();
+  bestAssignment = variablesValues;
   // This should be a heuristic in the future
   while (restartCount < 2)
   {
@@ -1255,6 +1268,12 @@ bool LocalSearchExtension::LocalSearch()
       //file.close();
       return true;
     } 
+    else {
+      if(unsatLiterals.size() < bestScore){
+        bestScore = unsatLiterals.size();
+        bestAssignment = variablesValues;
+      }
+    }
     //   for (const int& val : unsatLiterals) {
     //     idxToCount[val] = idxToCount[val]+1;
     // }

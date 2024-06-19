@@ -95,7 +95,7 @@ class LinearSolver : protected EnvObj
    * Post-check, called after the fact queue of the theory is processed. Returns
    * true if a conflict or lemma was emitted.
    */
-  bool postCheck(Theory::Effort level);
+  bool postCheck(Theory::Effort level, std::map<Node,Integer> assignment ={});
   //--------------------------------- end standard check
   /**
    * Found non-linear? This returns true if this solver ever encountered

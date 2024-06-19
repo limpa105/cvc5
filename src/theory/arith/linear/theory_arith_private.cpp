@@ -2943,7 +2943,7 @@ bool TheoryArithPrivate::solveRelaxationOrPanic(Theory::Effort effortLevel)
   return false;
 }
 
-bool TheoryArithPrivate::solveRealRelaxation(Theory::Effort effortLevel){
+bool TheoryArithPrivate::solveRealRelaxation(Theory::Effort effortLevel, std::map<Node,Integer> assignment){
   TimerStat::CodeTimer codeTimer0(d_statistics.d_solveRealRelaxTimer);
   Assert(d_qflraStatus != Result::SAT);
 
@@ -2967,7 +2967,7 @@ bool TheoryArithPrivate::solveRealRelaxation(Theory::Effort effortLevel){
       << safeToCallApprox() << endl;
 
   bool noPivotLimitPass1 = noPivotLimit && !useApprox;
-  d_qflraStatus = simplex.findModel(noPivotLimitPass1);
+  d_qflraStatus = simplex.findModel(noPivotLimitPass1, assignment);
 
   Trace("TheoryArithPrivate::solveRealRelaxation")
     << "solveRealRelaxation()" << " pass1 " << d_qflraStatus << endl;
@@ -3111,7 +3111,7 @@ void TheoryArithPrivate::preNotifyFact(TNode fact)
   }
 }
 
-bool TheoryArithPrivate::postCheck(Theory::Effort effortLevel)
+bool TheoryArithPrivate::postCheck(Theory::Effort effortLevel, std::map<Node,Integer> assignment)
 {
   if(!anyConflict()){
     while(!d_learnedBounds.empty()){

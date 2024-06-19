@@ -55,9 +55,16 @@ DualSimplexDecisionProcedure::Statistics::Statistics(StatisticsRegistry& sr,
 {
 }
 
-Result::Status DualSimplexDecisionProcedure::dualFindModel(bool exactResult)
+Result::Status DualSimplexDecisionProcedure::dualFindModel(bool exactResult, std::map<Node,Integer> assignment)
 {
   Assert(d_conflictVariables.empty());
+
+  if (assignment.size()>0){
+    for (auto i: assignment){
+      ArithVar v = d_variables.asArithVar(i.first);
+      d_linEq.update(v, Rational(i.second));
+    }
+  }
 
   d_pivots = 0;
 
@@ -103,6 +110,7 @@ Result::Status DualSimplexDecisionProcedure::dualFindModel(bool exactResult)
     }
   }
   Assert(!d_errorSet.moreSignals());
+
 
   if(!d_errorSet.errorEmpty() && result != Result::UNSAT){
     if(exactResult){

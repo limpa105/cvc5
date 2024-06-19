@@ -155,6 +155,9 @@ std::vector<Node> equalities;
 
   int getClauseNumber();
 
+  std::map<Node, Integer> getBestAssignment();
+
+
  private:
   /** -------------------------------------------------------------
    * The variables below are inherited from IDL Extension  */
@@ -206,14 +209,21 @@ std::vector<Node> equalities;
 
   std::vector<std::pair<int, int>> orderedCount;
 
+
   /** Random number generator **/
   std::mt19937 rd_generator;
 
   /** A list of current parsed literals **/
-  std::vector<int> currentLiteralsIdx;
+  //std::vector<int> currentLiteralsIdx;
+
+  std::vector<Integer> bestAssignment;
+
+  int bestScore;
+
+
 
   /** A list of current parsed literals **/
-  //context::CDList<int> currentLiteralsIdx;
+  context::CDList<int> currentLiteralsIdx;
 
   /** A list of ALL literals in the problem **/
   std::vector<Literal> allLiterals;

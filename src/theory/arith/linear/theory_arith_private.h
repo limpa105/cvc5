@@ -391,7 +391,7 @@ private:
   SumOfInfeasibilitiesSPD d_soiSimplex;
   AttemptSolutionSDP d_attemptSolSimplex;
 
-  bool solveRealRelaxation(Theory::Effort effortLevel);
+  bool solveRealRelaxation(Theory::Effort effortLevel, std::map<Node,Integer> assignment ={} );
 
   /* Returns true if this is heuristically a good time to try
    * to solve the integers.
@@ -494,7 +494,7 @@ private:
    * Post-check, called after the fact queue of the theory is processed. Returns
    * true if a conflict or lemma was emitted.
    */
-  bool postCheck(Theory::Effort level);
+  bool postCheck(Theory::Effort level, std::map<Node,Integer> assignment ={});
   //--------------------------------- end standard check
   /**
    * Found non-linear? This returns true if this solver ever encountered

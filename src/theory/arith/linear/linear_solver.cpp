@@ -77,9 +77,9 @@ bool LinearSolver::preCheck(Theory::Effort level, bool newFacts)
   return d_internal.preCheck(level, newFacts);
 }
 void LinearSolver::preNotifyFact(TNode fact) { d_internal.preNotifyFact(fact); }
-bool LinearSolver::postCheck(Theory::Effort level)
+bool LinearSolver::postCheck(Theory::Effort level, std::map<Node,Integer> assignment)
 {
-  return d_internal.postCheck(level);
+  return d_internal.postCheck(level, assignment);
 }
 bool LinearSolver::foundNonlinear() const
 {

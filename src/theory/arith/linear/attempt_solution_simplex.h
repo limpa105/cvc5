@@ -73,7 +73,7 @@ public:
 
  Result::Status attempt(const ApproximateSimplex::Solution& sol);
 
- Result::Status findModel(bool exactResult) override { Unreachable(); }
+ Result::Status findModel(bool exactResult, std::map<Node,Integer> assignment ={}) override { Unreachable(); }
 
 private:
  bool matchesNewValue(const DenseMap<DeltaRational>& nv, ArithVar v) const;
