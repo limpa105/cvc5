@@ -121,7 +121,7 @@ std::vector<Node> equalities;
 
   std::pair<std::vector<Node>, std::vector<Node>> substituteVariables(std::vector<Node> equalities, std::vector<Node> inequalities);
 
-  Node subVarHelper(Node fact, Node ogf, Node newf);
+  std::pair<Node, bool> subVarHelper(Node fact, Node ogf, Node newf, bool Changed);
 
   /** Set up the solving data structures */
   void presolve();
@@ -237,7 +237,7 @@ std::vector<Node> equalities;
 
   /** ith entry is the set of literals that ith variable in
    * variablesValues is present */
-  std::unordered_map<int, context::CDHashSet<int>> variablesToLiterals;
+  std::unordered_map<int, std::set<int>> variablesToLiterals;
 
   /** A map of variable name to its index in values **/
   std::map<std::string, int> nameToIdx;
