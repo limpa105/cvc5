@@ -21,12 +21,8 @@
 #include <iostream>
 #include <random>
 #include <unordered_map>
-#include <list>
 
 #include "context/cdlist.h"
-#include "context/cdqueue.h"
-#include "context/cdhashset.h"
-#include "context/cdhashmap.h"
 #include "smt/env_obj.h"
 #include "theory/skolem_lemma.h"
 #include "theory/theory.h"
@@ -39,25 +35,6 @@ namespace arith {
 class TheoryArith;
 
 namespace local_search {
-
-struct pair_hash {
-    template <class T1, class T2>
-    size_t operator() (const std::pair<T1, T2> &pair) const {
-        auto hash1 = std::hash<T1>{}(pair.first);
-        auto hash2 = std::hash<T2>{}(pair.second);
-        return hash1 ^ (hash2 + 0x9e3779b9 + (hash1 << 6) + (hash1 >> 2)); // Combines the hashes
-    }
-};
-
-struct int_hash {
-    template <class T1, class T2>
-    size_t operator() (const std::pair<T1, T2> &pair) const {
-        auto hash1 = std::hash<T1>{}(pair.first);
-        auto hash2 = std::hash<T2>{}(pair.second);
-        return hash1 ^ (hash2 + 0x9e3779b9 + (hash1 << 6) + (hash1 >> 2)); // Combines the hashes
-    }
-};
-
 
 class Literal
 {
@@ -101,32 +78,32 @@ class LocalSearchExtension : protected EnvObj
 {
  public:
 
-  bool foundASolution = false;
+    std::vector<Node> inequalities;
 
-  LocalSearchExtension(Env& env, TheoryArith& parent);
-  ~LocalSearchExtension();
+    std::vector<Node> nonequalities;
 
+    std::vector<Node> equalities;
 
-std::vector<Node> inequalities;
-
-std::vector<Node> nonequalities;
-
-std::vector<Node> equalities;
-  /** Register a term that is in the formula */
-  void preRegisterTerm(TNode);
-
-  std::vector<std::tuple<TNode, bool, TNode>> conflict();
-
-  std::vector<std::tuple<TNode, bool, TNode>> getTrivialConflict(Theory::Effort level);
+    Integer evalExpression(Node fact);
 
   std::pair<std::vector<Node>, std::vector<Node>> substituteVariables(std::vector<Node> equalities, std::vector<Node> inequalities);
 
   std::pair<Node, bool> subVarHelper(Node fact, Node ogf, Node newf, bool Changed);
 
+  bool foundASolution = false;
+
+  LocalSearchExtension(Env& env, TheoryArith& parent);
+  ~LocalSearchExtension();
+
+  /** Register a term that is in the formula */
+  void preRegisterTerm(TNode);
+
+  std::vector<std::tuple<TNode, bool, TNode>> conflict();
+
+  std::vector<std::tuple<TNode, bool, TNode>> getTrivialConflict(bool lookedAtSmart);
+
   /** Set up the solving data structures */
   void presolve();
-
-  Integer evalExpression(Node fact);
 
   /** Called for each asserted literal */
   void notifyFact(
@@ -147,14 +124,6 @@ std::vector<Node> equalities;
 
   context::CDList<std::tuple<TNode, bool, TNode>> d_facts;
 
-  context::CDHashSet<std::pair<int,int>, pair_hash> togetherPairs;
-
-  context::CDQueue<std::tuple<TNode, bool, TNode>> temp_conflicts;
-
-  context::CDHashMap<Node, int> NodetoIdx;
-
-  int getClauseNumber();
-
  private:
   /** -------------------------------------------------------------
    * The variables below are inherited from IDL Extension  */
@@ -162,11 +131,9 @@ std::vector<Node> equalities;
 
   bool ConflictFound; 
 
-  bool LocalSearchRun = false;
-
   std::unordered_map<int, int> idxToMainIdx;
 
-  std::vector<int> idxToCount;
+  std::map<int, int> idxToCount;
   /** The owner of this extension */
   TheoryArith& d_parent;
 
@@ -212,9 +179,6 @@ std::vector<Node> equalities;
   /** A list of current parsed literals **/
   std::vector<int> currentLiteralsIdx;
 
-  /** A list of current parsed literals **/
-  //context::CDList<int> currentLiteralsIdx;
-
   /** A list of ALL literals in the problem **/
   std::vector<Literal> allLiterals;
 
@@ -237,7 +201,7 @@ std::vector<Node> equalities;
 
   /** ith entry is the set of literals that ith variable in
    * variablesValues is present */
-  std::unordered_map<int, std::set<int>> variablesToLiterals;
+  std::vector<std::set<int>> variablesToLiterals;
 
   /** A map of variable name to its index in values **/
   std::map<std::string, int> nameToIdx;
@@ -249,12 +213,11 @@ std::vector<Node> equalities;
 
   std::vector<int> d_Bounds;
 
-  context::CDHashMap<int,Integer, std::hash<int>> upperBound;
+  std::vector<std::optional<std::pair<Integer,int>>> upperBound;
 
-  context::CDHashMap<int,Integer,std::hash<int> >  lowerBound;
+  std::vector<std::optional<std::pair<Integer,int>>>  lowerBound;
 
-  context::CDHashMap<int,Integer,std::hash<int>>  equalBound;
-
+  std::vector<std::optional<std::pair<Integer,int>>>  equalBound;
 
 
   /** Number of iterations since last restart **/
