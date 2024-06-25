@@ -283,7 +283,7 @@ bool LocalSearchExtension::collectModelInfo(TheoryModel* m,
   NodeManager* nm = NodeManager::currentNM();
   // Assignments are stored in variablesValues so we add the last assignment
   // to the model
-   for (int i=0; i<equalities.size(); i++){
+   for (int i=equalities.size()-1; i>=0; i--){
     variablesValues[nameToIdx[equalities[i][0].getName()]] = evalExpression(equalities[i][1]);
   }
   for (size_t i = 0; i < variablesValues.size(); i++)
@@ -390,10 +390,11 @@ std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substitute
               changeMade = true;
             }
             if (result.getKind() == Kind::CONST_BOOLEAN){
-              if (result.getConst<bool>() == true){
+              if(result.getConst<bool>() == true){
               equalities.erase(equalities.begin()+i);
              } else {
               ConflictFound = true;
+              std::cout << "CONFLICT FOUND\n";
                //AlwaysAssert(false) << equality << "," << currentEquality;
               return std::make_pair(inequalities, done_equalities);
              }
@@ -475,11 +476,7 @@ void LocalSearchExtension::printChange(std::vector<Integer> change)
 
 void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
 {
-  if (totalAsserts != idxToCount.size()){
-    std:: cout << "ASSERTS:" << totalAsserts << "\n";
-    std:: cout << "IDXCOUNT:" <<  idxToCount.size() << "\n";
-    ///AlwaysAssert(false);
-  }
+  //
   //AlwaysAssert(totalAsserts == idxToCount.size());
   //std::cout << "First:" << assertion << "\n";
   totalAsserts +=1;
@@ -1068,9 +1065,9 @@ void LocalSearchExtension::applyPAWS()
 
 bool LocalSearchExtension::LocalSearch()
 {
-  // if (ConflictFound == true){
-  //   return false;
-  // }
+ if (ConflictFound == true){
+     return false;
+  }
   // for (int i = 0; i < variablesValues.size(); i++ ){
   //   if (upperBound[i].has_value() && lowerBound[i].has_value() && upperBound[i].value().first > lowerBound[i].value().first){
   //     dls_conflict.push_back(d_facts[upperBound[i].value().second]);
