@@ -174,6 +174,9 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   auto stop = high_resolution_clock::now();
   auto duration = duration_cast<microseconds>(stop - start);
   //std::cout << duration.count() << "\n";
+  equalities.clear();
+  inequalities.clear();
+  nonequalities.clear();
   for (auto i :d_facts){
     Node fact = std::get<2>(i);
   if (fact.getKind()==Kind::EQUAL){
@@ -192,7 +195,15 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
     AlwaysAssert(false);
   }
   }
-  // std::cout << inequalities.size() << "\n";
+  // std::cout << "EQUALITIES\n";
+  //  for(auto eq:equalities){
+  //      std::cout << eq << "\n";
+  //  }
+  //  std::cout << "NON EQUALITIES\n";
+  //    for(auto eq:nonequalities){
+  //      std::cout << eq << "\n";
+  //  }
+  //std::cout << inequalities.size() << "\n";
   // std::cout << equalities.size() << "\n";
   if (inequalities.size()!= 0){
   auto result = substituteVariables(equalities, inequalities);
@@ -378,24 +389,25 @@ std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substitute
         bool changeMade = false;
       for (int i=0; i<equalities.size(); i++) {
             Node equality = equalities[i];
-          //   std::cout << "Starting subs\n";
-          // std::cout << currentEquality << "\n";
-          //   std::cout << "Equality\n";
-          //   std::cout << equality << "\n";
-          //   std::cout << "Result\n";
-            // std::cout << result.getKind() << "\n";
             auto value = subVarHelper(equality, currentEquality[0], currentEquality[1], false);
             Node result = value.first;
             if (value.second){
+          //     std::cout << "Starting subs\n";
+          //  std::cout << currentEquality << "\n";
+          // std::cout << "Equality\n";
+          // std::cout << equality << "\n";
+          //     std::cout << "Result\n";
               changeMade = true;
+              //std::cout << result << "\n";
             }
             if (result.getKind() == Kind::CONST_BOOLEAN){
               if(result.getConst<bool>() == true){
               equalities.erase(equalities.begin()+i);
              } else {
               ConflictFound = true;
-              std::cout << "CONFLICT FOUND\n";
-               //AlwaysAssert(false) << equality << "," << currentEquality;
+              std::cout << result;
+              std::cout << "CONFLICT FOUND EQ\n";
+              std::cout << equality << "," << currentEquality << "\n";
               return std::make_pair(inequalities, done_equalities);
              }
             } else {
@@ -404,10 +416,10 @@ std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substitute
         }
         for (int i=0; i<inequalities.size(); i++) {
           Node equality = inequalities[i];
-          //    std::cout << "Starting subs\n";
+          // std::cout << "Starting subs\n";
           // std::cout << currentEquality << "\n";
-          //   std::cout << "INEquality\n";
-          //   std::cout << equality << "\n";
+          // std::cout << "INEquality\n";
+          // std::cout << equality << "\n";
            auto value = subVarHelper(equality, currentEquality[0], currentEquality[1], false);
             Node result = value.first;
             if (value.second){
@@ -419,6 +431,9 @@ std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substitute
             } else {
              
               ConflictFound = true;
+              std::cout << result;
+              std::cout << "CONFLICT FOUND INEQ\n";
+              std::cout << equality << "," << currentEquality << "\n";
               //AlwaysAssert(false) << equality << "," << currentEquality<< "," << result;
               return std::make_pair(inequalities, done_equalities);
             }
@@ -441,6 +456,9 @@ std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substitute
               nonequalities.erase(nonequalities.begin()+i);
             } else{
               ConflictFound = true;
+              std::cout << result;
+              std::cout << "CONFLICT FOUND NONEQ\n";
+              std::cout << equality << "," << currentEquality << "\n";
                //AlwaysAssert(false) << equality << "," << currentEquality;
               return std::make_pair(inequalities, done_equalities);;
             }
