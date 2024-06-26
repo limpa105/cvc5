@@ -203,6 +203,10 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   //    for(auto eq:nonequalities){
   //      std::cout << eq << "\n";
   //  }
+  //  std::cout << "INEQUALITIES\n";
+  //  for(auto eq:inequalities){
+  //      std::cout << eq << "\n";
+  //  }
   //std::cout << inequalities.size() << "\n";
   // std::cout << equalities.size() << "\n";
   if (inequalities.size()!= 0){
@@ -387,27 +391,25 @@ std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substitute
           continue;
         }
         bool changeMade = false;
+        //std::cout << "NEW ITER\n";
       for (int i=0; i<equalities.size(); i++) {
             Node equality = equalities[i];
             auto value = subVarHelper(equality, currentEquality[0], currentEquality[1], false);
             Node result = value.first;
             if (value.second){
-          //     std::cout << "Starting subs\n";
-          //  std::cout << currentEquality << "\n";
-          // std::cout << "Equality\n";
-          // std::cout << equality << "\n";
-          //     std::cout << "Result\n";
               changeMade = true;
-              //std::cout << result << "\n";
+            } else {
+              //std::cout << "CHANGE NOT MADE\n";
             }
             if (result.getKind() == Kind::CONST_BOOLEAN){
               if(result.getConst<bool>() == true){
               equalities.erase(equalities.begin()+i);
+              i--;
              } else {
               ConflictFound = true;
-              std::cout << result;
-              std::cout << "CONFLICT FOUND EQ\n";
-              std::cout << equality << "," << currentEquality << "\n";
+              // std::cout << result;
+              // //std::cout << "CONFLICT FOUND EQ\n";
+              // std::cout << equality << "," << currentEquality << "\n";
               return std::make_pair(inequalities, done_equalities);
              }
             } else {
@@ -423,17 +425,24 @@ std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substitute
            auto value = subVarHelper(equality, currentEquality[0], currentEquality[1], false);
             Node result = value.first;
             if (value.second){
+          //      std::cout << "Starting subs\n";
+          //  std::cout << currentEquality << "\n";
+          // std::cout << "INEquality\n";
+          // std::cout << equality << "\n";
+          //     std::cout << "Result\n";
               changeMade = true;
+              //std::cout << result << "\n";
             }
             if (result.getKind() == Kind::CONST_BOOLEAN){
               if (result.getConst<bool>() == true){
               inequalities.erase(inequalities.begin()+i);
+              i--;
             } else {
              
               ConflictFound = true;
               std::cout << result;
-              std::cout << "CONFLICT FOUND INEQ\n";
-              std::cout << equality << "," << currentEquality << "\n";
+              // std::cout << "CONFLICT FOUND INEQ\n";
+              // std::cout << equality << "," << currentEquality << "\n";
               //AlwaysAssert(false) << equality << "," << currentEquality<< "," << result;
               return std::make_pair(inequalities, done_equalities);
             }
@@ -449,16 +458,23 @@ std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substitute
             auto answer = subVarHelper(equality, currentEquality[0], currentEquality[1],false);
             Node result = answer.first;
             if (answer.second){
+          //      std::cout << "Starting subs\n";
+          //  std::cout << currentEquality << "\n";
+          // std::cout << "NONEquality\n";
+          // std::cout << equality << "\n";
+          //     std::cout << "Result\n";
               changeMade = true;
+              //std::cout << result << "\n";
             }
             if (result.getKind() == Kind::CONST_BOOLEAN){
               if (result.getConst<bool>() == true){
               nonequalities.erase(nonequalities.begin()+i);
+              i--;
             } else{
               ConflictFound = true;
-              std::cout << result;
-              std::cout << "CONFLICT FOUND NONEQ\n";
-              std::cout << equality << "," << currentEquality << "\n";
+              // std::cout << result;
+              // std::cout << "CONFLICT FOUND NONEQ\n";
+              // std::cout << equality << "," << currentEquality << "\n";
                //AlwaysAssert(false) << equality << "," << currentEquality;
               return std::make_pair(inequalities, done_equalities);;
             }
@@ -467,7 +483,7 @@ std::pair<std::vector<Node>, std::vector<Node>> LocalSearchExtension::substitute
             }
         }
          if (!changeMade){
-            std::cout << "CHANGE WASNT MADE\n";
+            //std::cout << "CHANGE WASNT MADE\n";
            nonequalities.push_back(currentEquality);
         }
       // std::cout << "Equalities processed" << "\n";
