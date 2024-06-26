@@ -393,6 +393,9 @@ private:
 
   bool solveRealRelaxation(Theory::Effort effortLevel, std::map<Node,Integer> assignment ={} );
 
+  std::map<Node,Integer> d_past_LS_assignment;
+
+  Theory::Effort d_past_Effort;
   /* Returns true if this is heuristically a good time to try
    * to solve the integers.
    */

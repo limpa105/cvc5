@@ -279,7 +279,7 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
     MAXNONIMPROVE = 10;
   }
   else {
-    MAXNONIMPROVE = 5000;
+    MAXNONIMPROVE = 10000;
   }
 
   Trace("arith")
@@ -434,10 +434,11 @@ Integer LocalSearchExtension::evalExpression(Node fact){
 
 std::map<Node, Integer> LocalSearchExtension::getBestAssignment(){
   std::map<Node, Integer> answer = {};
-  for (size_t i = 0; i < variablesValues.size(); i++)
+  for (size_t i = 0; i < bestAssignment.size(); i++)
   {
-   answer[d_varList[i]] = variablesValues[i];
+   answer[d_varList[i]] = bestAssignment[i];
   } 
+  printChange(bestAssignment);
   return answer;
 }
 
@@ -612,7 +613,7 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
   }
   // Equal
   if (!isNot && assertion.getKind()==Kind::EQUAL && assertion[0].isVar() && assertion[1].isConst()){
-    //std::cout << "EQUAL\n";
+    //std::cout << "EQUAL found\n";
     int varIdx = nameToIdx[assertion[0].getName()];
     Integer limit = assertion[1].getConst<Rational>().getNumerator();
     if (equalBound.count(varIdx)){ 
@@ -641,7 +642,7 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
     return;
   }
   if (!isNot && assertion.getKind()==Kind::GEQ && assertion[0].getKind()==Kind::MULT && assertion[0][1].isVar() &&  assertion[0][0].getConst<Rational>().getNumerator() == Integer(-1) && assertion[1].isConst()){
-    //std::cout << "Lower\n";
+    std::cout << "Lower\n";
     int varIdx = nameToIdx[assertion[0][1].getName()];
     Integer limit = Integer(-1) * assertion[1].getConst<Rational>().getNumerator();
     if (lowerBound.count(varIdx)>0){
@@ -1180,10 +1181,11 @@ bool LocalSearchExtension::LocalSearch()
 {
 
   if (ConflictFound == true){
+    std::cout << "Conflict Found \n";
      return false;
   }
-  //std::cout << "Starting local search\n";
   std::cout << "Starting local search\n";
+  // std::cout << "Starting local search\n";
   // std::cout << "Upper Bounds\n";
   // for (const auto& pair : upperBound) {
   //       std::cout << "(" << pair.first << ">=" << pair.second << ")" << " ";
@@ -1245,6 +1247,7 @@ bool LocalSearchExtension::LocalSearch()
   nonImprove = 0;
   int oldUnsat = unsatLiterals.size();
   bestScore = unsatLiterals.size();
+  int bestScoreGlobal = unsatLiterals.size();
   bestAssignment = variablesValues;
   // This should be a heuristic in the future
   while (restartCount < 2)
@@ -1269,7 +1272,7 @@ bool LocalSearchExtension::LocalSearch()
       return true;
     } 
     else {
-      if(unsatLiterals.size() < bestScore){
+      if(unsatLiterals.size() < bestScoreGlobal){
         bestScore = unsatLiterals.size();
         bestAssignment = variablesValues;
       }
