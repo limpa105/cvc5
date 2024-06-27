@@ -276,10 +276,10 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   if (!Theory::fullEffort(level))
   {
     //return;
-    MAXNONIMPROVE = 10;
+    MAXNONIMPROVE = 500;
   }
   else {
-    MAXNONIMPROVE = 10000;
+  MAXNONIMPROVE = 10000;
   }
 
   Trace("arith")
@@ -296,7 +296,7 @@ bool LocalSearchExtension::postCheck(Theory::Effort level)
   ConflictFound = false;
   //currentLiteralsIdx.clear();
 
-  std::cout <<  allLiterals.size() << "\n";
+  //std::cout <<  allLiterals.size() << "\n";
   // restart();
   // equalities.clear();
   // inequalities.clear();
@@ -642,7 +642,7 @@ void LocalSearchExtension::processAssertion(TNode assertion, int MainIdx)
     return;
   }
   if (!isNot && assertion.getKind()==Kind::GEQ && assertion[0].getKind()==Kind::MULT && assertion[0][1].isVar() &&  assertion[0][0].getConst<Rational>().getNumerator() == Integer(-1) && assertion[1].isConst()){
-    std::cout << "Lower\n";
+    //std::cout << "Lower\n";
     int varIdx = nameToIdx[assertion[0][1].getName()];
     Integer limit = Integer(-1) * assertion[1].getConst<Rational>().getNumerator();
     if (lowerBound.count(varIdx)>0){
@@ -1184,7 +1184,7 @@ bool LocalSearchExtension::LocalSearch()
     std::cout << "Conflict Found \n";
      return false;
   }
-  std::cout << "Starting local search\n";
+  //std::cout << "Starting local search\n";
   // std::cout << "Starting local search\n";
   // std::cout << "Upper Bounds\n";
   // for (const auto& pair : upperBound) {

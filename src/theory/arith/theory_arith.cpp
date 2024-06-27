@@ -106,6 +106,7 @@ void TheoryArith::finishInit()
   if (options().arith.localSearchExt)
   {
     d_localSearchExtension.reset(new local_search::LocalSearchExtension(d_env, *this));
+    d_internal.setLocalSearch(d_localSearchExtension);
   }
 
 
@@ -244,15 +245,15 @@ bool TheoryArith::preCheck(Effort level)
 void TheoryArith::postCheck(Effort level)
 {
   ranLocalSearch = false;
-  if (d_localSearchExtension != nullptr && Theory::fullEffort(level))
-  {
-      if (!(d_localSearchExtension->postCheck(level))){
-        std::cout << "LS Found Solution \n";
-        return;
-      }
-      ranLocalSearch = true;
+  // if (d_localSearchExtension != nullptr && Theory::fullEffort(level))
+  // {
+  //     if (!(d_localSearchExtension->postCheck(level))){
+  //       std::cout << "LS Found Solution \n";
+  //       return;
+  //     }
+  //     ranLocalSearch = true;
 
-  }
+  // }
   d_im.reset();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
@@ -316,7 +317,7 @@ void TheoryArith::postCheck(Effort level)
         return;
       }
     }
-    else if (d_internal.foundNonlinear())
+    else if (!d_localSearchExtension->foundASolution && d_internal.foundNonlinear())
     {
       // set incomplete
       d_im.setModelUnsound(IncompleteId::ARITH_NL_DISABLED);
@@ -329,10 +330,12 @@ void TheoryArith::postCheck(Effort level)
     {
       updateModelCache(termSet);
     }
+    if (!d_localSearchExtension->foundASolution){
     sanityCheckIntegerModel();
     // Now, finalize the model cache, which constructs a substitution to be
     // used for getEqualityStatus.
     finalizeModelCache();
+    }
   }
 }
 

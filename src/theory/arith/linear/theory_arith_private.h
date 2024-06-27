@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "context/cdhashset.h"
+#include "theory/arith/local_search/local_search_extension.h"
 #include "context/cdinsert_hashmap.h"
 #include "context/cdlist.h"
 #include "context/cdqueue.h"
@@ -135,6 +136,11 @@ class TheoryArithPrivate : protected EnvObj
 
   //std::vector<ArithVar> d_pool;
 public:
+  std::shared_ptr<local_search::LocalSearchExtension> d_localSearchExtension;
+
+  void setLocalSearch( std::shared_ptr<local_search::LocalSearchExtension> ext){
+    d_localSearchExtension =ext;
+  }
   void releaseArithVar(ArithVar v);
   void signal(ArithVar v){ d_errorSet.signalVariable(v); }
 

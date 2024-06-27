@@ -116,7 +116,7 @@ class TheoryArith : public Theory {
 
   std::string identify() const override { return std::string("TheoryArith"); }
 
-  std::unique_ptr<local_search::LocalSearchExtension> d_localSearchExtension;
+  std::shared_ptr<local_search::LocalSearchExtension> d_localSearchExtension;
 
   EqualityStatus getEqualityStatus(TNode a, TNode b) override;
 

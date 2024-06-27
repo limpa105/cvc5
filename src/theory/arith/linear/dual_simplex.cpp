@@ -57,7 +57,34 @@ DualSimplexDecisionProcedure::Statistics::Statistics(StatisticsRegistry& sr,
 
 Result::Status DualSimplexDecisionProcedure::dualFindModel(bool exactResult, std::map<Node,Integer> assignment)
 {
-  std::cout << "finding dual" << assignment.size() << "\n";
+    // if (assignment.size()>0){
+    //   std::cout << "GOT AN ASSIGNMENT THAT WASNT ZERO!\n";
+    // for (auto i: assignment){
+    //   ArithVar v = d_linEq.getVariables().asArithVar(i.first);
+    //   if (d_variables.getAssignment(v).getNoninfinitesimalPart() != Rational(i.second)){
+    //   if (!d_linEq.getTableau().isBasic(v)){
+    //   d_linEq.update(v, Rational(i.second));
+    //   }
+    //   else {
+    //     LinearEqualityModule::VarPreferenceFunction pf = &LinearEqualityModule::minVarOrder;
+    //      ArithVar x_j = d_linEq.selectSlackUpperBound(v, pf);
+    //      if (d_variables.hasLowerBound(v)){
+    //      std::cout << "Lower bound \n";
+    //      std::cout << d_linEq.getVariables().getLowerBound(v) << "\n";
+    //      AlwaysAssert(d_linEq.getVariables().getLowerBound(v).getNoninfinitesimalPart() <= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getLowerBound(v);
+    //      }
+    //      if (d_variables.hasUpperBound(v)){
+    //       std::cout << "Upper bound \n";
+    //       std::cout << d_linEq.getVariables().getUpperBound(v) << "\n";
+    //      AlwaysAssert(d_linEq.getVariables().getUpperBound(v).getNoninfinitesimalPart() >= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getUpperBound(v);
+    //      }
+    //     d_linEq.pivotAndUpdate(v, x_j, Rational(i.second));
+    //   }
+    //   }
+    //}
+    //}
+
+  //std::cout << "finding dual" << assignment.size() << "\n";
   Assert(d_conflictVariables.empty());
 
   d_pivots = 0;
@@ -82,32 +109,7 @@ Result::Status DualSimplexDecisionProcedure::dualFindModel(bool exactResult, std
     return Result::SAT;
   }
 
-    if (assignment.size()>0){
-      std::cout << "GOT AN ASSIGNMENT THAT WASNT ZERO!\n";
-    for (auto i: assignment){
-      ArithVar v = d_linEq.getVariables().asArithVar(i.first);
-      if (d_variables.getAssignment(v).getNoninfinitesimalPart() != Rational(i.second)){
-      if (!d_linEq.getTableau().isBasic(v)){
-      d_linEq.update(v, Rational(i.second));
-      }
-      else {
-        LinearEqualityModule::VarPreferenceFunction pf = &LinearEqualityModule::minVarOrder;
-         ArithVar x_j = d_linEq.selectSlackUpperBound(v, pf);
-         if (d_variables.hasLowerBound(v)){
-         std::cout << "Lower bound \n";
-         std::cout << d_linEq.getVariables().getLowerBound(v) << "\n";
-         AlwaysAssert(d_linEq.getVariables().getLowerBound(v).getNoninfinitesimalPart() <= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getLowerBound(v);
-         }
-         if (d_variables.hasUpperBound(v)){
-          std::cout << "Upper bound \n";
-          std::cout << d_linEq.getVariables().getUpperBound(v) << "\n";
-         AlwaysAssert(d_linEq.getVariables().getUpperBound(v).getNoninfinitesimalPart() >= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getUpperBound(v);
-         }
-        d_linEq.pivotAndUpdate(v, x_j, Rational(i.second));
-      }
-      }
-    }
-    }
+
 
   Trace("arith::findModel") << "dualFindModel() start non-trivial" << endl;
 
@@ -212,6 +214,9 @@ bool DualSimplexDecisionProcedure::searchForFeasibleSolution(uint32_t remainingI
     if(d_variables.cmpAssignmentLowerBound(x_i) < 0 ){
       x_j = d_linEq.selectSlackUpperBound(x_i, pf);
       if(x_j == ARITHVAR_SENTINEL ){
+        // std::cout << d_variables.getAssignment(x_i) << "\n";
+        // std::cout << d_variables.getLowerBound(x_i) << "\n";
+        // std::cout << d_variables.cmpAssignmentLowerBound(x_i) << "\n";
         Unreachable();
         // ++(d_statistics.d_statUpdateConflicts);
         // reportConflict(x_i);

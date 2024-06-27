@@ -76,6 +76,7 @@
 
 using namespace std;
 using namespace cvc5::internal::kind;
+using namespace cvc5::internal::theory::arith::local_search;
 
 namespace cvc5::internal {
 namespace theory {
@@ -1851,7 +1852,77 @@ bool TheoryArithPrivate::attemptSolveInteger(Theory::Effort effortLevel, bool em
     << endl;
 
   if(d_qflraStatus == Result::UNSAT){ return false; }
+  //if(d_qflraStatus == Result::SAT){ return false; }
   if(emmmittedLemmaOrSplit){ return false; }
+   if (Theory::fullEffort(effortLevel) && !d_localSearchExtension->postCheck(effortLevel)){
+      if (Theory::fullEffort(effortLevel)){
+         d_qflraStatus = Result::SAT;
+         return true;
+    //     //AlwaysAssert(false);
+    //      std::map<Node,Integer>  assignment = d_localSearchExtension->getBestAssignment();
+    //     if (assignment.size()>0){
+    //   std::cout << "GOT AN ASSIGNMENT THAT WASNT ZERO!\n";
+    // for (auto i: assignment){
+    //   ArithVar v = d_linEq.getVariables().asArithVar(i.first);
+    //   if (d_linEq.getVariables().getAssignment(v).getNoninfinitesimalPart() != Rational(i.second)){
+    //   if (!d_linEq.getTableau().isBasic(v)){
+    //   d_linEq.update(v, Rational(i.second));
+    //     }
+    //   else {
+    //     LinearEqualityModule::VarPreferenceFunction pf = &LinearEqualityModule::minVarOrder;
+    //      ArithVar x_j = d_linEq.selectSlackUpperBound(v, pf);
+    //      if (d_linEq.getVariables().hasLowerBound(v)){
+    //      std::cout << "Lower bound \n";
+    //      std::cout << d_linEq.getVariables().getLowerBound(v) << "\n";
+    //      AlwaysAssert(d_linEq.getVariables().getLowerBound(v).getNoninfinitesimalPart() <= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getLowerBound(v);
+    //      }
+    //      if (d_linEq.getVariables().hasUpperBound(v)){
+    //       std::cout << "Upper bound \n";
+    //       std::cout << d_linEq.getVariables().getUpperBound(v) << "\n";
+    //      AlwaysAssert(d_linEq.getVariables().getUpperBound(v).getNoninfinitesimalPart() >= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getUpperBound(v);
+    //      }
+    //     d_linEq.pivotAndUpdate(v, x_j, Rational(i.second));
+    //     return true;
+    //   }
+    //   }
+    // }
+    //     }
+    } else {
+         d_localSearchExtension->foundASolution = false;
+         return true;
+    }
+    //      // if (assignment.size()>0){
+    //   std::map<Node,Integer>  assignment = d_localSearchExtension->getBestAssignment();
+    // if (assignment.size()>0){
+    //   std::cout << "GOT AN ASSIGNMENT THAT WASNT ZERO!\n";
+    // for (auto i: assignment){
+    //   ArithVar v = d_linEq.getVariables().asArithVar(i.first);
+    //   if (d_linEq.getVariables().getAssignment(v).getNoninfinitesimalPart() != Rational(i.second)){
+    //   if (!d_linEq.getTableau().isBasic(v)){
+    //   d_linEq.update(v, Rational(i.second));
+    //     }
+    //   else {
+    //     LinearEqualityModule::VarPreferenceFunction pf = &LinearEqualityModule::minVarOrder;
+    //      ArithVar x_j = d_linEq.selectSlackUpperBound(v, pf);
+    //      if (d_linEq.getVariables().hasLowerBound(v)){
+    //      std::cout << "Lower bound \n";
+    //      std::cout << d_linEq.getVariables().getLowerBound(v) << "\n";
+    //      AlwaysAssert(d_linEq.getVariables().getLowerBound(v).getNoninfinitesimalPart() <= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getLowerBound(v);
+    //      }
+    //      if (d_linEq.getVariables().hasUpperBound(v)){
+    //       std::cout << "Upper bound \n";
+    //       std::cout << d_linEq.getVariables().getUpperBound(v) << "\n";
+    //      AlwaysAssert(d_linEq.getVariables().getUpperBound(v).getNoninfinitesimalPart() >= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getUpperBound(v);
+    //      }
+    //     d_linEq.pivotAndUpdate(v, x_j, Rational(i.second));
+    // //   }
+    // }
+    // }
+    // }
+    //   }
+   }
+
+
   if (!options().arith.useApprox)
   {
     return false;
@@ -2710,6 +2781,7 @@ bool TheoryArithPrivate::safeToCallApprox() const{
 //   case Error
 //     if()
 void TheoryArithPrivate::solveInteger(Theory::Effort effortLevel){
+  return;
   if(!safeToCallApprox()) { return; }
 
   Assert(safeToCallApprox());
@@ -2946,9 +3018,9 @@ bool TheoryArithPrivate::solveRelaxationOrPanic(Theory::Effort effortLevel)
 bool TheoryArithPrivate::solveRealRelaxation(Theory::Effort effortLevel, std::map<Node,Integer> assignment){
   TimerStat::CodeTimer codeTimer0(d_statistics.d_solveRealRelaxTimer);
   Assert(d_qflraStatus != Result::SAT);
-  if (Theory::fullEffort(effortLevel)){
-    AlwaysAssert(assignment.size()>0);
-  }
+  // if (Theory::fullEffort(effortLevel)){
+  //   AlwaysAssert(assignment.size()>0);
+  // }
 
   d_partialModel.stopQueueingBoundCounts();
   UpdateTrackingCallback utcb(&d_linEq);
@@ -2969,75 +3041,121 @@ bool TheoryArithPrivate::solveRealRelaxation(Theory::Effort effortLevel, std::ma
       << ApproximateSimplex::enabled() << " " << useApprox << " "
       << safeToCallApprox() << endl;
 
-  bool noPivotLimitPass1 = noPivotLimit && !useApprox;
-  std::cout << "starting simplex find model<< \n";
+  bool noPivotLimitPass1 = false;
+  //std::cout << "starting simplex find model<< \n";
   d_qflraStatus = simplex.findModel(noPivotLimitPass1, assignment);
 
   Trace("TheoryArithPrivate::solveRealRelaxation")
     << "solveRealRelaxation()" << " pass1 " << d_qflraStatus << endl;
 
-  if (d_qflraStatus == Result::UNKNOWN && useApprox && safeToCallApprox())
-  {
-    // pass2: fancy-final
-    static constexpr int32_t relaxationLimit = 10000;
-    Assert(ApproximateSimplex::enabled());
+   if (d_qflraStatus == Result::UNKNOWN){
+    if (Theory::fullEffort(effortLevel) && !d_localSearchExtension->postCheck(effortLevel)){
+      if (Theory::fullEffort(effortLevel)){
+        d_qflraStatus = Result::SAT;
+        AlwaysAssert(false);
+        return true;
+       } else {
+         d_localSearchExtension->foundASolution = false;
+  //     } else {
+  //       d_localSearchExtension->foundASolution = false;
+  //        // if (assignment.size()>0){
+  //     assignment = d_localSearchExtension->getBestAssignment();
+  //   if (assignment.size()>0){
+  //     std::cout << "GOT AN ASSIGNMENT THAT WASNT ZERO!\n";
+  //   for (auto i: assignment){
+  //     ArithVar v = d_linEq.getVariables().asArithVar(i.first);
+  //     if (d_linEq.getVariables().getAssignment(v).getNoninfinitesimalPart() != Rational(i.second)){
+  //     if (!d_linEq.getTableau().isBasic(v)){
+  //     d_linEq.update(v, Rational(i.second));
+  //       }
+  //     else {
+  //       LinearEqualityModule::VarPreferenceFunction pf = &LinearEqualityModule::minVarOrder;
+  //        ArithVar x_j = d_linEq.selectSlackUpperBound(v, pf);
+  //        if (d_linEq.getVariables().hasLowerBound(v)){
+  //        std::cout << "Lower bound \n";
+  //        std::cout << d_linEq.getVariables().getLowerBound(v) << "\n";
+  //        AlwaysAssert(d_linEq.getVariables().getLowerBound(v).getNoninfinitesimalPart() <= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getLowerBound(v);
+  //        }
+  //        if (d_linEq.getVariables().hasUpperBound(v)){
+  //         std::cout << "Upper bound \n";
+  //         std::cout << d_linEq.getVariables().getUpperBound(v) << "\n";
+  //        AlwaysAssert(d_linEq.getVariables().getUpperBound(v).getNoninfinitesimalPart() >= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getUpperBound(v);
+  //        }
+  //       d_linEq.pivotAndUpdate(v, x_j, Rational(i.second));
+  //     }
+  //   }
 
-    TreeLog& tl = getTreeLog();
-    ApproximateStatistics& stats = getApproxStats();
-    ApproximateSimplex* approxSolver =
-      ApproximateSimplex::mkApproximateSimplexSolver(d_partialModel, tl, stats);
+  //     }
 
-    approxSolver->setPivotLimit(relaxationLimit);
+  //   }
 
-    if(!d_guessedCoeffSet){
-      d_guessedCoeffs = approxSolver->heuristicOptCoeffs();
-      d_guessedCoeffSet = true;
+  //  }
+   //d_qflraStatus = Result::SAT;
+   //return false;
     }
-    if(!d_guessedCoeffs.empty()){
-      approxSolver->setOptCoeffs(d_guessedCoeffs);
-    }
+   }
+   }
+  // {
+  //   // pass2: fancy-final
+  //   static constexpr int32_t relaxationLimit = 10000;
+  //   Assert(ApproximateSimplex::enabled());
 
-    ++d_statistics.d_relaxCalls;
+  //   TreeLog& tl = getTreeLog();
+  //   ApproximateStatistics& stats = getApproxStats();
+  //   ApproximateSimplex* approxSolver =
+  //     ApproximateSimplex::mkApproximateSimplexSolver(d_partialModel, tl, stats);
 
-    ApproximateSimplex::Solution relaxSolution;
-    LinResult relaxRes = LinUnknown;
-    {
-      TimerStat::CodeTimer codeTimer1(d_statistics.d_lpTimer);
-      relaxRes = approxSolver->solveRelaxation();
-    }
-      Trace("solveRealRelaxation") << "solve relaxation? " << endl;
-      switch(relaxRes){
-      case LinFeasible:
-        Trace("solveRealRelaxation") << "lin feasible? " << endl;
-        ++d_statistics.d_relaxLinFeas;
-        relaxSolution = approxSolver->extractRelaxation();
-        importSolution(relaxSolution);
-        if(d_qflraStatus != Result::SAT){
-          ++d_statistics.d_relaxLinFeasFailures;
-        }
-        break;
-      case LinInfeasible:
-        // todo attempt to recreate approximate conflict
-        ++d_statistics.d_relaxLinInfeas;
-        Trace("solveRealRelaxation") << "lin infeasible " << endl;
-        relaxSolution = approxSolver->extractRelaxation();
-        importSolution(relaxSolution);
-        if(d_qflraStatus != Result::UNSAT){
-          ++d_statistics.d_relaxLinInfeasFailures;
-        }
-        break;
-      case LinExhausted:
-        ++d_statistics.d_relaxLinExhausted;
-        Trace("solveRealRelaxation") << "exhuasted " << endl;
-        break;
-      case LinUnknown:
-      default:
-        ++d_statistics.d_relaxOthers;
-        break;
-      }
-    delete approxSolver;
+  //   approxSolver->setPivotLimit(relaxationLimit);
 
-  }
+  //   if(!d_guessedCoeffSet){
+  //     d_guessedCoeffs = approxSolver->heuristicOptCoeffs();
+  //     d_guessedCoeffSet = true;
+  //   }
+  //   if(!d_guessedCoeffs.empty()){
+  //     approxSolver->setOptCoeffs(d_guessedCoeffs);
+  //   }
+
+  //   ++d_statistics.d_relaxCalls;
+
+  //   ApproximateSimplex::Solution relaxSolution;
+  //   LinResult relaxRes = LinUnknown;
+  //   {
+  //     TimerStat::CodeTimer codeTimer1(d_statistics.d_lpTimer);
+  //     relaxRes = approxSolver->solveRelaxation();
+  //   }
+  //     Trace("solveRealRelaxation") << "solve relaxation? " << endl;
+  //     switch(relaxRes){
+  //     case LinFeasible:
+  //       Trace("solveRealRelaxation") << "lin feasible? " << endl;
+  //       ++d_statistics.d_relaxLinFeas;
+  //       relaxSolution = approxSolver->extractRelaxation();
+  //       importSolution(relaxSolution);
+  //       if(d_qflraStatus != Result::SAT){
+  //         ++d_statistics.d_relaxLinFeasFailures;
+  //       }
+  //       break;
+  //     case LinInfeasible:
+  //       // todo attempt to recreate approximate conflict
+  //       ++d_statistics.d_relaxLinInfeas;
+  //       Trace("solveRealRelaxation") << "lin infeasible " << endl;
+  //       relaxSolution = approxSolver->extractRelaxation();
+  //       importSolution(relaxSolution);
+  //       if(d_qflraStatus != Result::UNSAT){
+  //         ++d_statistics.d_relaxLinInfeasFailures;
+  //       }
+  //       break;
+  //     case LinExhausted:
+  //       ++d_statistics.d_relaxLinExhausted;
+  //       Trace("solveRealRelaxation") << "exhuasted " << endl;
+  //       break;
+  //     case LinUnknown:
+  //     default:
+  //       ++d_statistics.d_relaxOthers;
+  //       break;
+  //     }
+  //   delete approxSolver;
+
+  // }
 
   bool emmittedConflictOrSplit = solveRelaxationOrPanic(effortLevel);
 
@@ -3166,32 +3284,42 @@ bool TheoryArithPrivate::postCheck(Theory::Effort effortLevel, std::map<Node,Int
   Trace("arith::ems") << "ems: " << emmittedConflictOrSplit
                       << "pre realRelax" << endl;
 
-  std::cout << d_qflraStatus << "\n";
-  if (assignment.size()>0){
-    d_past_LS_assignment = assignment;
-    // for (auto i: assignment){
-    //   ArithVar v = d_linEq.getVariables().asArithVar(i.first);
-    //   if (!d_linEq.getTableau().isBasic(v)){
-    //   d_linEq.update(v, Rational(i.second));
-    //   }
-    //   else {
-    //     LinearEqualityModule::VarPreferenceFunction pf = &LinearEqualityModule::minVarOrder;
-    //      ArithVar x_j = d_linEq.selectSlackUpperBound(v, pf);
-    //      std::cout << "Lower bound \n";
-    //      std::cout << d_linEq.getVariables().getLowerBound(v) << "\n";
-    //       std::cout << "Upper bound \n";
-    //      std::cout << d_linEq.getVariables().getUpperBound(v) << "\n";
-    //      AlwaysAssert(d_linEq.getVariables().getLowerBound(v).getNoninfinitesimalPart() < Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getLowerBound(v);
-    //      AlwaysAssert(d_linEq.getVariables().getUpperBound(v).getNoninfinitesimalPart() < Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getUpperBound(v);
-    //     d_linEq.pivotAndUpdate(v, x_j, Rational(i.second));
-    //   }
-    // }
-  }
+  //std::cout << d_qflraStatus << "\n";
+  // if (assignment.size()>0){
+  //   d_past_LS_assignment = assignment;
+  //   if (assignment.size()>0){
+  //     std::cout << "GOT AN ASSIGNMENT THAT WASNT ZERO!\n";
+  //   for (auto i: assignment){
+  //     ArithVar v = d_linEq.getVariables().asArithVar(i.first);
+  //     if (d_linEq.getVariables().getAssignment(v).getNoninfinitesimalPart() != Rational(i.second)){
+  //     if (!d_linEq.getTableau().isBasic(v)){
+  //     d_linEq.update(v, Rational(i.second));
+  //     }
+  //     else {
+  //       LinearEqualityModule::VarPreferenceFunction pf = &LinearEqualityModule::minVarOrder;
+  //        ArithVar x_j = d_linEq.selectSlackUpperBound(v, pf);
+  //        if (d_linEq.getVariables().hasLowerBound(v)){
+  //        std::cout << "Lower bound \n";
+  //        std::cout << d_linEq.getVariables().getLowerBound(v) << "\n";
+  //        AlwaysAssert(d_linEq.getVariables().getLowerBound(v).getNoninfinitesimalPart() <= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getLowerBound(v);
+  //        }
+  //        if (d_linEq.getVariables().hasUpperBound(v)){
+  //         std::cout << "Upper bound \n";
+  //         std::cout << d_linEq.getVariables().getUpperBound(v) << "\n";
+  //        AlwaysAssert(d_linEq.getVariables().getUpperBound(v).getNoninfinitesimalPart() >= Rational(i.second)) << i.first << "," << i.second << "," << d_linEq.getVariables().getUpperBound(v);
+  //        }
+  //       d_linEq.pivotAndUpdate(v, x_j, Rational(i.second));
+  //     }
+  //   }
+  //   AlwaysAssert(d_linEq.getVariables().getAssignment(v).getNoninfinitesimalPart() == i.second);
+  //   }
+  // }
+  // }
 
-  std::cout << "SIMPLEX LEVEL:" << effortLevel << "\n";
+  //std::cout << "SIMPLEX LEVEL:" << effortLevel << "\n";
   if(useSimplex){
    if (Theory::fullEffort(effortLevel)){
-     AlwaysAssert(d_past_LS_assignment.size()!=0);
+     //AlwaysAssert(d_past_LS_assignment.size()!=0);
      emmittedConflictOrSplit = solveRealRelaxation(effortLevel, d_past_LS_assignment);
      }
    else {
@@ -3209,7 +3337,8 @@ bool TheoryArithPrivate::postCheck(Theory::Effort effortLevel, std::map<Node,Int
                       << "pre solveInteger" << endl;
 
   if(attemptSolveInteger(effortLevel, emmittedConflictOrSplit)){
-    solveInteger(effortLevel);
+    return false;
+    //solveInteger(effortLevel);
     if(anyConflict()){
       ++d_statistics.d_commitsOnConflicts;
       Trace("arith::bt") << "committing here "

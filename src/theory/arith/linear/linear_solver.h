@@ -41,6 +41,14 @@ class LinearSolver : protected EnvObj
                TheoryState& ts,
                InferenceManager& im,
                BranchAndBound& bab);
+
+
+  //std::shared_ptr<local_search::LocalSearchExtension> d_localSearchExtension;
+
+  void setLocalSearch( std::shared_ptr<local_search::LocalSearchExtension> ext){
+    d_internal.setLocalSearch(ext);
+  }
+
   /** finish initialize */
   void finishInit(eq::EqualityEngine* ee);
   /**
