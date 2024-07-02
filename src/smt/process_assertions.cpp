@@ -199,6 +199,11 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
     applyPass("foreign-theory-rewrite", ap);
   }
 
+  if (options().arith.modularRangeSolver && options().arith.intRangeOr)
+  {
+    applyPass("int-range-or", ap);
+  }
+
   // Assertions MUST BE guaranteed to be rewritten by this point
   applyPass("rewrite", ap);
 
@@ -432,6 +437,8 @@ bool ProcessAssertions::simplifyAssertions(AssertionPipeline& ap)
       }
     }
   }
+
+
   catch (TypeCheckingExceptionPrivate& tcep)
   {
     // Calls to this function should have already weeded out any

@@ -134,7 +134,7 @@ void CocoaEncoder::endScan()
 {
   Assert(d_stage == Stage::Scan);
   d_stage = Stage::Encode;
-  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingZZ(), d_syms);
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms);
   for (size_t i = 0, n = d_syms.size(); i < n; ++i)
   {
     d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
@@ -156,12 +156,12 @@ void CocoaEncoder::endScanIntegers(std::vector<long> upperBoundWeights){
   //std::cout << d_syms.size() << "\n";
   std::vector<std::vector<long>> k = grevlexWeighted(upperBoundWeights);
   //std::cout << "got order \n";
-  CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingZZ(), k);
+  CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ(), k);
   //std::cout << "Made matrix\n";
   try {
-  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingZZ(), d_syms, CoCoA::NewMatrixOrdering(m, d_syms.size()-1));
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms, CoCoA::NewMatrixOrdering(m, d_syms.size()-1));
   } catch (const CoCoA::ErrorInfo& e) {
-    std::cout << e << "\n";
+    //std::cout << e << "\n";
     AlwaysAssert(false);
   }
   //std::cout << "Made ring\n";
@@ -170,7 +170,7 @@ void CocoaEncoder::endScanIntegers(std::vector<long> upperBoundWeights){
   {
     d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
   }
-  std::cout << d_polyRing.value() << "\n";
+  //std::cout << d_polyRing.value() << "\n";
 }
 
 void CocoaEncoder::addFact(const Node& fact)

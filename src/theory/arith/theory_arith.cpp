@@ -251,6 +251,13 @@ void TheoryArith::postCheck(Effort level)
     NodeManager* nm = NodeManager::currentNM();
     const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
     d_im.conflict(conflict, InferenceId::FF_LEMMA);
+    conflictCount +=1;
+    std::cout << "CONFLICT COUNT" << conflictCount << "\n";
+    } else if(result.getStatus() == Result::UNKNOWN){
+    NodeManager* nm = NodeManager::currentNM();
+    const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
+    std::cout << lemma << "\n";
+    d_im.lemma(lemma, InferenceId::FF_LEMMA);
     } else {
       return;}
     }else {

@@ -55,6 +55,12 @@ class IntegerField: protected EnvObj{
 class Field:  protected EnvObj {
     public: 
 
+        std::map<Node,int> myVariables;
+
+        std::vector<Node> myNodes;
+
+        std::set<Node> LearntLemmasFrom;
+
         Result status = Result::UNKNOWN;
 
         Field(Env & env, Integer modulos);
@@ -75,7 +81,7 @@ class Field:  protected EnvObj {
 
         bool checkUnsat();
 
-        bool Simplify(IntegerField& Integers, std::map<std::string, Integer > upperBounds,bool WeightedGB);
+        bool Simplify(IntegerField& Integers, std::map<std::string, Integer > upperBounds,bool WeightedGB, bool startLearningLemmas);
 
         Node modOut(Node fact);
 
@@ -87,7 +93,7 @@ class Field:  protected EnvObj {
 
         void clearAll(){inequalities.clear(); equalities.clear(); lemmas.clear(); status=Result::UNKNOWN;};
 
-        void Lift(IntegerField& integerField, std::map<std::string, Integer> upperBounds);
+        void Lift(IntegerField& integerField, std::map<std::string, Integer> upperBounds, bool LearnLemmas);
 
         void substituteEqualities();
 
@@ -95,11 +101,18 @@ class Field:  protected EnvObj {
 
         Node subVarHelper(Node fact, Node ogf, Node newf);
 
+
 };
 
 class RangeSolver : protected EnvObj
 {
     public:
+
+        
+        std::map<Node,int> myVariables;
+
+        std::vector<Node> myNodes;
+
         RangeSolver(Env& env, TheoryArith& parent);
 
         std::map<std::string, Integer > upperBounds;
@@ -120,7 +133,9 @@ class RangeSolver : protected EnvObj
 
         bool learnedLemma = false;
 
-        Node Lemma;
+        bool startLearningLemmas = false;
+
+        std::vector<Node> Lemmas;
 
 
     private:

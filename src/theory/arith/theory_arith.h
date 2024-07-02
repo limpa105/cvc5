@@ -183,6 +183,7 @@ class TheoryArith : public Theory {
   ArithPreprocess d_arithPreproc;
   /** The theory rewriter for this theory. */
   ArithRewriter d_rewriter;
+  int conflictCount=0;
 
   /**
    * Caches the current arithmetic model with the following life cycle:

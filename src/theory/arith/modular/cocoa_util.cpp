@@ -88,15 +88,15 @@ CoCoA::BigInt intToCocoa(const Integer& i)
 }
 
 std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights){
-  std::cout << "Grev Order\n";
+  //std::cout << "Grev Order\n";
   int numRows = 1;
   int numColumns = weights.size();
-  std::cout << weights.size() << "\n";
+  //std::cout << weights.size() << "\n";
   int grevColumns = numColumns - numRows;
   std::vector<std::vector<long>> finalMatrix(grevColumns, std::vector<long>(numColumns, 0));
-  std::cout << finalMatrix.size() << "\n";
-  std::cout << finalMatrix[0].size() << "\n";
-  std::cout << "Starting for loop\n";
+//   std::cout << finalMatrix.size() << "\n";
+//   std::cout << finalMatrix[0].size() << "\n";
+//   std::cout << "Starting for loop\n";
   for (int i =0; i<grevColumns; ++i){
     for (int j = 0; j<numColumns; ++j){
       if (i+j < grevColumns){
@@ -107,9 +107,9 @@ std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights){
     }
   }
   }
-  std::cout << "Created first matrix \n";
+  //std::cout << "Created first matrix \n";
   finalMatrix.insert(finalMatrix.begin(),weights);
-  std::cout << "Created final matrix \n";
+  //std::cout << "Created final matrix \n";
   return finalMatrix;
 }
 
