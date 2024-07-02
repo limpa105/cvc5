@@ -721,6 +721,8 @@ libcvc5_add_sources(
   theory/ff/multi_roots.h
   theory/ff/parse.cpp
   theory/ff/parse.h
+  theory/ff/singular_parse.cpp
+  theory/ff/singular_parse.h
   theory/ff/split_gb.cpp
   theory/ff/split_gb.h
   theory/ff/stats.cpp
