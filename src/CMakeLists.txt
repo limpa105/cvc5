@@ -1531,4 +1531,4 @@ endif()
 
 add_subdirectory(main)
 
-##configure_file("theory/arith/")
+#configure_file("theory/arith/modular/gb_input.txt",${CMAKE_BINARY_DIR}"/theory/arith/modular/gb_input.txt" )

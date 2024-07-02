@@ -57,7 +57,7 @@ class Field:  protected EnvObj {
 
         std::map<Node,int> myVariables;
 
-        std::vector<Node> myNodes;
+        std::set<Node> myNodes;
 
         std::set<Node> LearntLemmasFrom;
 
@@ -111,7 +111,7 @@ class RangeSolver : protected EnvObj
         
         std::map<Node,int> myVariables;
 
-        std::vector<Node> myNodes;
+        std::set<Node> myNodes;
 
         RangeSolver(Env& env, TheoryArith& parent);
 

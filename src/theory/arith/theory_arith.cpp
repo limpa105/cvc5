@@ -119,6 +119,7 @@ void TheoryArith::preRegisterTerm(TNode n)
 {
   if (d_modularExtension != nullptr)
   {
+    std::cout << "preregister" << n << "\n";
     d_modularExtension->preRegisterTerm(n);
     return;
   }

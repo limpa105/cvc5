@@ -24,6 +24,11 @@
 #include "util/statistics_registry.h"
 #include "util/utility.h"
 #include <cmath>
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <vector>
+#include <regex>
 //#include "theory/arith/modular/singular_encoder.h"
 // #include <CoCoA/BigInt.H>
 // #include <CoCoA/QuotientRing.H>
@@ -59,6 +64,7 @@ bool isVariableOrSkolem(Node node) {
     return node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM;
 }
 
+std::string singular_command = "ring r = (integer, {1}), ({2}), (C,wp({4})); ideal I= {5}; ideal G= std(I); G; quit;";
 
 std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field, std::map<std::string, Integer > upperBounds){
     //Variable;
@@ -150,7 +156,7 @@ void noCoCoALiza()
 }
 
 // TODO: Need to find max by iterating through equations.
-std::vector<long> getWeights(std::vector<Node> variables, std::map<std::string, Integer > upperBounds){
+std::vector<long> getWeights(std::set<Node> variables, std::map<std::string, Integer > upperBounds){
     std::vector<long> answer;
     for (auto i: variables){
         // std::ostringstream oss;
@@ -207,27 +213,92 @@ std::string ReplaceGBStringInput(std::string old, std::string input, std::string
 }
 
 
+
+// Function to parse and convert S-expression style equations
+std::string nodeToString(const Node node) {
+   std::cout << node << "\n";
+   if (node.getKind() == Kind::EQUAL){
+        AlwaysAssert(node[1].getConst<Rational>() == 0);
+        return nodeToString(node[0]);
+   }
+   std::string answer;
+   if (node.getNumChildren() > 0){
+   for (int i =0; i<node.getNumChildren(); i++){
+        if (node[i].getNumChildren()>0){
+            answer+= "(" + nodeToString(node[i]) + ")";
+        }
+        else {
+            answer+=nodeToString(node[i]);
+        }
+        if (i!= node.getNumChildren()-1){
+            std::stringstream ss;
+            ss << (node.getKind());
+            answer+= ss.str(); 
+        }
+    }
+   std::cout << "CHILD" << answer << "\n";
+   return answer;
+   }
+   std::cout << node << "\n";
+   return node.toString();
+}
+
+
 std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperBounds, NodeManager* nm, bool WeightedGB){
       if ((*F).equalities.size() <= 1) {
         return (*F).equalities;
       }
-    std::vector<long> weights = getWeights((*F).myNodes, upperBounds);
-    std::ifstream inputFile("example.txt");
+     std::vector<long> weights = getWeights((*F).myNodes, upperBounds);
+    // std::ifstream inputFile("theory/arith/modular/gb_input.txt");
 
-    // Check if the file was successfully opened
-    if (!inputFile.is_open()) {
-        AlwaysAssert(false) << "Singular GB input file does not exist";
-    }
+    // // Check if the file was successfully opened
+    // if (!inputFile.is_open()) {
+    //     AlwaysAssert(false) << "Singular GB input file does not exist";
+    // }
     // Read and print the contents of the file
-    std::string line;
-    std::getline(inputFile, line);
-    inputFile.close();
+    std::string line = singular_command;
+    //inputFile.close();
     std::stringstream ss;
     ss << (*F).modulos;
     line = ReplaceGBStringInput("{1}", line, ss);
+    ss.str("");
     ss.clear();
-    ss << (*F).myNodes;
+    //std::cout << (*F).myNodes.size() << "\n";
+    int bound_count = 0;
+    for (auto it = upperBounds.begin(); it != upperBounds.end(); ++it) {
+        ss << it->first;
+        if (std::next(it) != upperBounds.end()) {
+            ss << ",";
+        }
+    }
     line = ReplaceGBStringInput("{2}", line, ss);
+    ss.str("");
+    ss.clear();
+    
+    //std::cout << line << "\n";
+    // ss << upperBounds.size();
+    // line = ReplaceGBStringInput("{3}", line, ss);
+    // ss.str("");
+    // ss.clear();
+
+    for (auto it = weights.begin(); it != weights.end(); ++it) {
+        ss << *it;
+        if (std::next(it) != weights.end()) {
+            ss << ",";
+        }
+    }
+    line = ReplaceGBStringInput("{4}", line, ss);
+    ss.str("");
+    ss.clear();
+    std::cout << line << "\n";
+    for (auto it = (*F).equalities.begin(); it != (*F).equalities.end(); ++it) {
+        ss << nodeToString(nm->mkNode(Kind::SUB, (*it)[0], (*it)[1]));
+        if (std::next(it) != (*F).equalities.end()) {
+            ss << ",";
+        }
+    }
+    line = ReplaceGBStringInput("{5}", line, ss);
+    ss.str("");
     ss.clear();
     std::cout << line << "\n";
     AlwaysAssert(false);
@@ -999,10 +1070,11 @@ void RangeSolver::preRegisterTerm(TNode node){
     //     }
     //   }
         if (node.getKind() == Kind::VARIABLE ){
+            // if (upperBounds.count(node.getName())==0){
+            // myVariables[node] = myNodes.size();
+            myNodes.insert(node);
+            // }
             upperBounds[node.getName()] = BIGINT;
-            if (myVariables.count(node) == 0){
-            myVariables[node] = myNodes.size();
-            myNodes.push_back(node);
         }
       if (node.getKind() == Kind::CONST_INTEGER){
         Integer constant = node.getConst<Rational>().getNumerator();
@@ -1012,8 +1084,10 @@ void RangeSolver::preRegisterTerm(TNode node){
         }
         else if (fields.count(constant)==0){
             fields.insert(std::make_pair(constant, Field(d_env,constant)));
-      } } else {
+      } 
+      } else {
         if (node.getKind() == Kind::EQUAL) {
+            std::cout << "we are here\n";
             if (node[0].getKind() == Kind::INTS_MODULUS || node[0].getKind() == Kind::INTS_MODULUS_TOTAL){
                 Integer new_size = node[0][1].getConst<Rational>().getNumerator();
                  if (fields.count(new_size) == 0) {
@@ -1021,9 +1095,7 @@ void RangeSolver::preRegisterTerm(TNode node){
             }
         }
       }
-
     }
-}
 }
 
 
@@ -1087,8 +1159,9 @@ void RangeSolver::processFact(TNode fact){
             if (it != fields.end()) {
             //std::cout << "Adding Equality\n";
              it->second.addInequality(nm->mkNode(Kind::EQUAL, fact[0][0][0], nm->mkConstInt(0)));
-            } else {;
-            AlwaysAssert(false) << fact;
+            } else {
+            printSystemState();
+            AlwaysAssert(false) << fact[0][0];
         }
         }
         else {
@@ -1113,6 +1186,9 @@ Result RangeSolver::Solve(){
     int count = 0;
     bool WeightedGB = true;
     startLearningLemmas = false;
+    for (auto& fieldPair :fields){
+            fieldPair.second.myNodes = myNodes;
+        }
     while(true){
         count +=1;
         // if (count>2){
