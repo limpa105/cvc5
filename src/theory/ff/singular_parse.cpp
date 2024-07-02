@@ -66,11 +66,11 @@ Var Var::parse(std::string_view s)
 {
   size_t startP = s.find('(');
   Name name = std::string(s.substr(0, startP));
-  for (const char& c : name)
-  {
-    AlwaysAssert(std::isalpha(c))
-        << "Non alphabetic char " << c << " in: " << s;
-  }
+  // for (const char& c : name)
+  // {
+  //   AlwaysAssert(std::isalpha(c))
+  //       << "Non alphabetic char " << c << " in: " << s;
+  // }
   std::vector<Index> indices;
   while (startP != std::string_view::npos)
   {

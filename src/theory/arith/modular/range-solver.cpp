@@ -13,6 +13,7 @@
 #include "smt/env_obj.h"
 //#include "theory/arith/modular/int_cocoa_encoder.h"
 #include "theory/arith/modular/range-solver.h"
+#include "theory/ff/singular_parse.h"
 #include "util/cocoa_globals.h"
 #include "util/finite_field_value.h"
 #include "theory/decision_manager.h"
@@ -48,6 +49,8 @@
 
 
 using namespace cvc5::internal::kind;
+
+using namespace cvc5::internal::theory::ff::singular;
 
 namespace cvc5::internal {
 namespace theory {
@@ -241,6 +244,68 @@ std::string nodeToString(const Node node) {
    return node.toString();
 }
 
+// Copied from Alex Ozdemir
+
+/** Return the path a fresh a temporary file. */
+std::filesystem::path tmpPath()
+{
+  char name[L_tmpnam];
+  if (std::tmpnam(name))
+  {
+    return std::filesystem::path(name);
+  }
+  else
+  {
+    AlwaysAssert(false) << "Could not create tempfile";
+  }
+}
+
+std::filesystem::path writeToTmpFile(std::string contents)
+{
+  std::filesystem::path path = tmpPath();
+  std::ofstream f(path);
+  f << contents;
+  f.close();
+  return path;
+}
+
+std::string readFileToString(std::filesystem::path path)
+{
+  std::ifstream t(path);
+  std::stringstream buffer;
+  buffer << t.rdbuf();
+  return buffer.str();
+}
+
+/** Run Singular on this program and return the output. */
+std::string runSingular(std::string program)
+{
+  std::filesystem::path output = tmpPath();
+  std::filesystem::path input = writeToTmpFile(program);
+  std::stringstream commandStream;
+  commandStream << "Singular -q -t " << input << " > " << output;
+  std::string command = commandStream.str();
+  int exitCode = std::system(command.c_str());
+  Assert(exitCode == 0) << "Singular errored\nCommand: " << command;
+  std::string outputContents = readFileToString(output);
+  Assert(outputContents.find("?") == std::string::npos) << "Singular error:\n"
+                                                        << outputContents;
+  std::filesystem::remove(output);
+  std::filesystem::remove(input);
+  return outputContents;
+}
+
+
+Node monomialToNode(Monomial mono, NodeManager* nm, Field *F){
+    std::vector<Node> powers;
+    powers.push_back(nm->mkConstInt(mono.coeff));
+    for(auto i: mono.varPowers){
+        for (int j =0; j< i.power; j++){
+            powers.push_back((*F).myVariables[i.var.name]);
+        }
+    }
+    return nm->mkNode(Kind::MULT, powers);
+}
 
 std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperBounds, NodeManager* nm, bool WeightedGB){
       if ((*F).equalities.size() <= 1) {
@@ -298,10 +363,23 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
     line = ReplaceGBStringInput("{5}", line, ss);
     ss.str("");
     ss.clear();
-    std::string command = "Singular -q -t -c \" " + line + "\"";
+    //std::string command = "Singular -q -t -c \" " + line + "\"";
     //std::cout << line << "\n";
-    int result = system(command.c_str());
-    AlwaysAssert(false);
+    //int result = system(command.c_str());
+    //AlwaysAssert(false);
+    std::string output = runSingular(line);
+    std::vector<Polynomial> polys = parsePolynomialList(output);
+    // TODO CHECK IF GB HAS 1 IN IT!!! :) 
+    std::vector<Node> GBPolys;
+    for (auto p: polys){
+        std::vector<Node> products;
+        for (auto m: p.monomials){
+            products.push_back(monomialToNode(m, nm, F));
+        }
+        GBPolys.push_back(nm->mkNode(Kind::EQUAL, 
+        nm->mkNode(Kind::ADD, products), nm->mkConstInt(0)));
+    }
+    return GBPolys;
     
 
 
@@ -1071,7 +1149,7 @@ void RangeSolver::preRegisterTerm(TNode node){
     //   }
         if (node.getKind() == Kind::VARIABLE ){
             // if (upperBounds.count(node.getName())==0){
-            // myVariables[node] = myNodes.size();
+            myVariables[node.getName()] = node;
             myNodes.insert(node);
             // }
             upperBounds[node.getName()] = BIGINT;
@@ -1187,6 +1265,7 @@ Result RangeSolver::Solve(){
     startLearningLemmas = false;
     for (auto& fieldPair :fields){
             fieldPair.second.myNodes = myNodes;
+            fieldPair.second.myVariables = myVariables;
         }
     while(true){
         count +=1;

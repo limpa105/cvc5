@@ -55,7 +55,7 @@ class IntegerField: protected EnvObj{
 class Field:  protected EnvObj {
     public: 
 
-        std::map<Node,int> myVariables;
+        std::map<std::string, Node> myVariables;
 
         std::set<Node> myNodes;
 
@@ -109,7 +109,7 @@ class RangeSolver : protected EnvObj
     public:
 
         
-        std::map<Node,int> myVariables;
+         std::map<std::string, Node> myVariables;
 
         std::set<Node> myNodes;
 
