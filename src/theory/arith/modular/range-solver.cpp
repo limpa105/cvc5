@@ -29,6 +29,7 @@
 #include <sstream>
 #include <vector>
 #include <regex>
+#include <cstdlib>
 //#include "theory/arith/modular/singular_encoder.h"
 // #include <CoCoA/BigInt.H>
 // #include <CoCoA/QuotientRing.H>
@@ -216,7 +217,6 @@ std::string ReplaceGBStringInput(std::string old, std::string input, std::string
 
 // Function to parse and convert S-expression style equations
 std::string nodeToString(const Node node) {
-   std::cout << node << "\n";
    if (node.getKind() == Kind::EQUAL){
         AlwaysAssert(node[1].getConst<Rational>() == 0);
         return nodeToString(node[0]);
@@ -236,10 +236,8 @@ std::string nodeToString(const Node node) {
             answer+= ss.str(); 
         }
     }
-   std::cout << "CHILD" << answer << "\n";
    return answer;
    }
-   std::cout << node << "\n";
    return node.toString();
 }
 
@@ -300,7 +298,9 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, Integer > upperB
     line = ReplaceGBStringInput("{5}", line, ss);
     ss.str("");
     ss.clear();
-    std::cout << line << "\n";
+    std::string command = "Singular -q -t -c \" " + line + "\"";
+    //std::cout << line << "\n";
+    int result = system(command.c_str());
     AlwaysAssert(false);
     
 
@@ -1087,7 +1087,6 @@ void RangeSolver::preRegisterTerm(TNode node){
       } 
       } else {
         if (node.getKind() == Kind::EQUAL) {
-            std::cout << "we are here\n";
             if (node[0].getKind() == Kind::INTS_MODULUS || node[0].getKind() == Kind::INTS_MODULUS_TOTAL){
                 Integer new_size = node[0][1].getConst<Rational>().getNumerator();
                  if (fields.count(new_size) == 0) {
