@@ -110,6 +110,13 @@ Integer& Integer::operator*=(const Integer& y)
   return *this;
 }
 
+Integer Integer::moduloInverse( const Integer&mod) const
+{
+  mpz_class result;
+  mpz_invert(result.get_mpz_t(), d_value.get_mpz_t(), mod.d_value.get_mpz_t());
+  return Integer(result);
+}
+
 Integer Integer::bitwiseOr(const Integer& y) const
 {
   mpz_class result;

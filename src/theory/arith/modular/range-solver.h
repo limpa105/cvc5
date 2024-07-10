@@ -18,6 +18,9 @@ namespace modular_range_solver {
 
 // Forward Declaration 
 class Field;
+class RangeSolver;
+
+
 
 class IntegerField: protected EnvObj{
     public:
@@ -55,6 +58,12 @@ class IntegerField: protected EnvObj{
 class Field:  protected EnvObj {
     public: 
 
+        void CancelConstants();
+
+        Integer smallerInverse(Node fact);
+        
+        RangeSolver* solver;
+
         std::map<std::string, Node> myVariables;
 
         std::set<Node> myNodes;
@@ -63,7 +72,9 @@ class Field:  protected EnvObj {
 
         Result status = Result::UNKNOWN;
 
-        Field(Env & env, Integer modulos);
+        Field(Env & env, Integer modulos, RangeSolver* solver);
+
+        bool CheckIfInvSmaller(Node eq);
 
         Integer modulos;
  
@@ -87,7 +98,7 @@ class Field:  protected EnvObj {
 
         bool newEqualitySinceGB = false;
 
-        bool LearnLemmas(Node fact, std::map<std::string, Integer > upperBounds);
+        bool ShouldLearnLemmas(Node fact, std::map<std::string, Integer > upperBounds);
 
         std::vector<Node> lemmas;
 
@@ -137,12 +148,12 @@ class RangeSolver : protected EnvObj
 
         std::vector<Node> Lemmas;
 
+        std::map<Integer, Field> fields; 
+
 
     private:
 
         context::CDList<Node> d_facts;
-
-        std::map<Integer, Field> fields; 
 
         Result Solve();
 

@@ -65,6 +65,7 @@ auto& getLTerm(Sum& sum)
  */
 void normalizeLCoeffAbsOne(Sum& sum)
 {
+  return;
   if (sum.empty()) return;
   if (sum.size() == 1)
   {
@@ -96,6 +97,7 @@ void normalizeLCoeffAbsOne(Sum& sum)
  */
 bool normalizeGCDLCM(Sum& sum, bool followLCoeffSign = false)
 {
+  return false;
   if (sum.empty()) return false;
   Integer denLCM(1);
   Integer numGCD;

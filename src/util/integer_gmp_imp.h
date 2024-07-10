@@ -98,6 +98,7 @@ class Integer
   /** Overload multiplication assignment operator. */
   Integer& operator*=(const Integer& y);
 
+  Integer moduloInverse( const Integer &mod) const;
   /** Return the bit-wise or of this and the given Integer. */
   Integer bitwiseOr(const Integer& y) const;
   /** Return the bit-wise and of this and the given Integer. */
