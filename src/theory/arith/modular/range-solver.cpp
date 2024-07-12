@@ -506,8 +506,9 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
                 std::cout << "set status unsat?\n";
                 return GBPolys;
             }
-            } catch (const std::invalid_argument& e) { std::cout << output << "\n";
-            } catch (const std::out_of_range& e) { std::cout << output << "\n"; };
+            } catch (const std::invalid_argument& e) { //std::cout << output << "\n";
+            } catch (const std::out_of_range& e) { //std::cout << output << "\n"; }
+            };
         }
 
 
@@ -723,7 +724,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     // if (status == Result::UNSAT){
     //     return false;
     // }
-    //std::vector<Node> newPoly =  SimplifyViaGB(equalities, BIGINT, upperBounds, nm);
+    
     //clearEqualities();
     //for (Node poly: newPoly){
         //std::cout << "New Poly F:" << poly << "\n \n \n";
@@ -1035,7 +1036,7 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
     if (inField && std::find(equalities.begin(), equalities.end(), fact) == equalities.end()
         && fact.getKind() != Kind::CONST_BOOLEAN && fact.getKind()!=Kind::NULL_EXPR){
         AlwaysAssert(fact.getKind() == Kind::EQUAL) << fact;
-        GBAddition = true;
+        //GBAddition = true;
         if(!GBAddition){
             std::stringstream ss;
             ss.str("");
@@ -1063,16 +1064,16 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
                 return;
             }
             } catch (const std::invalid_argument& e) { 
-                std::cout << output << "\n";
+                //std::cout << output << "\n";
                 newEqualitySinceGB = true;
                 equalities.push_back(fact);
-                std::cout << "For:" << modulos << "\n";
+                //std::cout << "For:" << modulos << "\n";
                 return;
             } catch (const std::out_of_range& e) { 
-                std::cout << output << "\n"; 
+                //std::cout << output << "\n"; 
                 newEqualitySinceGB = true;
                 equalities.push_back(fact);
-                std::cout << "For:" << modulos << "\n";
+                //std::cout << "For:" << modulos << "\n";
                 return;
                 };
 
@@ -1193,7 +1194,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     //         //std::cout << equalities[i] << "\n";
     //     }
     //Lift(Integers, upperBounds,startLearningLemmas);
-     substituteVariables();
+     //substituteVariables();
     // std::cout << "finished sub\n";
     // std::cout << "Started UNSAT\n";
     // //CancelConstants();
@@ -1205,7 +1206,8 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     // // for (auto i: inequalities) {
     // //     std::cout << i << "\n";
     // // }
-    checkUnsat();
+    //checkUnsat();
+    // Lift(Integers, Bounds,startLearningLemmas);
      //substituteVariables();
     //std::cout << "Substitute Vars done \n";
     //substituteEqualities();
@@ -1715,11 +1717,12 @@ Result RangeSolver::Solve(){
             fieldPair.second.myVariables = myVariables;
         }
     while(true){
+        
         //std::cout << count << "\n";
-        // if (count>2){
-        //     AlwaysAssert(false);
-        // }
-        // count+=1;
+        if (count>2){
+         AlwaysAssert(false);
+        }
+        count+=1;
         //   if (count >=10){
         //      WeightedGB = false;
         //   }
@@ -1764,12 +1767,12 @@ Result RangeSolver::Solve(){
                 //std::cout << fieldPair.second.modulos << "\n";
             }
         }
-        // if (saturated && startLearningLemmas){
-        //         AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
-        // }
-        // if (saturated && !startLearningLemmas){
-        //     startLearningLemmas = true;
-        // }
+        if (saturated && startLearningLemmas){
+                AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
+        }
+        if (saturated && !startLearningLemmas){
+            startLearningLemmas = true;
+        }
     
         //   if (integerField.status == Result::SAT){
         //         //std::cout << "WE GOT SAT\n";
