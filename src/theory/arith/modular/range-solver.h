@@ -31,7 +31,7 @@ class IntegerField: protected EnvObj{
 
         std::vector<Node> inequalities;
 
-        bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, Integer > upperBounds);
+        bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > Bounds);
 
         void addEquality(Node equality);
 
@@ -41,7 +41,7 @@ class IntegerField: protected EnvObj{
 
         void addInequality(Node inequality);
 
-        void Lower(Field& field, std::map<std::string, Integer > upperBounds);
+        void Lower(Field& field, std::map<std::string, std::pair<Integer, Integer> > Bounds);
 
         void CancelConstants();
 
@@ -58,6 +58,8 @@ class IntegerField: protected EnvObj{
 class Field:  protected EnvObj {
     public: 
 
+        std::string mySingularReduce;
+        
         void CancelConstants();
 
         Integer smallerInverse(Node fact);
@@ -82,7 +84,7 @@ class Field:  protected EnvObj {
 
         std::vector<Node> inequalities;
 
-        void addEquality(Node equality, bool inField);
+        void addEquality(Node equality, bool inField,  bool GBAddition=false);
 
         void clearEqualities(){equalities.clear();};
 
@@ -92,19 +94,19 @@ class Field:  protected EnvObj {
 
         bool checkUnsat();
 
-        bool Simplify(IntegerField& Integers, std::map<std::string, Integer > upperBounds,bool WeightedGB, bool startLearningLemmas);
+        bool Simplify(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds,bool WeightedGB, bool startLearningLemmas);
 
         Node modOut(Node fact);
 
         bool newEqualitySinceGB = false;
 
-        bool ShouldLearnLemmas(Node fact, std::map<std::string, Integer > upperBounds);
+        bool ShouldLearnLemmas(Node fact, std::map<std::string, std::pair<Integer, Integer> > Bounds);
 
         std::vector<Node> lemmas;
 
         void clearAll(){inequalities.clear(); equalities.clear(); lemmas.clear(); status=Result::UNKNOWN;};
 
-        void Lift(IntegerField& integerField, std::map<std::string, Integer> upperBounds, bool LearnLemmas);
+        void Lift(IntegerField& integerField, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool LearnLemmas);
 
         void substituteEqualities();
 
@@ -126,7 +128,7 @@ class RangeSolver : protected EnvObj
 
         RangeSolver(Env& env, TheoryArith& parent);
 
-        std::map<std::string, Integer > upperBounds;
+       std::map<std::string, std::pair<Integer, Integer> > Bounds;
 
         void notifyFact(TNode fact);
 
