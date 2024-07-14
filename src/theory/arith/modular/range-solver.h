@@ -122,9 +122,11 @@ class RangeSolver : protected EnvObj
     public:
 
         
-         std::map<std::string, Node> myVariables;
+        std::map<std::string, Node> myVariables;
 
         std::set<Node> myNodes;
+
+        std::set<std::string> myNotVars;
 
         RangeSolver(Env& env, TheoryArith& parent);
 
