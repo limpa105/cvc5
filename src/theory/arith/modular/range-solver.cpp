@@ -71,12 +71,12 @@ bool isVariableOrSkolem(Node node) {
     return node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM;
 }
 
-std::string singular_command_weighted = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_weighted = "option(redSB); ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; ideal G= std(I); G; quit;";
 std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; reduce({6}, I); quit;";
-std::string singular_command_unweighted = "ring r = (integer, {1}), ({2}), (Dp); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_unweighted = "option(redSB); ring r = (integer, {1}), ({2}), (Dp); ideal I= {5}; ideal G= std(I); G; quit;";
 std::string singular_command_reduce_uw = "ring r = (integer, {1}), ({2}), (Dp); ideal I= {5}; reduce({6}, I); quit;";
 
-std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field, std::map<std::string, std::pair<Integer, Integer> > Bounds){
+std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool ineq=false){
     //TODO MAKE THIS NON OPTIONAL!!!!
     if (isVariableOrSkolem(fact)) {
         if (Bounds.find(fact.getName())!= Bounds.end()){
@@ -88,7 +88,7 @@ std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field
     // Constant
     if (fact.getKind() == Kind::CONST_INTEGER){
         Integer coef = fact.getConst<Rational>().getNumerator();
-        if (new_field.divides(coef)){
+        if (!ineq && new_field.divides(coef)){
             return std::make_pair(Integer(0), Integer(0));
         }
         return std::make_pair(coef, coef);
@@ -97,7 +97,7 @@ std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field
     if (fact.getKind() == Kind::MULT || fact.getKind()== Kind::NONLINEAR_MULT){
         std::pair<Integer,Integer> acmBounds = std::make_pair(Integer(1), Integer(1));
         for (int i=0; i<fact.getNumChildren(); i++){
-            std::optional<std::pair<Integer, Integer>> result = getBounds(fact[i], new_field, Bounds);
+            std::optional<std::pair<Integer, Integer>> result = getBounds(fact[i], new_field, Bounds, ineq);
             if (result.has_value()){
                 Integer p1 = acmBounds.first * result.value().first;
                 Integer p2 = acmBounds.second * result.value().second;
@@ -116,7 +116,7 @@ std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field
     AlwaysAssert(fact.getKind() == Kind::ADD) << fact;
     std::pair<Integer,Integer> acmBounds = std::make_pair(Integer(0), Integer(0));
     for (int i=0; i<fact.getNumChildren(); i++){
-         std::optional<std::pair<Integer, Integer>> result = getBounds(fact[i], new_field, Bounds);
+         std::optional<std::pair<Integer, Integer>> result = getBounds(fact[i], new_field, Bounds, ineq);
             if (result.has_value()){
                 acmBounds.first += result.value().first;
                 acmBounds.second += result.value().second;
@@ -169,13 +169,13 @@ void noCoCoALiza()
 
 
 // TODO: Need to find max by iterating through equations.
-std::vector<long> getWeights(std::set<Node> variables, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool weightedGB, std::set<std::string> notVars){
+std::vector<long> getWeights(std::map<std::string, Node> variables, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool weightedGB, std::set<std::string> notVars){
     std::vector<long> answer;
     for (auto i: variables){
         // std::ostringstream oss;
         // oss << i;
         // std::string symbol = d_symNodes[oss.str()].getName();
-        std::string symbol= i.getName();
+        std::string symbol= i.second.getName();
         //std::cout << i << "\n";
         // size_t pos = symbol.find("___");
         // if (pos != std::string::npos) {
@@ -212,6 +212,7 @@ std::vector<long> getWeights(std::set<Node> variables, std::map<std::string, std
             }
         }
         if (!weightedGB && notVars.find(symbol) !=notVars.end()){
+            std::cout << "SUBTRACTING WEIGHTS\n";
             answer[answer.size()-1] = std::min((answer[answer.size()-1] - 30), (long)0);
         }
     }
@@ -342,7 +343,7 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
         return (*F).equalities;
       }
       //std::cout << "Getting weights\n";
-     std::vector<long> weights = getWeights((*(*F).solver).myNodes, (*(*F).solver).Bounds, WeightedGB, (*(*F).solver).myNotVars);
+     std::vector<long> weights = getWeights((*(*F).solver).myVariables, (*(*F).solver).Bounds, WeightedGB, (*(*F).solver).myNotVars);
      //std::cout << "Got Weights\n";
     // std::ifstream inputFile("theory/arith/modular/gb_input.txt");
 
@@ -443,9 +444,11 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
     if(polys.size()==1 && polys[0]== Polynomial{{Monomial{1, {}}}}){
         return GBPolys;
     }
+    //std::cout << "OG GB\n";
     for (auto p: polys){
         std::vector<Node> products;
         for (auto m: p.monomials){
+            //std::cout << m << "\n";
             products.push_back(monomialToNode(m, nm, F));
         }
         GBPolys.push_back(nm->mkNode(Kind::EQUAL, 
@@ -508,7 +511,9 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
         }
         line = ReplaceGBStringInput("{5}", line, ss);
         (*F).mySingularReduce = line;
-
+        //std::cout << "we got here\n";
+       // std::cout << (*F).inequalities.size() << "\n";
+        if ((*F).inequalities.size() > 0){
         for(int i =0; i<(*F).inequalities.size(); i++){
             ss.str("");
             ss.clear();
@@ -530,8 +535,8 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
             } catch (const std::out_of_range& e) { //std::cout << output << "\n"; }
             };
         }
-
-
+        }
+       // std::cout << "but we did not get here\n";
 
 
     return GBPolys;
@@ -668,16 +673,17 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
     //   return newPoly;
 
 
-bool checkIfConstraintIsMet(Node equality, Integer modulos, std::map<std::string, std::pair<Integer, Integer> > Bounds){
+bool checkIfConstraintIsMet(Node equality, Integer modulos, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool ineq = false){
    // std::cout << "EQ:" << equality << "\n";
-    if (auto LHS  = getBounds(equality[0], modulos, Bounds) ){
+    if (auto LHS  = getBounds(equality[0], modulos, Bounds, ineq) ){
         //std::cout << "LHS" << LHS.value() << "\n";
-        if (auto RHS  = getBounds(equality[1], modulos, Bounds) ){
+        if (auto RHS  = getBounds(equality[1], modulos, Bounds, ineq) ){
             //Subtract LHS - RHS 
             Integer upper = LHS.value().second - RHS.value().first;
             Integer lower = LHS.value().first  - RHS.value().second;
             //std::cout << "[" << lower << "," << upper << "]" << "\n";
             if (lower.abs() >= modulos){
+                //std::cout << "failed lower\n";
                 return false;
             }
              if (upper.abs() >= modulos){
@@ -732,11 +738,11 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     //std::cout << "STARTED INTEGERS\n";
     //CancelConstants();
     NodeManager* nm = NodeManager::currentNM();
-    // checkUnsat();
+    checkUnsat();
     // if (status == Result::UNSAT){
     //     return false;
     // }
-    
+    substituteVariables();
     //clearEqualities();
     //for (Node poly: newPoly){
         //std::cout << "New Poly F:" << poly << "\n \n \n";
@@ -773,11 +779,11 @@ void IntegerField::Lower(Field& field, std::map<std::string, std::pair<Integer, 
     for (int i=0; i<equalities.size(); i++){
             field.addEquality(equalities[i], false);
 // Need to check if can lower 
-       // for (int i=processedInEqualitiesIndex; i<inequalities.size(); i++){
-            //if (checkIfConstraintIsMet(inequalities[i], field.modulos, upperBounds)){
-                //field.addInequality(inequalities[i]);
-            //}
-        //}
+    for (int i=0; i<inequalities.size(); i++){
+        if (checkIfConstraintIsMet(inequalities[i], field.modulos, Bounds, true)){
+                field.addInequality(inequalities[i]);
+        }
+    }
 
 }
 }
@@ -1043,59 +1049,65 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
     if (fact.getKind() == Kind::CONST_BOOLEAN){
         if (fact.getConst<bool>() == false){
             status = Result::UNSAT;
+            //std::cout << "WE ARE HERE TM\n";
         }
+        return;
     } 
     if (inField && std::find(equalities.begin(), equalities.end(), fact) == equalities.end()
         && fact.getKind() != Kind::CONST_BOOLEAN && fact.getKind()!=Kind::NULL_EXPR){
         AlwaysAssert(fact.getKind() == Kind::EQUAL) << fact;
-        GBAddition = true;
+        //GBAddition = true;
         if(!GBAddition){
-            std::stringstream ss;
-            ss.str("");
-            ss.clear();
-            NodeManager* nm = NodeManager::currentNM();
-            ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, fact[0], fact[1])));
-            // if (mySingularReduce.empty()){
+            // std::stringstream ss;
+            // ss.str("");
+            // ss.clear();
+            // NodeManager* nm = NodeManager::currentNM();
+            // ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, fact[0], fact[1])));
+            // // if (mySingularReduce.empty()){
             //     newEqualitySinceGB = true;
             //     equalities.push_back(fact);
             //     return;
             // }
+            //std::cout << "NEW EQUALITY" << fact << "\n";
             newEqualitySinceGB = true;
             equalities.push_back(fact);
-            std::string line = mySingularReduce;
-            line = ReplaceGBStringInput("{6}", line, ss);
-            // std::cout << "About to run Singular\n";
-            // std::cout << line << "\n";
-            // std::cout << "running Singular\n";
-            std::string output = runSingular(line);
-            // std::cout << "ran singular\n";
-            size_t pos =output.find('\n');
-            std::string result = output.substr(pos + 1);
-            //std::cout << line <<"\n";
-            //std::cout << output << "\n" ;
-            try{
-            if (std::stoi(result) == 0){
-                return;
-            }
-            } catch (const std::invalid_argument& e) { 
-                //std::cout << output << "\n";
-                newEqualitySinceGB = true;
-                equalities.push_back(fact);
-                //std::cout << "For:" << modulos << "\n";
-                return;
-            } catch (const std::out_of_range& e) { 
-                //std::cout << output << "\n"; 
-                newEqualitySinceGB = true;
-                equalities.push_back(fact);
-                //std::cout << "For:" << modulos << "\n";
-                return;
-                };
+            ALLequalities.push_back(fact);
+            return;
+            //std::string line = mySingularReduce;
+            // line = ReplaceGBStringInput("{6}", line, ss);
+            // // std::cout << "About to run Singular\n";
+            // // std::cout << line << "\n";
+            // // std::cout << "running Singular\n";
+            // std::string output = runSingular(line);
+            // // std::cout << "ran singular\n";
+            // size_t pos =output.find('\n');
+            // std::string result = output.substr(pos + 1);
+            // //std::cout << line <<"\n";
+            // //std::cout << output << "\n" ;
+            // try{
+            // if (std::stoi(result) == 0){
+            //     return;
+            // }
+            // } catch (const std::invalid_argument& e) { 
+            //     //std::cout << output << "\n";
+            //     newEqualitySinceGB = true;
+            //     equalities.push_back(fact);
+            //     //std::cout << "For:" << modulos << "\n";
+            //     return;
+            // } catch (const std::out_of_range& e) { 
+            //     //std::cout << output << "\n"; 
+            //     newEqualitySinceGB = true;
+            //     equalities.push_back(fact);
+            //     //std::cout << "For:" << modulos << "\n";
+            //     return;
+               // };
 
         }
 
         //if(inField){
         newEqualitySinceGB = true;
         equalities.push_back(fact);
+        ALLequalities.push_back(fact);
         return;
         //return;
     } else if (!inField) {
@@ -1192,6 +1204,13 @@ bool Field::ShouldLearnLemmas(Node fact,std::map<std::string, std::pair<Integer,
 
 void Field::addInequality(Node fact){
     fact = rewrite(fact);
+    if (fact.getKind() == Kind::CONST_BOOLEAN){
+        if (fact.getConst<bool>() == true){
+            status = Result::UNSAT;
+            //std::cout << "WE ARE HERE TM\n";
+        }
+        return;
+    }
     NodeManager* nm = NodeManager::currentNM();
     Node LHS = modOut(fact[0]);
     Node RHS = modOut(fact[1]);
@@ -1202,13 +1221,13 @@ void Field::addInequality(Node fact){
 };
 
 
-bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool WeightedGB, bool startLearningLemmas){
-    std::cout << "Starting field simplifcation \n";
+bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool WeightedGB, int startLearningLemmas){
+    //std::cout << "Starting field simplifcation \n";
     // for (int i =0; i< equalities.size(); i++) {
     //         //std::cout << equalities[i] << "\n";
     //     }
     //Lift(Integers, upperBounds,startLearningLemmas);
-    //substituteVariables();
+    substituteVariables();
     // std::cout << "finished sub\n";
     // std::cout << "Started UNSAT\n";
     // //CancelConstants();
@@ -1222,7 +1241,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     // // }
     //checkUnsat();
     // Lift(Integers, Bounds,startLearningLemmas);
-     //substituteVariables();
+    //substituteVariables();
     //std::cout << "Substitute Vars done \n";
     //substituteEqualities();
     //std::cout << "Substitute Eqs done \n";
@@ -1230,13 +1249,15 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     if (status == Result::UNSAT){
         return false;
     }
-    // std::cout << "Finished UNSAT\n";
+    //std::cout << "Finished UNSAT\n";
     
     NodeManager* nm = NodeManager::currentNM();
     if (newEqualitySinceGB ){
         //std::cout << "STARING GB\n";
         std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, WeightedGB);
         //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
+         //std::cout << "Finished GB\n";
+         //std::cout << newPoly.size() << "\n";
         if (newPoly.size() == 0 && equalities.size()!=0){
             //std::cout << equalities.size() << "\n";
             std::cout << "GB FAULT \n";
@@ -1247,11 +1268,16 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
             return false;
             std::cout << "GB TOOK TOO LONG\n";
         }
-        //std::cout <<  "Finished GB\n";
+        //std::cout <<  "Finished GB check\n";
         clearEqualities();
         for (Node poly: newPoly){
             //std::cout << "New Poly F:" << poly << "\n";
-            // std::cout << "New Poly F:" << rewrite(poly) << "\n";
+            if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
+                rewrite(poly).getConst<bool>() == false){
+                     status = Result::UNSAT;
+                     //AlwaysAssert(lemmas.size()==0) << modulos;
+                    return false;
+            }
             addEquality(rewrite(poly), false, true);
             //std::cout << "WHAT\n";
         }
@@ -1334,14 +1360,59 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     return true;
 };
 
+bool isIntersectionNotEmpty(const std::set<std::string>& set1, const std::set<std::string>& set2) {
+    // Check if any of the sets are empty
+    if (set1.empty() || set2.empty()) {
+        return false;
+    }
+    
+    // Create a vector to store the intersection
+    std::vector<std::string> intersection;
 
-void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool LearnLemmas){
+    // Find the intersection of the two sets
+    std::set_intersection(set1.begin(), set1.end(),
+                          set2.begin(), set2.end(),
+                          std::back_inserter(intersection));
+
+    // Return true if the intersection is not empty
+    return !intersection.empty();
+}
+
+void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Integer, Integer> > Bounds, int LearnLemmas){
      for (int i=0; i<equalities.size(); i++){
         if (checkIfConstraintIsMet(equalities[i], modulos, Bounds)){
             integerField.addEquality(equalities[i]);
         }
-        else if(LearnLemmas){
+        else if(LearnLemmas == 1){
+        // && LearntLemmasFrom.find(equalities[i])==LearntLemmasFrom.end()){
             ShouldLearnLemmas(equalities[i], Bounds);
+            //LearntLemmasFrom.insert(equalities[i]);
+        }
+        else if(LearnLemmas == 2 && LearntLemmasFrom.find(equalities[i])==LearntLemmasFrom.end()
+        && isIntersectionNotEmpty(getVarsHelper(equalities[i]), (*solver).myNotVars)){
+        // && LearntLemmasFrom.find(equalities[i])==LearntLemmasFrom.end()){
+            // std::cout << "TRY TO RANGE LIFT:" << equalities[i] << "for" << modulos<< "\n";
+            // std::cout << equalities[i][1].getNumChildren()  << "\n";
+            // std::cout <<  checkIfConstraintIsMet(equalities[i], modulos*2, Bounds) << "\n";
+            if (equalities[i][1].getNumChildren() > 0 && checkIfConstraintIsMet(equalities[i], modulos*2, Bounds)){
+                std::cout << "RANGE LIFT:" << equalities[i] << "\n";
+                //AlwaysAssert(false);
+                NodeManager* nm = NodeManager::currentNM();
+                SkolemManager* sm = nm->getSkolemManager();
+                Node sk = sm->mkDummySkolem("Q_HOLDER", nm->integerType());
+                (*solver).myNodes.insert(sk);
+                (*solver).myVariables[sk.getName()] = sk;
+                lemmas.push_back(rewrite(nm->mkNode(Kind::EQUAL, equalities[i][0], 
+                nm->mkNode(Kind::ADD, equalities[i][1],nm->mkNode(Kind::MULT, sk, nm->mkConstInt(Integer(modulos)))))));
+                lemmas.push_back(rewrite(nm->mkNode(Kind::OR,
+                                nm->mkNode(Kind::EQUAL, sk, nm->mkConstInt(Integer(0))),
+                                 nm->mkNode(Kind::EQUAL, sk, nm->mkConstInt(Integer(1))))));
+                std::cout << "LOOOK HERE!!!" << sk.getName() << "\n";
+                (*solver).Bounds[sk.getName()] = std::make_pair(0,2);
+                LearntLemmasFrom.insert(equalities[i]);
+                status = Result::UNSAT;
+                return;
+        }
         }
         else {
             Integer inv = smallerInverse(equalities[i]);
@@ -1433,80 +1504,175 @@ Node Field::subVarHelper(Node fact, Node ogf, Node newf) {
         return nm->mkNode(fact.getKind(), children);
     }
     return fact;
+}
+
+Node IntegerField::subVarHelper(Node fact, Node ogf, Node newf) {
+    //  std::cout << 'Fact' << fact << "\n";
+    //  std::cout << 'OGF' << ogf << "\n";
+    //  std::cout << "Equality:" << (fact==ogf) << "\n";
+    if (fact == ogf){
+        return newf;
+    }
+    if (fact.getNumChildren()!=0){
+        std::vector<Node> children ;
+        for (int i =0; i<fact.getNumChildren(); i++){
+            children.push_back(subVarHelper(fact[i], ogf, newf));
+        }
+        NodeManager* nm = NodeManager::currentNM();
+        return nm->mkNode(fact.getKind(), children);
+    }
+    return fact;
 
 }
 
-void Field::substituteVariables(){
-    if (equalities.size() == 0 || inequalities.size() == 0){
+void IntegerField::substituteVariables(){
+    if (equalities.size() <= 1){ 
         return;
     }
-//std::cout << "Substitute variables\n";
-    for (int i = 0; i<equalities.size(); i++){
+    //std::vector<Node> neqEq;
+    for (int i =0; i<equalities.size(); i++){
         Node fact = equalities[i];
-        //std::cout << "We are here?" << fact << "\n";
-    if ( (isVariableOrSkolem(fact[0]) 
-        &&  isVariableOrSkolem(fact[1]) )|| 
-       (isVariableOrSkolem(fact[0]) && 
-        fact[1].getKind() == Kind::CONST_INTEGER
-        )){
-        std::vector<Node> new_inequalities;
-            for(Node assert: inequalities){
-                if (assert!=fact){
-                //      std::cout << "STARTING";
-                //      std::cout << "EQ:" << fact << "\n";
-                //      std::cout << "INEQ:" << assert << "\n";
-                Node new_ineq = subVarHelper(assert, fact[0], fact[1]);
-                // std::cout << "NEW INEQ:" << new_ineq << "\n";
-                 new_ineq = rewrite(new_ineq);
-                // std::cout << "NEW INEQ REWRITE:" << new_ineq << "\n";
-                if(new_ineq.getKind() == Kind::CONST_BOOLEAN){
-                    if (new_ineq.getConst<bool>() == false){
-                        //  std::cout << "INEQ"<< assert << "\n";
-                        //  std::cout << "FACT" << fact << "\n";
-                        // AlwaysAssert(false);
-                        // new_inequalities.push_back(assert);
-                    }
-                    if (new_ineq.getConst<bool>() == true){
-                        // std::cout << "SUB VARS\n";
-                        // std::cout << assert << "\n";
-                        // std::cout << fact << "\n";
-                        status = Result::UNSAT;
-                        return;
-                    }
-                } else {
-                new_inequalities.push_back(new_ineq);}
-                }
+        //std::cout << "FACT:" << fact << "\n";
+        if (isVariableOrSkolem(fact[0]) && fact[1].getKind() == Kind::CONST_INTEGER){
+            for (int j=0; j<equalities.size(); j++){
+                if (j!=i){
+                //std::cout << "OLD:" << equalities[j] << "\n";  
+                equalities[j] = subVarHelper(equalities[j], equalities[i][0], equalities[i][1]);   
+                //std::cout << "NEW:" << equalities[j] << "\n";
+                //std::cout << "REW:" << rewrite(equalities[j]) << "\n";
+                }   
             }
-        // if (isVariableOrSkolem(fact[1])){
-        //             Node new_ineq = rewrite(subVarHelper(assert, fact[1], fact[0]));
-        //         if(new_ineq.getKind() == Kind::CONST_BOOLEAN){
-        //             if (new_ineq.getConst<bool>() == false){
-        //                 // std::cout << "OH NO!!!!!"  << "\n";
-        //                 // std::cout << fact << "\n";
-        //                 // std::cout << assert << "\n";
-        //                 AlwaysAssert(false);
-        //                  new_inequalities.push_back(assert);
-        //             }
-        //             if (new_ineq.getConst<bool>() == true){
-        //                 std::cout << "SUB VARS\n";
-        //                 std::cout << assert << "\n";
-        //                 std::cout << fact << "\n";
-        //                  status = Result::UNSAT;
-        //                 return;
-        //             }
-        //         } else {
-        //         new_inequalities.push_back(new_ineq);}
-        //         }
-        //         } else {
-        //             status = Result::UNSAT;
-        //             return;
-        //         }
-        //     }
-        //clearInequalities();
-        for(auto j:new_inequalities){
-            addInequality(j);
+            for (int k=0; k<inequalities.size(); k++){
+                inequalities[k] = rewrite(subVarHelper(inequalities[k], equalities[i][0], equalities[i][1]));
+                if (inequalities[k].getKind() == Kind::CONST_BOOLEAN && inequalities[k].getConst<bool>()== false){
+                    inequalities.erase(inequalities.begin()+k);
+                    k--;
+                } 
+                // std::cout << "NEW:" << inequalities[k] << "\n";
+                // std::cout << "REW:" << rewrite(inequalities[k]) << "\n"; 
+            }
+            // equalities.erase(equalities.begin()+i);
+            //  i--;
         }
     }
+    // std::cout << "Equalities\n";
+    // for (int i =0; i<equalities.size(); i++){
+    //     std::cout << equalities[i] << "\n";
+    // }
+
+}
+
+
+void Field::substituteVariables(){
+    if (equalities.size() == 0){ 
+        return;
+    }
+    //std::vector<Node> neqEq;
+    for (int i =0; i<equalities.size(); i++){
+        //std::cout << "Starting new fac loop\n";
+        Node fact = equalities[i];
+        //std::cout << "FACT:" << fact << "\n";
+        if (isVariableOrSkolem(fact[0]) && fact[1].getKind() == Kind::CONST_INTEGER){
+            for (int j=0; j<equalities.size(); j++){
+                if (j!=i){
+                //std::cout << "OLD:" << equalities[j] << "\n";  
+                equalities[j] = subVarHelper(equalities[j], equalities[i][0], equalities[i][1]);   
+                // std::cout << "NEW:" << equalities[j] << "\n";
+                // std::cout << "REW:" << rewrite(equalities[j]) << "\n";
+                }   
+            }
+            for (int k=0; k<inequalities.size(); k++){
+                inequalities[k] = rewrite(subVarHelper(inequalities[k], equalities[i][0], equalities[i][1]));
+                if (inequalities[k].getKind() == Kind::CONST_BOOLEAN && inequalities[k].getConst<bool>()== false){
+                    inequalities.erase(inequalities.begin()+k);
+                    k--;
+                } 
+                // std::cout << "NEW:" << inequalities[k] << "\n";
+                // std::cout << "REW:" << rewrite(inequalities[k]) << "\n"; 
+            }
+        }
+        //std::cout << "Finished fact loop\n";
+    }
+    // std::cout << "Finished subs\n";
+    // std::cout << "Equalities\n";
+    // for (int i =0; i<equalities.size(); i++){
+    //     std::cout << equalities[i] << "\n";
+    // }
+    // std::cout << "InEqualities\n";
+    // for (int i =0; i<inequalities.size(); i++){
+    //     std::cout << inequalities[i] << "\n";
+    // }
+    // std::cout << "Done\n";
+
+}
+
+//std::cout << "Substitute variables\n";
+    // for (int i = 0; i<equalities.size(); i++){
+    //     Node fact = equalities[i];
+    //     //std::cout << "We are here?" << fact << "\n";
+    // if ( (isVariableOrSkolem(fact[0]) 
+    //     &&  isVariableOrSkolem(fact[1]) )|| 
+    //    (isVariableOrSkolem(fact[0]) && 
+    //     fact[1].getKind() == Kind::CONST_INTEGER
+    //     )){
+    //     std::vector<Node> new_inequalities;
+    //         for(Node assert: inequalities){
+    //             if (assert!=fact){
+    //             //      std::cout << "STARTING";
+    //             //      std::cout << "EQ:" << fact << "\n";
+    //             //      std::cout << "INEQ:" << assert << "\n";
+    //             Node new_ineq = subVarHelper(assert, fact[0], fact[1]);
+    //             // std::cout << "NEW INEQ:" << new_ineq << "\n";
+    //              new_ineq = rewrite(new_ineq);
+    //             // std::cout << "NEW INEQ REWRITE:" << new_ineq << "\n";
+    //             if(new_ineq.getKind() == Kind::CONST_BOOLEAN){
+    //                 if (new_ineq.getConst<bool>() == false){
+    //                     //  std::cout << "INEQ"<< assert << "\n";
+    //                     //  std::cout << "FACT" << fact << "\n";
+    //                     // AlwaysAssert(false);
+    //                     // new_inequalities.push_back(assert);
+    //                 }
+    //                 if (new_ineq.getConst<bool>() == true){
+    //                     // std::cout << "SUB VARS\n";
+    //                     // std::cout << assert << "\n";
+    //                     // std::cout << fact << "\n";
+    //                     status = Result::UNSAT;
+    //                     return;
+    //                 }
+    //             } else {
+    //             new_inequalities.push_back(new_ineq);}
+    //             }
+    //         }
+    //     // if (isVariableOrSkolem(fact[1])){
+    //     //             Node new_ineq = rewrite(subVarHelper(assert, fact[1], fact[0]));
+    //     //         if(new_ineq.getKind() == Kind::CONST_BOOLEAN){
+    //     //             if (new_ineq.getConst<bool>() == false){
+    //     //                 // std::cout << "OH NO!!!!!"  << "\n";
+    //     //                 // std::cout << fact << "\n";
+    //     //                 // std::cout << assert << "\n";
+    //     //                 AlwaysAssert(false);
+    //     //                  new_inequalities.push_back(assert);
+    //     //             }
+    //     //             if (new_ineq.getConst<bool>() == true){
+    //     //                 std::cout << "SUB VARS\n";
+    //     //                 std::cout << assert << "\n";
+    //     //                 std::cout << fact << "\n";
+    //     //                  status = Result::UNSAT;
+    //     //                 return;
+    //     //             }
+    //     //         } else {
+    //     //         new_inequalities.push_back(new_ineq);}
+    //     //         }
+    //     //         } else {
+    //     //             status = Result::UNSAT;
+    //     //             return;
+    //     //         }
+    //     //     }
+    //     //clearInequalities();
+    //     for(auto j:new_inequalities){
+    //         addInequality(j);
+    //     }
+    //}
     // if  (isVariableOrSkolem(fact[1]) && !isVariableOrSkolem(fact[0])){
     //     std::vector<Node> new_inequalities;
     //         for(Node assert: inequalities){
@@ -1540,8 +1706,8 @@ void Field::substituteVariables(){
         // }
 
     //}
-    }
-    }
+    // }
+    // }
 
 
 bool Field::checkUnsat(){
@@ -1693,7 +1859,7 @@ void RangeSolver::processFact(TNode fact){
     else if (fact.getKind() == Kind::NOT){
         AlwaysAssert(fact[0].getKind()== Kind::EQUAL) << fact;
         std::set<std::string> newNotVars = getVarsHelper(fact[0]);
-        std::cout << "got here\n";
+        //std::cout << "got here\n";
         myNotVars.insert(newNotVars.begin(), newNotVars.end());
         if (fact[0][0].getKind() == Kind::INTS_MODULUS || fact[0][0].getKind() == Kind::INTS_MODULUS_TOTAL){
             Integer size = fact[0][0][1].getConst<Rational>().getNumerator();
@@ -1702,7 +1868,7 @@ void RangeSolver::processFact(TNode fact){
             //std::cout << "Adding Equality\n";
              it->second.addInequality(nm->mkNode(Kind::EQUAL, fact[0][0][0], nm->mkConstInt(0)));
             } else {
-            printSystemState();
+            //printSystemState();
             AlwaysAssert(false) << fact[0][0];
         }
         }
@@ -1727,7 +1893,7 @@ Result RangeSolver::Solve(){
     //std::cout << "We are here\n";
     int count = 0;
     bool WeightedGB = true;
-    startLearningLemmas = false;
+    int startLearningLemmas = 0;
     for (auto& fieldPair :fields){
             fieldPair.second.newEqualitySinceGB = true;
             fieldPair.second.myNodes = myNodes;
@@ -1741,20 +1907,30 @@ Result RangeSolver::Solve(){
     // }
     count+=1;
       if (count >=10){
-        startLearningLemmas = true;
-             
+        startLearningLemmas = 1;    
        }
-        if (count >=15){
-            WeightedGB = false;
-             //startLearningLemmas = true;
-           }
-       if (count >=20){
+      if (count >=25){
+           WeightedGB = false;
+           startLearningLemmas = 0;
+        }
+    //          //startLearningLemmas = true;
+    //     }
+        if (count >=20){
+         WeightedGB = true;
+          startLearningLemmas = 2;
+        //      //startLearningLemmas = true;
+         }
+       if (count >=30){
              AlwaysAssert(false);
-           }
+     }
         printSystemState();
         //std::cout << "FINISHED INTEGERS\n";
         for (auto& fieldPair :fields){
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
+            if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0){
+                return Result::UNSAT;
+            }
+
         }
         integerField.Simplify(fields, Bounds);
         if (integerField.status == Result::UNSAT){
@@ -1766,7 +1942,7 @@ Result RangeSolver::Solve(){
         for (auto fieldPair :fields){
             saturated = true;
             if (fieldPair.second.status == Result::UNSAT){
-                std::cout << "WE HERE\n";
+                //std::cout << "WE HERE\n";
                 if (fieldPair.second.lemmas.size()> 0){
                     Lemmas = fieldPair.second.lemmas;
                     //std::cout << "LEARNED NEW LEMMA" << Lemma << "\n";
@@ -1777,7 +1953,7 @@ Result RangeSolver::Solve(){
 
                 }
                 //std::cout << "UNSAT\n";
-                printSystemState();
+                //printSystemState();
                 fieldPair.second.status = Result::UNKNOWN;
                 return Result::UNSAT;
             }
@@ -1789,12 +1965,12 @@ Result RangeSolver::Solve(){
         //  if (saturated && !WeightedGB & startLearningLemmas){
         //     AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
         //  }
-        // if (saturated && !WeightedGB){
+        // if (saturated && startLearningLemmas){
         //         //AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
-        //     startLearningLemmas = true ;
+        //    WeightedGB = false ;
         // }
-        // if (saturated && WeightedGB){
-        //    WeightedGB = false;
+        // if (saturated){
+        //     startLearningLemmas = true;
         //      //AlwaysAssert(false);
         // }
     

@@ -27,6 +27,8 @@ class IntegerField: protected EnvObj{
 
         IntegerField(Env &env);
 
+         Node subVarHelper(Node fact, Node ogf, Node newf);
+
         std::vector<Node> equalities;
 
         std::vector<Node> inequalities;
@@ -38,6 +40,8 @@ class IntegerField: protected EnvObj{
         void clearEqualities(){equalities.clear();};
 
         void clearInequalities(){inequalities.clear();};
+
+        void substituteVariables();
 
         void addInequality(Node inequality);
 
@@ -70,7 +74,7 @@ class Field:  protected EnvObj {
 
         std::set<Node> myNodes;
 
-        std::set<Node> LearntLemmasFrom;
+        std::set<Node> LearntLemmasFrom = {};
 
         Result status = Result::UNKNOWN;
 
@@ -81,6 +85,8 @@ class Field:  protected EnvObj {
         Integer modulos;
  
         std::vector<Node> equalities;
+
+         std::vector<Node> ALLequalities;
 
         std::vector<Node> inequalities;
 
@@ -94,7 +100,7 @@ class Field:  protected EnvObj {
 
         bool checkUnsat();
 
-        bool Simplify(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds,bool WeightedGB, bool startLearningLemmas);
+        bool Simplify(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds,bool WeightedGB, int startLearningLemmas);
 
         Node modOut(Node fact);
 
@@ -106,7 +112,7 @@ class Field:  protected EnvObj {
 
         void clearAll(){inequalities.clear(); equalities.clear(); lemmas.clear(); status=Result::UNKNOWN;};
 
-        void Lift(IntegerField& integerField, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool LearnLemmas);
+        void Lift(IntegerField& integerField, std::map<std::string, std::pair<Integer, Integer> > Bounds, int LearnLemmas);
 
         void substituteEqualities();
 
