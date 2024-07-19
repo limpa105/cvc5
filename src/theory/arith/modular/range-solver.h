@@ -27,7 +27,7 @@ class IntegerField: protected EnvObj{
 
         IntegerField(Env &env);
 
-         Node subVarHelper(Node fact, Node ogf, Node newf);
+        Node subVarHelper(Node fact, Node ogf, Node newf);
 
         std::vector<Node> equalities;
 

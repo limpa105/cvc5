@@ -1905,24 +1905,24 @@ Result RangeSolver::Solve(){
     // if (count>3){
     //  AlwaysAssert(false);
     // }
-    count+=1;
-      if (count >=10){
-        startLearningLemmas = 1;    
-       }
-      if (count >=25){
-           WeightedGB = false;
-           startLearningLemmas = 0;
-        }
-    //          //startLearningLemmas = true;
+    // count+=1;
+    //   if (count >=10){
+    //     startLearningLemmas = 1;    
+    //    }
+    //   if (count >=25){
+    //        WeightedGB = false;
+    //        startLearningLemmas = 0;
     //     }
-        if (count >=20){
-         WeightedGB = true;
-          startLearningLemmas = 2;
-        //      //startLearningLemmas = true;
-         }
-       if (count >=30){
-             AlwaysAssert(false);
-     }
+    // //          //startLearningLemmas = true;
+    // //     }
+    //     if (count >=20){
+    //      WeightedGB = true;
+    //       startLearningLemmas = 2;
+    //     //      //startLearningLemmas = true;
+    //      }
+    //    if (count >=30){
+    //          AlwaysAssert(false);
+    //  }
         printSystemState();
         //std::cout << "FINISHED INTEGERS\n";
         for (auto& fieldPair :fields){
@@ -1962,14 +1962,16 @@ Result RangeSolver::Solve(){
                 //std::cout << fieldPair.second.modulos << "\n";
             }
         }
-        //  if (saturated && !WeightedGB & startLearningLemmas){
-        //     AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
-        //  }
+        if (saturated && startLearningLemmas){
+            AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
+        }
         // if (saturated && startLearningLemmas){
         //         //AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
         //    WeightedGB = false ;
         // }
-        // if (saturated){
+        if (saturated){
+            startLearningLemmas = 2;
+        }
         //     startLearningLemmas = true;
         //      //AlwaysAssert(false);
         // }
