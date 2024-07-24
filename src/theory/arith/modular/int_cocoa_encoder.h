@@ -62,11 +62,13 @@ class CocoaEncoder
 {
  public:
   /** Create a new encoder, for this field. */
-  CocoaEncoder(){};
+  CocoaEncoder(Integer m){modulus = m;};
   /** Add a fact (one must call this twice per fact, once per stage). */
   void addFact(const Node& fact);
   /** Start Stage::Encode. */
   void endScan();
+
+  Integer modulus;
   /**
    * Get the polys who's common zero we are finding (excluding bitsums).
    * Available in Stage::Encode.

@@ -11,7 +11,7 @@
 #include "expr/skolem_manager.h"
 #include "options/ff_options.h"
 #include "smt/env_obj.h"
-//#include "theory/arith/modular/int_cocoa_encoder.h"
+#include "theory/arith/modular/int_cocoa_encoder.h"
 #include "theory/arith/modular/range-solver.h"
 #include "theory/ff/singular_parse.h"
 #include "util/cocoa_globals.h"
@@ -34,22 +34,22 @@
 #include <thread>
 #include <future>
 #include <chrono>
-//#include "theory/arith/modular/singular_encoder.h"
+//#include "theory/ff/multi_roots.h"
 // #include <CoCoA/BigInt.H>
 // #include <CoCoA/QuotientRing.H>
 // #include <CoCoA/RingZZ.H>
 // #include <CoCoA/RingQQ.H>
 // #include <CoCoA/TmpGReductor.H>
-// #include <CoCoA/GBEnv.H>
-// #include <CoCoA/SparsePolyOps-ideal.H>
+ // #include <CoCoA/GBEnv.H>
+ // #include <CoCoA/SparsePolyOps-ideal.H>
 // #include <CoCoA/ring.H>
 // #include <CoCoA/SparsePolyRing.H>
 // #include <CoCoA/PolyRing.H>
-// #include <CoCoA/library.H>
+ #include <CoCoA/library.H>
 
 
 
-
+using namespace cvc5::internal::theory;
 
 using namespace cvc5::internal::kind;
 
@@ -165,7 +165,30 @@ void noCoCoALiza()
     AlwaysAssert(false);
 }
 
+std::vector<CoCoA::RingElem> getCococaGB(Field *F){
+      if ((*F).equalities.size() <= 1) {
+        AlwaysAssert(false) << "NEED TO THINK ABOUT THIS\n";
+      }
+      CocoaEncoder enc = CocoaEncoder();
+      for (const Node& node : (*F).equalities)
+      {
+        enc.addFact(node);
+      }
+;
+      enc.endScan();
+      for (const Node& node :(*F).equalities)
+      {
+        enc.addFact(node);
+      }
 
+      std::vector<CoCoA::RingElem> generators;
+      generators.insert(
+          generators.end(), enc.polys().begin(), enc.polys().end());
+      std::vector<Node> newPoly;
+      CoCoA::ideal ideal = CoCoA::ideal(generators);
+      auto basis = CoCoA::GBasis(ideal);
+      return basis
+}
 
 
 // TODO: Need to find max by iterating through equations.
@@ -1884,6 +1907,11 @@ void RangeSolver::processFact(TNode fact){
 
 }
 
+void RangeSolver::setTrivialConflict()
+{
+  std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(d_conflict));
+}
+
 
 Result RangeSolver::Solve(){
     #ifdef CVC5_USE_COCOA
@@ -1899,7 +1927,8 @@ Result RangeSolver::Solve(){
             fieldPair.second.myNodes = myNodes;
             fieldPair.second.myVariables = myVariables;
         }
-    while(true){
+    bool movesExist = true;
+    while(movesExist){
         
         // //std::cout << count << "\n";
     // if (count>3){
@@ -1963,7 +1992,8 @@ Result RangeSolver::Solve(){
             }
         }
         if (saturated && startLearningLemmas){
-            AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
+            std::cout << "GB SATURATED NOTHING TO DO\n";
+            movesExist = false;
         }
         // if (saturated && startLearningLemmas){
         //         //AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
@@ -1981,7 +2011,49 @@ Result RangeSolver::Solve(){
         //     return Result::SAT;
          count +=1;
          }
-                
+
+       //Now we need to go back to the ST procedure from finite fields 
+
+        //step 1: find the largest field in the map
+        auto it = fields.rbegin(); // reverse iterator to the last element of the map
+        Field largestRing = it->second; 
+        
+        //step 2: compute an ideal for said field using CoCoA
+        std::vector<CoCoA::RingElem> myIdeal = getCococaGB(&largestRing);
+
+        //step 3: run the applyZero from finite fields 
+        std::vector<CoCoA::RingElem> root = ff::findZero(myIdeal, d_env);
+
+          if (root.empty())
+          {
+            // UNSAT
+            setTrivialConflict();
+            return Result::UNSAT;
+          }
+          else
+          {
+            std::cout << "Found model but we don't know how to process it\n";
+          }
+    //       {
+    //         // SAT: populate d_model from the root
+    //         Assert(d_model.empty());
+    //         NodeManager* nm = NodeManager::currentNM();
+    //         for (const auto& [idx, node] : enc.nodeIndets())
+    //         {
+    //           if (isFfLeaf(node))
+    //           {
+    //             Node value = nm->mkConst(enc.cocoaFfToFfVal(root[idx]));
+    //             Trace("ff::model")
+    //                 << " " << node << " = " << value << std::endl;
+    //             d_model.emplace(node, value);
+    //           }
+    //         }
+    //       }
+    //     }
+    //   }
+        //(not ultiamtely it will probably be something else but idk how to do that rn)
+
+
         //count +=1;
 };
 
@@ -2034,6 +2106,8 @@ void RangeSolver::printSystemState(){
     }
     std::cout << "DONE!" << "\n\n\n";
 }
+
+
 
 
 
