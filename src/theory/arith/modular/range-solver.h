@@ -160,7 +160,7 @@ class RangeSolver : protected EnvObj
 
         std::map<Integer, Field> fields; 
 
-        setTrivialConflict()
+        void setTrivialConflict();
 
 
     private:

@@ -210,7 +210,9 @@ std::unique_ptr<AssignmentEnumerator> applyRule(const CoCoA::ideal& ideal)
 
 std::vector<CoCoA::RingElem> findZero(const CoCoA::ideal& initialIdeal)
 {
+
   CoCoA::ring polyRing = initialIdeal->myRing();
+  std::cout << "Got the inital ring\n";
   // We maintain two stacks:
   // * one of ideals
   // * one of branchers

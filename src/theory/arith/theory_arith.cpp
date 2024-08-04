@@ -21,6 +21,7 @@
 #include "cvc5/cvc5_proof_rule.h"
 #include "smt/logic_exception.h"
 #include "theory/arith/arith_evaluator.h"
+#include "theory/lemma_property.h"
 #include "theory/arith/arith_rewriter.h"
 #include "theory/arith/equality_solver.h"
 #include "theory/arith/linear/theory_arith_private.h"
@@ -258,6 +259,7 @@ void TheoryArith::postCheck(Effort level)
     const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
     std::cout << lemma << "\n";
     d_im.lemma(lemma, InferenceId::FF_LEMMA);
+    std::cout << "huh?\n";
     } else {
       return;}
     }else {

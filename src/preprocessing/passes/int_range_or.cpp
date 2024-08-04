@@ -55,7 +55,7 @@ PreprocessingPassResult IntRangeOr::applyInternal(
   for (uint64_t i = 0, n = assertionsToPreprocess->size(); i < n; ++i)
   {
     Node assertion = (*assertionsToPreprocess)[i];
-    std::cout << assertion << "\n";
+    //std::cout << "Asert:"<< assertion << "\n";
     if ((assertion.getKind() == Kind::EQUAL || 
             assertion.getKind() == Kind::GEQ ||
             assertion.getKind() == Kind::LEQ) 
@@ -67,7 +67,7 @@ PreprocessingPassResult IntRangeOr::applyInternal(
     if (assertion.getKind() == Kind::AND) {
         for (int j= 0; j<assertion.getNumChildren(); j++){
             Node child = assertion[j];
-            std::cout << "CHILD" << child << "\n";
+            //std::cout << "CHILD" << child << "\n";
         if ((child.getKind() == Kind::EQUAL || 
             child.getKind() == Kind::GEQ ||
             child.getKind() == Kind::LEQ) 
@@ -79,15 +79,26 @@ PreprocessingPassResult IntRangeOr::applyInternal(
     }
     if (assertion.getKind() == Kind::OR) {
         // Check that all children are the same varible
+        bool modulos = false;
         Node MainVar;
         std::vector<Integer> missing ={};
         Node replacement;
         if (assertion[0][0].getKind() != Kind::VARIABLE){
-            continue;
+            if (assertion[0][0].getKind() == Kind::INTS_MODULUS_TOTAL && assertion[0][0][0].getKind() == Kind::SUB){
+                    continue;
+                    //TODO FINISH THIS!
+                    MainVar = assertion[0][0][0];
+                    modulos = true;
+            
+            } else {
+                continue;
+            }
+            //continue;
         } else {
             MainVar = assertion[0][0];
         }
         std::vector<Integer> ranges;
+        if (!modulos){
         for (int k = 0; k<assertion.getNumChildren(); k++) {
             if (assertion[k].getKind()!= Kind::EQUAL ||
                 assertion[k][0] != MainVar ||
@@ -99,13 +110,40 @@ PreprocessingPassResult IntRangeOr::applyInternal(
                 (assertion[k][1] == MainVar &&
                 assertion[k][0].getKind() == Kind::VARIABLE)
                 )){
-                    std::cout << MainVar << "ADDED\n"; 
+                    //std::cout << MainVar << "ADDED\n"; 
                     orNodes[MainVar] = i;
                     
             }
                     goto end;
             }
             ranges.push_back(assertion[k][1].getConst<Rational>().getNumerator());
+        }
+        } else {
+        for (int k = 0; k<assertion.getNumChildren(); k++) {
+            if (assertion[k].getKind()!= Kind::EQUAL ||
+                assertion[k][0] != MainVar ||
+                 assertion[k][1].getKind() != Kind::CONST_INTEGER)
+                 {
+            if (assertion[k].getKind() == Kind::EQUAL &&
+                ((assertion[k][0] == MainVar &&
+                assertion[k][1].getKind() == Kind::VARIABLE) ||
+                (assertion[k][1] == MainVar &&
+                assertion[k][0].getKind() == Kind::VARIABLE)
+                )){
+                    //std::cout << MainVar << "ADDED\n"; 
+                    orNodes[MainVar] = i;
+                    
+            }
+                    goto end;
+            }
+            ranges.push_back(assertion[k][1].getConst<Rational>().getNumerator());
+        }
+
+
+
+
+
+
         }
         std::sort(ranges.begin(), ranges.end());
         for (size_t j = 0; j < ranges.size() - 1; j++) {
