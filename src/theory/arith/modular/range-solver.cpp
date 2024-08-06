@@ -340,7 +340,7 @@ std::string readFileToString(std::filesystem::path path)
 /** Run Singular on this program and return the output. */
 std::string runSingular(std::string program)
 {
-  //std::cout << program << "\n";
+  std::cout << program << "\n";
   std::filesystem::path output = tmpPath();
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
@@ -353,7 +353,7 @@ std::string runSingular(std::string program)
                                                         << outputContents;
   std::filesystem::remove(output);
   std::filesystem::remove(input);
-  //std::cout << outputContents << "\n";
+  std::cout << outputContents << "\n";
   return outputContents;
 }
 
@@ -813,7 +813,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     // if (status == Result::UNSAT){
     //     return false;
     // }
-    substituteVariables();
+    //substituteVariables();
     //clearEqualities();
     //for (Node poly: newPoly){
         //std::cout << "New Poly F:" << poly << "\n \n \n";
@@ -1302,7 +1302,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     //std::cout << equalities.size() << "\n";
     Lift(Integers, Bounds,startLearningLemmas);
     //std::cout << equalities.size() << "\n";
-    substituteVariables();
+    //substituteVariables();
     //std::cout << equalities.size() << "\n";
     //std::cout << "finished sub\n";
     // std::cout << "Started UNSAT\n";
@@ -1353,6 +1353,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
             if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
                 rewrite(poly).getConst<bool>() == false){
                      status = Result::UNSAT;
+                     std::cout << modulos << "\n";
                      std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
                      //AlwaysAssert(lemmas.size()==0) << modulos;
                     return false;
@@ -1496,7 +1497,7 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
                 lemmas.push_back(rewrite(orStat));
                 lemmas.push_back(rewrite(nm->mkNode(Kind::LEQ, sk, nm->mkConstInt(Integer(1)))));
                 lemmas.push_back(rewrite(nm->mkNode(Kind::GEQ, sk, nm->mkConstInt(Integer(0)))));
-                //std::cout << "LOOOK HERE!!!" << sk.getName() << "\n";
+                std::cout << "LOOOK HERE!!!" << sk.getName() << "\n";
                 for (auto& item : LearntLemmasFrom) {
                     std::cout << item << " ";
                 }
@@ -1672,7 +1673,7 @@ void IntegerField::substituteVariables(){
 
 
 void Field::substituteVariables(){
-    if (equalities.size() == 0){ 
+    if (equalities.size() <= 0){ 
         return;
     }
     //std::vector<Node> neqEq;
@@ -2021,6 +2022,7 @@ Result RangeSolver::Solve(){
             //fieldPair.second.myVariables = myVariables;
         }
     start:
+    
     //std::cout << "We are here\n";
     integerField.clearAll();
     for(auto &f : fields){
@@ -2060,7 +2062,7 @@ Result RangeSolver::Solve(){
     bool saturated;
     while(movesExist){
         //std::cout << "FINISHED ROUND" << count << "\n";
-        //printSystemState();
+        printSystemState();
         
         // //std::cout << count << "\n";
     // if (count==0){
@@ -2091,7 +2093,7 @@ Result RangeSolver::Solve(){
             //printSystemState();
             //std::cout << fieldPair.second.equalities.size() << "\n";
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
-            if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0){
+            if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
                 return Result::UNSAT;
             }
 
@@ -2105,7 +2107,8 @@ Result RangeSolver::Solve(){
     saturated = true;
         for (auto fieldPair :fields){
             if (fieldPair.second.status == Result::UNSAT){
-                //std::cout << "WE HERE\n";
+                // std::cout << "WE HERE\n";
+                // std::cout << Lemmas.size() << "\n";
                 d_conflict.clear();
                 if (fieldPair.second.lemmas.size()> 0){
                     Lemmas.insert(Lemmas.end(), fieldPair.second.lemmas.begin(), fieldPair.second.lemmas.end());
@@ -2117,6 +2120,10 @@ Result RangeSolver::Solve(){
                     goto start;
                     //return Result::UNKNOWN;
 
+                }
+                if (Lemmas.size()> 0){
+                    fieldPair.second.status = Result::UNKNOWN;
+                    goto start;
                 }
                 //std::cout << "UNSAT\n";
                 //printSystemState();
@@ -2164,6 +2171,7 @@ Result RangeSolver::Solve(){
         std::cout << "Found largst field\n";
         std::cout << largestRing.modulos << "\n";
         
+        printSystemState();
         //step 2: compute an ideal for said field using CoCoA
         CoCoA::ideal myIdeal = getCococaGB(&largestRing);
         std::cout << "Got cocoa Ideal\n";
