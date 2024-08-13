@@ -73,6 +73,9 @@ bool isVariableOrSkolem(Node node) {
 }
 
 std::string singular_command_weighted = "option(redSB); ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_weighted_integers = "option(redSB); ring r = integer, ({2}), (Dp); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_reduce_integers = "ring r = integer, ({2}), (Dp); ideal I= {5}; reduce({6}, I); quit;";
+
 std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; reduce({6}, I); quit;";
 std::string singular_command_unweighted = "option(redSB); ring r = (integer, {1}), ({2}), (Dp); ideal I= {5}; ideal G= std(I); G; quit;";
 std::string singular_command_reduce_uw = "ring r = (integer, {1}), ({2}), (Dp); ideal I= {5}; reduce({6}, I); quit;";
@@ -236,10 +239,10 @@ std::vector<long> getWeights(std::map<std::string, Node> variables, std::map<std
             answer.push_back(long(result));
             }
         }
-        if (!weightedGB && notVars.find(symbol) !=notVars.end()){
-            std::cout << "SUBTRACTING WEIGHTS\n";
-            answer[answer.size()-1] = std::min((answer[answer.size()-1] - 30), (long)0);
-        }
+        // if (!weightedGB && notVars.find(symbol) !=notVars.end()){
+        //     std::cout << "SUBTRACTING WEIGHTS\n";
+        //     answer[answer.size()-1] = std::min((answer[answer.size()-1] - 30), (long)0);
+        // }
     }
     return answer;
 } 
@@ -369,7 +372,9 @@ Node monomialToNode(Monomial mono, NodeManager* nm, Field *F){
     return nm->mkNode(Kind::MULT, powers);
 }
 
-std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Integer, Integer> > Bounds, NodeManager* nm, bool WeightedGB){
+template <typename T>
+
+std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Integer, Integer> > Bounds, NodeManager* nm, bool inIntegers){
     // std::cout << (*F).modulos << "\n";
     // std::cout << (*F).equalities.size() << "\n";
       if ((*F).equalities.size() <= 1) {
@@ -386,8 +391,13 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
     // }
     // Read and print the contents of the file
     std::string line;
-    //if(WeightedGB){
+    if(!inIntegers){
      line = singular_command_weighted;
+    }
+    else {
+        line = singular_command_weighted_integers;
+
+    }
    //} else {
      //line = singular_command_unweighted;
    //}
@@ -491,7 +501,11 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
     std::vector<Node> EmptyPolys;
     /// NOW WE WILL REDUCE THE INEQUALITIES AGAINST THE COMPUTED BASIS 
     //if (WeightedGB){
+    if (!inIntegers){
     line = singular_command_reduce;
+    } else {
+    line = singular_command_reduce_integers;
+    }
     //} else {
     //l//ine = singular_command_reduce_uw;
     //} 
@@ -809,7 +823,36 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     //std::cout << "STARTED INTEGERS\n";
     //CancelConstants();
     NodeManager* nm = NodeManager::currentNM();
-    checkUnsat();
+    std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
+        //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
+         //std::cout << "Finished GB\n";
+         //std::cout << newPoly.size() << "\n";
+    if (newPoly.size() == 0 && equalities.size()!=0){
+            //std::cout << equalities.size() << "\n";
+            std::cout << "GB FAULT \n";
+            status = Result::UNSAT;
+            //AlwaysAssert(false);
+            return false;
+            //AlwaysAssert(false);
+        }
+       if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
+            return false;
+            std::cout << "GB TOOK TOO LONG\n";
+    }
+        //std::cout <<  "Finished GB check\n";
+        clearEqualities();
+        for (Node poly: newPoly){
+            //std::cout << "New Poly F:" << poly << "\n";
+            if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
+                rewrite(poly).getConst<bool>() == false){
+                     status = Result::UNSAT;
+                     std::cout << modulos << "\n";
+                     std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
+                     //AlwaysAssert(lemmas.size()==0) << modulos;
+                    return false;
+            }
+            addEquality(rewrite(poly));
+        }
     // if (status == Result::UNSAT){
     //     return false;
     // }
@@ -1023,17 +1066,17 @@ Node Field::modOut(Node fact){
     if(fact.getKind()== Kind::CONST_INTEGER){
         //std::cout << "Before mod:" << fact.getConst<Rational>().getNumerator() << "\n";
         Integer new_value =fact.getConst<Rational>().getNumerator();
-        if (!(new_value < 0 && new_value > modulos * -1)){
+        //if (!(new_value < 0 && new_value > modulos * -1)){
         new_value =new_value.floorDivideRemainder(modulos);
-        }
-        if (( new_value.abs() >= modulos.floorDivideQuotient(2)) && new_value * -1 < modulos ){
-             if (new_value >0){
-             new_value =  new_value- modulos;
-             }
-             else {
-                new_value = new_value + modulos;
-             }
-        }
+       // }
+        // if (( new_value.abs() >= modulos.floorDivideQuotient(2)) && new_value * -1 < modulos ){
+        //      if (new_value >0){
+        //      new_value =  new_value- modulos;
+        //      }
+        //      else {
+        //         new_value = new_value + modulos;
+        //      }
+        //}
         // if (( new_value.abs() >= modulos.floorDivideQuotient(2)) && new_value * -1 > modulos ){
         //      new_value =  new_value + modulos;
         // }
@@ -1330,7 +1373,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     NodeManager* nm = NodeManager::currentNM();
     if (newEqualitySinceGB ){
         //std::cout << "STARING GB\n";
-        std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, WeightedGB);
+        std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, false);
         //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
          //std::cout << "Finished GB\n";
          //std::cout << newPoly.size() << "\n";
@@ -1863,6 +1906,7 @@ RangeSolver::RangeSolver(Env& env, TheoryArith& parent)
     :EnvObj(env), integerField(env), d_facts(context()){}
 
 void RangeSolver::preRegisterTerm(TNode node){ 
+        std::cout << node << "\n";
       /// Check Field  ONLY WHEN OPERATION IS EQUAL OR NOT EQUAL
     //   if (node.getKind() == Kind::VARIABLE) {
     //     TypeNode ty = node[0].getType();
@@ -1874,7 +1918,7 @@ void RangeSolver::preRegisterTerm(TNode node){
     //         upperBounds[node.getName()] = std::min(ty.getFfSize(), upperBounds[node.getName()]);
     //     }
     //   }
-        if (node.getKind() == Kind::VARIABLE ){
+    if (node.getKind() == Kind::VARIABLE ){
             // if (upperBounds.count(node.getName())==0){
             std::string singularName = replaceDots(node.getName());
             myVariables[singularName] = node;
@@ -1883,6 +1927,9 @@ void RangeSolver::preRegisterTerm(TNode node){
             Bounds[node.getName()] = std::make_pair(Integer(-1) *BIGINT, BIGINT);
         }
       if (node.getKind() == Kind::CONST_INTEGER){
+        if (node.getConst<Rational>() == Rational(0)){
+            return;
+        }
         Integer constant = node.getConst<Rational>().getNumerator();
         if (constant < 0){constant = constant * -1;};
         if (constant == 0 || constant == 1 ){
@@ -1900,6 +1947,7 @@ void RangeSolver::preRegisterTerm(TNode node){
             }
         }
       }
+      return;
     }
 }
 
@@ -1910,7 +1958,7 @@ void RangeSolver::notifyFact(TNode fact){
 }
 
 void RangeSolver::processFact(TNode fact){
-    //std::cout << fact << "\n";
+    std::cout << fact << "\n";
     NodeManager* nm = NodeManager::currentNM();
     if(fact.getKind() == Kind::GEQ && fact[0].getNumChildren()<=1){
         AlwaysAssert(fact[1].getKind()==Kind::CONST_INTEGER) << fact;
@@ -1940,7 +1988,33 @@ void RangeSolver::processFact(TNode fact){
             Integer Bound = fact[0][1].getConst<Rational>().getNumerator()-1;
             //AlwaysAssert(Bound > 0) << fact;
         if (fact[0][0].getKind()!=Kind::VARIABLE){
-            AlwaysAssert(false) << fact;
+            if (fact[0][0].getKind() == Kind::MULT && 
+                fact[0][0][0].getKind() == Kind::CONST_INTEGER && 
+                fact[0][0][0].getConst<Rational>().getNumerator() == Integer(-1) && 
+                fact[0][0][1].getKind() == Kind::VARIABLE &&
+                 fact[0][1].getKind() == Kind::CONST_INTEGER
+                ){
+                    Integer Bound = Integer(-1) * fact[0][0][0].getConst<Rational>().getNumerator();
+                    Bounds[fact[0][0][1].getName()].first = Bound;
+
+                }
+            else {
+                if (fact[0][1].getKind() == Kind::CONST_INTEGER){
+                     Integer Bound =  fact[0][1].getConst<Rational>().getNumerator();
+                     NodeManager* nm = NodeManager::currentNM();
+                     SkolemManager* sm = nm->getSkolemManager();
+                     Node sk = sm->mkDummySkolem("Var", nm->integerType());
+                     Bounds[sk.getName()].second = Bound-1;
+                     Node new_node = nm->mkNode(Kind::EQUAL, sk, fact[0][0]);
+                     integerField.addEquality(new_node);
+                     std::string singularName = replaceDots(sk.getName());
+                     myVariables[singularName] = sk;
+                     myNodes.insert(sk);
+
+                } else {
+                AlwaysAssert(false) << fact;
+                }
+            }
             //     NodeManager* nm = NodeManager::currentNM();
             //     SkolemManager* sm = nm->getSkolemManager();
             //     Node sk = sm->mkDummySkolem("Var", nm->integerType());
@@ -2023,7 +2097,6 @@ Result RangeSolver::Solve(){
         }
     start:
     
-    //std::cout << "We are here\n";
     integerField.clearAll();
     for(auto &f : fields){
         f.second.clearAll();
@@ -2048,7 +2121,7 @@ Result RangeSolver::Solve(){
     Lemmas = newLemmas;
 
     int count = 0;
-    bool WeightedGB = true;
+    //bool WeightedGB = true;
     int startLearningLemmas = 0;
     for (auto& fieldPair :fields){
             fieldPair.second.newEqualitySinceGB = true;
@@ -2262,8 +2335,9 @@ void RangeSolver::printSystemState(){
             std::cout << pair.second.equalities[i] << "\n";
         }
         std::cout << "inequalities" << "\n";
-         for (auto i: pair.second.inequalities) {
-            std::cout << i << "\n";
+        //std::cout << pair.second.inequalities.size() << "\n";
+        for (int i = 0; i<pair.second.inequalities.size(); i++) {
+            std::cout << pair.second.inequalities[i]  << "\n";
         }
     }
     std::cout << "Bounds\n";
