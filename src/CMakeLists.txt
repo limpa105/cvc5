@@ -563,6 +563,8 @@ libcvc5_add_sources(
   theory/arith/modular/cocoa_util.cpp
   theory/arith/modular/util.h
   theory/arith/modular/util.cpp
+  theory/arith/modular/gb_simplify.h
+  theory/arith/modular/gb_simplify.cpp
   theory/assertion.cpp
   theory/assertion.h
   theory/atom_requests.cpp
