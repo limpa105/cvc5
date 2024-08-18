@@ -25,7 +25,9 @@ class RangeSolver;
 class IntegerField: protected EnvObj{
     public:
 
-        IntegerField(Env &env);
+        IntegerField(Env &env, RangeSolver* solver);
+
+        RangeSolver* solver;
 
         Node subVarHelper(Node fact, Node ogf, Node newf);
 

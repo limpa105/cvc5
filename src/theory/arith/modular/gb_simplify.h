@@ -38,6 +38,8 @@ std::string nodeToString(const Node node);
 
 Node monomialToNode(Monomial mono, NodeManager* nm, Field *F);
 
+Node monomialToNode(Monomial mono, NodeManager* nm, IntegerField *F);
+
 std::string replaceDots(std::string name);
 
 extern Integer BIGINT;

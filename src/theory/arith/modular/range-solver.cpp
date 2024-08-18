@@ -367,45 +367,44 @@ bool IntegerField::checkUnsat(){
 
 /////////////////////////////////////////////////// INTEGERFIELD ////////////////////////////////////////////////////////////////////
 
-IntegerField::IntegerField(Env &env):EnvObj(env){};
+IntegerField::IntegerField(Env &env, RangeSolver* solver):EnvObj(env){this->solver = solver;};
 
 bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > Bounds){
     //std::cout << "STARTED INTEGERS\n";
     //CancelConstants();
-    // NodeManager* nm = NodeManager::currentNM();
-    // //std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
+    NodeManager* nm = NodeManager::currentNM();
+    std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
     //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
     //      //std::cout << "Finished GB\n";
     //      //std::cout << newPoly.size() << "\n";
-    // if (newPoly.size() == 0 && equalities.size()!=0){
-    //         //std::cout << equalities.size() << "\n";
-    //         std::cout << "GB FAULT \n";
-    //         status = Result::UNSAT;
-    //         //AlwaysAssert(false);
-    //         return false;
-    //         //AlwaysAssert(false);
-    //     }
-    //    if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
-    //         return false;
-    //         std::cout << "GB TOOK TOO LONG\n";
-    // }
-    //     //std::cout <<  "Finished GB check\n";
-    //     clearEqualities();
-    //     for (Node poly: newPoly){
-    //         //std::cout << "New Poly F:" << poly << "\n";
-    //         if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
-    //             rewrite(poly).getConst<bool>() == false){
-    //                  status = Result::UNSAT;
-    //                  std::cout << modulos << "\n";
-    //                  std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
-    //                  //AlwaysAssert(lemmas.size()==0) << modulos;
-    //                 return false;
-    //         }
-    //         addEquality(rewrite(poly));
-    //     }
-    // if (status == Result::UNSAT){
-    //     return false;
-    // }
+    if (newPoly.size() == 0 && equalities.size()!=0){
+            //std::cout << equalities.size() << "\n";
+            std::cout << "GB FAULT \n";
+            status = Result::UNSAT;
+            //AlwaysAssert(false);
+            return false;
+            //AlwaysAssert(false);
+        }
+       if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
+            return false;
+            std::cout << "GB TOOK TOO LONG\n";
+    }
+        //std::cout <<  "Finished GB check\n";
+        clearEqualities();
+        for (Node poly: newPoly){
+            //std::cout << "New Poly F:" << poly << "\n";
+            if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
+                rewrite(poly).getConst<bool>() == false){
+                     status = Result::UNSAT;
+                     std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
+                     //AlwaysAssert(lemmas.size()==0) << modulos;
+                    return false;
+            }
+            addEquality(rewrite(poly));
+        }
+    if (status == Result::UNSAT){
+        return false;
+    }
     //substituteVariables();
     //clearEqualities();
     //for (Node poly: newPoly){
@@ -619,17 +618,17 @@ Node Field::modOut(Node fact){
         //if (!(new_value < 0 && new_value > modulos * -1)){
         new_value =new_value.floorDivideRemainder(modulos);
        // }
-        // if (( new_value.abs() >= modulos.floorDivideQuotient(2)) && new_value * -1 < modulos ){
-        //      if (new_value >0){
-        //      new_value =  new_value- modulos;
-        //      }
-        //      else {
-        //         new_value = new_value + modulos;
-        //      }
-        //}
-        // if (( new_value.abs() >= modulos.floorDivideQuotient(2)) && new_value * -1 > modulos ){
-        //      new_value =  new_value + modulos;
-        // }
+         if (( new_value.abs() >= modulos.floorDivideQuotient(2)) && new_value * -1 < modulos ){
+              if (new_value >0){
+              new_value =  new_value- modulos;
+              }
+              else {
+                 new_value = new_value + modulos;
+              }
+        }
+         if (( new_value.abs() >= modulos.floorDivideQuotient(2)) && new_value * -1 > modulos ){
+              new_value =  new_value + modulos;
+         }
         //std::cout << "After mod:" << modulos << "\n";
         if(modulos.divides(new_value)){
             return nm->mkConstInt(0);
@@ -1453,10 +1452,10 @@ bool Field::checkUnsat(){
 /////////////////////////////////////////////////// RangeSolver ////////////////////////////////////////////////////////////////////
 
 RangeSolver::RangeSolver(Env& env, TheoryArith& parent)
-    :EnvObj(env), integerField(env), d_facts(context()){}
+    :EnvObj(env), integerField(env, this), d_facts(context()){}
 
 void RangeSolver::preRegisterTerm(TNode node){ 
-        std::cout << node << "\n";
+        //std::cout << node << "\n";
       /// Check Field  ONLY WHEN OPERATION IS EQUAL OR NOT EQUAL
     //   if (node.getKind() == Kind::VARIABLE) {
     //     TypeNode ty = node[0].getType();
@@ -1508,7 +1507,7 @@ void RangeSolver::notifyFact(TNode fact){
 }
 
 void RangeSolver::processFact(TNode fact){
-    std::cout << fact << "\n";
+    //std::cout << fact << "\n";
     NodeManager* nm = NodeManager::currentNM();
     if(fact.getKind() == Kind::GEQ && fact[0].getNumChildren()<=1){
         AlwaysAssert(fact[1].getKind()==Kind::CONST_INTEGER) << fact;
@@ -1685,7 +1684,7 @@ Result RangeSolver::Solve(){
     bool saturated;
     while(movesExist){
         //std::cout << "FINISHED ROUND" << count << "\n";
-        printSystemState();
+        //printSystemState();
         
         // //std::cout << count << "\n";
     // if (count==0){

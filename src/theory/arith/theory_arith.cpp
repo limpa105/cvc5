@@ -118,7 +118,7 @@ void TheoryArith::finishInit()
 
 void TheoryArith::preRegisterTerm(TNode n)
 {
-  std::cout << n << "\n";
+ // std::cout << n << "\n";
   if (d_modularExtension != nullptr)
   {
     d_modularExtension->preRegisterTerm(n);
@@ -260,7 +260,6 @@ void TheoryArith::postCheck(Effort level)
     const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
     std::cout << lemma << "\n";
     d_im.lemma(lemma, InferenceId::FF_LEMMA);
-    std::cout << "huh?\n";
     } else {
       return;}
     }else {
