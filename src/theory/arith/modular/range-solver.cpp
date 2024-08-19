@@ -372,37 +372,38 @@ IntegerField::IntegerField(Env &env, RangeSolver* solver):EnvObj(env){this->solv
 bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > Bounds){
     //std::cout << "STARTED INTEGERS\n";
     //CancelConstants();
-    NodeManager* nm = NodeManager::currentNM();
-    std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
-    //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
-    //      //std::cout << "Finished GB\n";
-    //      //std::cout << newPoly.size() << "\n";
-    if (newPoly.size() == 0 && equalities.size()!=0){
-            //std::cout << equalities.size() << "\n";
-            std::cout << "GB FAULT \n";
-            status = Result::UNSAT;
-            //AlwaysAssert(false);
-            return false;
-            //AlwaysAssert(false);
-        }
-       if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
-            return false;
-            std::cout << "GB TOOK TOO LONG\n";
-    }
-        //std::cout <<  "Finished GB check\n";
-        clearEqualities();
-        for (Node poly: newPoly){
-            //std::cout << "New Poly F:" << poly << "\n";
-            if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
-                rewrite(poly).getConst<bool>() == false){
-                     status = Result::UNSAT;
-                     std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
-                     //AlwaysAssert(lemmas.size()==0) << modulos;
-                    return false;
-            }
-            addEquality(rewrite(poly));
-        }
+    // NodeManager* nm = NodeManager::currentNM();
+    // std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
+    // //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
+    // //      //std::cout << "Finished GB\n";
+    // //      //std::cout << newPoly.size() << "\n";
+    // if (newPoly.size() == 0 && equalities.size()!=0){
+    //         //std::cout << equalities.size() << "\n";
+    //         std::cout << "GB FAULT \n";
+    //         status = Result::UNSAT;
+    //         //AlwaysAssert(false);
+    //         return false;
+    //         //AlwaysAssert(false);
+    //     }
+    //    if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
+    //         return false;
+    //         std::cout << "GB TOOK TOO LONG\n";
+    // }
+    //     //std::cout <<  "Finished GB check\n";
+    //     clearEqualities();
+    //     for (Node poly: newPoly){
+    //         //std::cout << "New Poly F:" << poly << "\n";
+    //         if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
+    //             rewrite(poly).getConst<bool>() == false){
+    //                  status = Result::UNSAT;
+    //                  std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
+    //                  //AlwaysAssert(lemmas.size()==0) << modulos;
+    //                 return false;
+    //         }
+    //         addEquality(rewrite(poly));
+    //     }
     if (status == Result::UNSAT){
+        std::cout << "INTEGER UNSAT AAAA\n";
         return false;
     }
     //substituteVariables();
@@ -441,6 +442,7 @@ void IntegerField::addInequality(Node inequality){
 void IntegerField::Lower(Field& field, std::map<std::string, std::pair<Integer, Integer> > Bounds){
     for (int i=0; i<equalities.size(); i++){
             field.addEquality(equalities[i], false, false);
+    }
 // Need to check if can lower 
     for (int i=0; i<inequalities.size(); i++){
         if (checkIfConstraintIsMet(inequalities[i], field.modulos, Bounds, true)){
@@ -448,7 +450,6 @@ void IntegerField::Lower(Field& field, std::map<std::string, std::pair<Integer, 
         }
     }
 
-}
 }
 
 void IntegerField::CancelConstants(){
@@ -892,7 +893,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     //         //std::cout << equalities[i] << "\n";
     //     }
     //std::cout << equalities.size() << "\n";
-    Lift(Integers, Bounds,startLearningLemmas);
+    //Lift(Integers, Bounds,startLearningLemmas);
     //std::cout << equalities.size() << "\n";
     //substituteVariables();
     //std::cout << equalities.size() << "\n";
@@ -1113,7 +1114,7 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
                 //std::cout << "AFTER" << eq << "\n";
                 //std::cout << "AFTER" << rewrite(eq) << "\n";
                 //if rewrite
-                addEquality(eq, false, false);
+                addEquality(eq, false, true);
                 //td::cout << "AFTER" << equalities[i] << "\n";
                 //AlwaysAssert(inv != 1);
                 //i--;
@@ -1679,8 +1680,8 @@ Result RangeSolver::Solve(){
             fieldPair.second.mySingularReduce = "";
         }
     bool movesExist = true;
-    //std::cout<< "START\n";
-    //printSystemState();
+    std::cout<< "START\n";
+    printSystemState();
     bool saturated;
     while(movesExist){
         //std::cout << "FINISHED ROUND" << count << "\n";
@@ -1760,11 +1761,11 @@ Result RangeSolver::Solve(){
         }
         //std::cout << "Saturation status:" << saturated << "\n";
         if (saturated && startLearningLemmas == 2){
-            //std::cout << "GB SATURATED NOTHING TO DO\n";
+            std::cout << "GB SATURATED NOTHING TO DO\n";
             movesExist = false;
         }
         if (saturated && startLearningLemmas == 1){
-            //std::cout << "Changed starting lemmas to RangeLiftEq\n";
+            std::cout << "Changed starting lemmas to RangeLiftEq\n";
             startLearningLemmas  = 2;
         }
         // if (saturated && startLearningLemmas){
@@ -1772,7 +1773,7 @@ Result RangeSolver::Solve(){
         //    WeightedGB = false ;
         // }
         if (saturated && startLearningLemmas == 0){
-            //std::cout << "Changed starting lemmas to LearnLemmas\n";
+            std::cout << "Changed starting lemmas to LearnLemmas\n";
             startLearningLemmas = 1;
         }
         //     startLearningLemmas = true;
@@ -1792,7 +1793,7 @@ Result RangeSolver::Solve(){
         Field largestRing = it->second; 
         std::cout << "Found largst field\n";
         std::cout << largestRing.modulos << "\n";
-        
+        std::cout<< "END\n";
         printSystemState();
         //step 2: compute an ideal for said field using CoCoA
         CoCoA::ideal myIdeal = getCococaGB(&largestRing);
