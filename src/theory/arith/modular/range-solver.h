@@ -27,6 +27,8 @@ class IntegerField: protected EnvObj{
 
         IntegerField(Env &env, RangeSolver* solver);
 
+        bool unlowerableIneq = false;
+
         RangeSolver* solver;
 
         Node subVarHelper(Node fact, Node ogf, Node newf);

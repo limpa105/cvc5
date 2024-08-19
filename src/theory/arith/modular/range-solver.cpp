@@ -372,37 +372,41 @@ IntegerField::IntegerField(Env &env, RangeSolver* solver):EnvObj(env){this->solv
 bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > Bounds){
     //std::cout << "STARTED INTEGERS\n";
     //CancelConstants();
-    NodeManager* nm = NodeManager::currentNM();
-    std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
-    //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
-    //      //std::cout << "Finished GB\n";
-    //      //std::cout << newPoly.size() << "\n";
-    if (newPoly.size() == 0 && equalities.size()!=0){
-            //std::cout << equalities.size() << "\n";
-            std::cout << "GB FAULT \n";
-            status = Result::UNSAT;
-            //AlwaysAssert(false);
-            return false;
-            //AlwaysAssert(false);
-        }
-       if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
-            return false;
-            std::cout << "GB TOOK TOO LONG\n";
-    }
-        //std::cout <<  "Finished GB check\n";
-        clearEqualities();
-        for (Node poly: newPoly){
-            //std::cout << "New Poly F:" << poly << "\n";
-            if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
-                rewrite(poly).getConst<bool>() == false){
-                     status = Result::UNSAT;
-                     std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
-                     //AlwaysAssert(lemmas.size()==0) << modulos;
-                    return false;
+        NodeManager* nm = NodeManager::currentNM();
+    if (unlowerableIneq){
+        std::cout << "COMPUTING GB IN THE INTEGERS WOOO!\n";
+        std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
+        //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
+        //      //std::cout << "Finished GB\n";
+        //      //std::cout << newPoly.size() << "\n";
+        if (newPoly.size() == 0 && equalities.size()!=0){
+                //std::cout << equalities.size() << "\n";
+                std::cout << "GB FAULT \n";
+                status = Result::UNSAT;
+                //AlwaysAssert(false);
+                return false;
+                //AlwaysAssert(false);
             }
-            addEquality(rewrite(poly));
+        if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
+                return false;
+                std::cout << "GB TOOK TOO LONG\n";
         }
+            //std::cout <<  "Finished GB check\n";
+            clearEqualities();
+            for (Node poly: newPoly){
+                //std::cout << "New Poly F:" << poly << "\n";
+                if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
+                    rewrite(poly).getConst<bool>() == false){
+                        status = Result::UNSAT;
+                        std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
+                        //AlwaysAssert(lemmas.size()==0) << modulos;
+                        return false;
+                }
+                addEquality(rewrite(poly));
+            }
+    }
     if (status == Result::UNSAT){
+        std::cout << "INTEGER UNSAT AAAA\n";
         return false;
     }
     //substituteVariables();
@@ -414,11 +418,23 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     //}
     //AlwaysAssert(equalities.size() == newPoly.size());
     //std::cout << "FINISHED ADDING FOR INTEGERS\n";
+    int nonLowCount = 0;
     for (auto& fieldPair : fields){
         //std::cout << "LOWERING\n";
         Lower(fieldPair.second,Bounds);
+        //nonLowCount +=  static_cast<int>(unlowerableIneq);
+        if (!unlowerableIneq){
+            nonLowCount +=1;
+        }
     }
-    //std::cout << "FINISHED LOWERING\n";
+    if(nonLowCount == 0){
+        unlowerableIneq = true;
+        }
+    else{
+        unlowerableIneq = false;
+    }
+
+    std::cout << "FINISHED LOWERING\n" << unlowerableIneq << nonLowCount << "\n" ;
     return true;
 }
 
@@ -441,14 +457,17 @@ void IntegerField::addInequality(Node inequality){
 void IntegerField::Lower(Field& field, std::map<std::string, std::pair<Integer, Integer> > Bounds){
     for (int i=0; i<equalities.size(); i++){
             field.addEquality(equalities[i], false, false);
+    }
 // Need to check if can lower 
+    unlowerableIneq = false;
     for (int i=0; i<inequalities.size(); i++){
         if (checkIfConstraintIsMet(inequalities[i], field.modulos, Bounds, true)){
                 field.addInequality(inequalities[i]);
+        } else{
+            unlowerableIneq = true;
         }
     }
 
-}
 }
 
 void IntegerField::CancelConstants(){
@@ -738,14 +757,43 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
             // std::cout << "About to run Singular\n";
             // std::cout << line << "\n";
             // std::cout << "running Singular\n";
-            std::string output = runSingular(line);
+
+             std::string output = "";
+            auto result = std::make_shared<std::string>("");
+            std::shared_ptr<bool> done = std::make_shared<bool>(false);
+            std::mutex resultMutex;
+            //std::cout << "Running Singular\n";
+            // Launch the function asynchronously
+            auto future = std::async(std::launch::async, [&]() {
+                auto res = runSingular(line);
+                {
+                    std::lock_guard<std::mutex> lock(resultMutex);
+                    *result = res;
+                    *done = true;
+                    //std::cout << "Function completed." << "\n";
+                }
+            });
+            auto start = std::chrono::steady_clock::now();
+            while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
+                {
+                    std::lock_guard<std::mutex> lock(resultMutex);
+                    if (*done) {
+                        output= *result;
+                        break; // Return the final result if the function completes
+                    }
+                }
+                //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
+            }
+            if (output.empty()){
+                AlwaysAssert(false);
+            }
             // std::cout << "ran singular\n";
             size_t pos =output.find('\n');
-            std::string result = output.substr(pos + 1);
+            std::string myResult = output.substr(pos + 1);
             //std::cout << line <<"\n";
             //std::cout << output << "\n" ;
             try{
-            if (std::stoi(result) == 0){
+            if (std::stoi(myResult) == 0){
                 return;
             }
             } catch (const std::invalid_argument& e) { 
@@ -892,7 +940,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     //         //std::cout << equalities[i] << "\n";
     //     }
     //std::cout << equalities.size() << "\n";
-    Lift(Integers, Bounds,startLearningLemmas);
+    //Lift(Integers, Bounds,startLearningLemmas);
     //std::cout << equalities.size() << "\n";
     //substituteVariables();
     //std::cout << equalities.size() << "\n";
@@ -1108,12 +1156,17 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
                 NodeManager* nm = NodeManager::currentNM();
                 Node eq = nm->mkNode(Kind::
                 EQUAL,
-                rewrite(nm->mkNode(Kind::MULT, nm->mkConstInt(inv), equalities[i][0])),
-                rewrite(nm->mkNode(Kind::MULT, nm->mkConstInt(inv), equalities[i][1])));
+                modOut(rewrite(nm->mkNode(Kind::MULT, nm->mkConstInt(inv), equalities[i][0]))),
+                modOut(rewrite(nm->mkNode(Kind::MULT, nm->mkConstInt(inv), equalities[i][1]))));
+                //eq = modOut(rewrite(eq));
+                //if (checkIfConstraintIsMet(rewrite(eq), modulos, Bounds)){
+                    //integerField.addEquality(eq);
+                //}
                 //std::cout << "AFTER" << eq << "\n";
                 //std::cout << "AFTER" << rewrite(eq) << "\n";
                 //if rewrite
-                addEquality(eq, false, false);
+                //Lift(integerField, )
+                addEquality(eq, false, true);
                 //td::cout << "AFTER" << equalities[i] << "\n";
                 //AlwaysAssert(inv != 1);
                 //i--;
@@ -1679,8 +1732,8 @@ Result RangeSolver::Solve(){
             fieldPair.second.mySingularReduce = "";
         }
     bool movesExist = true;
-    //std::cout<< "START\n";
-    //printSystemState();
+    std::cout<< "START\n";
+    printSystemState();
     bool saturated;
     while(movesExist){
         //std::cout << "FINISHED ROUND" << count << "\n";
@@ -1760,11 +1813,11 @@ Result RangeSolver::Solve(){
         }
         //std::cout << "Saturation status:" << saturated << "\n";
         if (saturated && startLearningLemmas == 2){
-            //std::cout << "GB SATURATED NOTHING TO DO\n";
+            std::cout << "GB SATURATED NOTHING TO DO\n";
             movesExist = false;
         }
         if (saturated && startLearningLemmas == 1){
-            //std::cout << "Changed starting lemmas to RangeLiftEq\n";
+            std::cout << "Changed starting lemmas to RangeLiftEq\n";
             startLearningLemmas  = 2;
         }
         // if (saturated && startLearningLemmas){
@@ -1772,7 +1825,7 @@ Result RangeSolver::Solve(){
         //    WeightedGB = false ;
         // }
         if (saturated && startLearningLemmas == 0){
-            //std::cout << "Changed starting lemmas to LearnLemmas\n";
+            std::cout << "Changed starting lemmas to LearnLemmas\n";
             startLearningLemmas = 1;
         }
         //     startLearningLemmas = true;
@@ -1792,7 +1845,7 @@ Result RangeSolver::Solve(){
         Field largestRing = it->second; 
         std::cout << "Found largst field\n";
         std::cout << largestRing.modulos << "\n";
-        
+        std::cout<< "END\n";
         printSystemState();
         //step 2: compute an ideal for said field using CoCoA
         CoCoA::ideal myIdeal = getCococaGB(&largestRing);
