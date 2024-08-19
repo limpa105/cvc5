@@ -83,10 +83,10 @@ check_symbol_exists(strtok_r "string.h" HAVE_STRTOK_R)
 check_symbol_exists(setitimer "sys/time.h" HAVE_SETITIMER)
 
 # on non-POSIX systems, time limit is implemented with threads
-if(NOT HAVE_SETITIMER)
-  find_package(Threads REQUIRED)
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
-endif()
+#if(NOT HAVE_SETITIMER)
+find_package(Threads REQUIRED)
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${CMAKE_THREAD_LIBS_INIT}")
+ #endif()
 
 # Determine if we have the POSIX (int) or GNU (char *) variant of strerror_r.
 check_c_source_compiles(
