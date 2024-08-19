@@ -434,7 +434,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
         unlowerableIneq = false;
     }
 
-    std::cout << "FINISHED LOWERING\n" << unlowerableIneq << nonLowCount << "\n" ;
+    //std::cout << "FINISHED LOWERING\n" << unlowerableIneq << nonLowCount << "\n" ;
     return true;
 }
 
@@ -1732,8 +1732,8 @@ Result RangeSolver::Solve(){
             fieldPair.second.mySingularReduce = "";
         }
     bool movesExist = true;
-    std::cout<< "START\n";
-    printSystemState();
+    //std::cout<< "START\n";
+    //printSystemState();
     bool saturated;
     while(movesExist){
         //std::cout << "FINISHED ROUND" << count << "\n";
@@ -1846,7 +1846,7 @@ Result RangeSolver::Solve(){
         std::cout << "Found largst field\n";
         std::cout << largestRing.modulos << "\n";
         std::cout<< "END\n";
-        printSystemState();
+        //printSystemState();
         //step 2: compute an ideal for said field using CoCoA
         CoCoA::ideal myIdeal = getCococaGB(&largestRing);
         std::cout << "Got cocoa Ideal\n";
