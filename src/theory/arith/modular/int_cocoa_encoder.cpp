@@ -135,7 +135,8 @@ void CocoaEncoder::endScan()
   Assert(d_stage == Stage::Scan);
   d_stage = Stage::Encode;
   //CoCoA::NewZZmod(intToCocoa(modulus))
-  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms);
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::NewZZmod(intToCocoa(modulus)), d_syms);
+  std::cout << "Num of vars!" << d_syms.size() << "\n";
   for (size_t i = 0, n = d_syms.size(); i < n; ++i)
   {
     d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
@@ -243,11 +244,14 @@ bool CocoaEncoder::hasNode(CoCoA::symbol s) const
 
 std::vector<std::pair<size_t, Node>> CocoaEncoder::nodeIndets() const
 {
+  std::cout << "We are here" << d_syms.size()<<"\n";
   std::vector<std::pair<size_t, Node>> out;
   for (size_t i = 0, end = d_syms.size(); i < end; ++i)
   {
     if (hasNode(d_syms[i]))
     {
+      std::cout << "We are here??\n";
+      std::cout << d_syms[i] << "\n";
       Node n = symNode(d_syms[i]);
       // skip indets for !=
       if (isFfLeaf(n))
@@ -256,6 +260,7 @@ std::vector<std::pair<size_t, Node>> CocoaEncoder::nodeIndets() const
       }
     }
   }
+  std::cout << "return\n";
   return out;
 }
 
@@ -360,6 +365,12 @@ void CocoaEncoder::encodeFact(const Node& f)
 
 std::vector<long> CocoaEncoder::AddCoefToWeights(std::vector<long> weights){
 
+}
+
+Integer CocoaEncoder::cocoaToVal(CoCoA::RingElem elem) {
+  //CoCoA::SparsePolyIter iter=CoCoA::BeginIter(elem);
+  std::cout << "We are here\n";
+  return Integer(extractStr(elem), 10);
 }
 
 std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, NodeManager* nm){

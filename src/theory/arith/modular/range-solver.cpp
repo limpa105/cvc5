@@ -12,6 +12,7 @@
 #include "options/ff_options.h"
 #include "smt/env_obj.h"
 #include "theory/arith/modular/int_cocoa_encoder.h"
+#include "theory/arith/modular/util.h"
 #include "theory/arith/modular/gb_simplify.h"
 #include "theory/arith/modular/range-solver.h"
 #include "theory/ff/multi_roots.h"
@@ -161,11 +162,11 @@ void noCoCoALiza()
     AlwaysAssert(false);
 }
 
-CoCoA::ideal getCococaGB(Field *F){
-      if ((*F).equalities.size() <= 1) {
+CoCoA::ideal getCocoaGB(Field *F, CocoaEncoder &enc){
+      if ((*F).equalities.size() <= 1) { 
         AlwaysAssert(false) << "NEED TO THINK ABOUT THIS\n";
       }
-      CocoaEncoder enc = CocoaEncoder((*F).modulos);
+      //CocoaEncoder enc = CocoaEncoder((*F).modulos);
       for (const Node& node : (*F).equalities)
       {
         enc.addFact(node);
@@ -372,7 +373,7 @@ IntegerField::IntegerField(Env &env, RangeSolver* solver):EnvObj(env){this->solv
 bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > Bounds){
     //std::cout << "STARTED INTEGERS\n";
     //CancelConstants();
-        NodeManager* nm = NodeManager::currentNM();
+    NodeManager* nm = NodeManager::currentNM();
     if (unlowerableIneq){
         std::cout << "COMPUTING GB IN THE INTEGERS WOOO!\n";
         std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
@@ -1159,14 +1160,15 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
                 modOut(rewrite(nm->mkNode(Kind::MULT, nm->mkConstInt(inv), equalities[i][0]))),
                 modOut(rewrite(nm->mkNode(Kind::MULT, nm->mkConstInt(inv), equalities[i][1]))));
                 //eq = modOut(rewrite(eq));
-                //if (checkIfConstraintIsMet(rewrite(eq), modulos, Bounds)){
-                    //integerField.addEquality(eq);
-                //}
+                if (checkIfConstraintIsMet(rewrite(eq), modulos, Bounds)){
+                    integerField.addEquality(eq);
+                }
                 //std::cout << "AFTER" << eq << "\n";
                 //std::cout << "AFTER" << rewrite(eq) << "\n";
                 //if rewrite
-                //Lift(integerField, )
-                addEquality(eq, false, true);
+                
+                //Lift(rewrite(integerField, rewrite(eq), Bounds, LearnLemmas));
+                //addEquality(eq, false, true);
                 //td::cout << "AFTER" << equalities[i] << "\n";
                 //AlwaysAssert(inv != 1);
                 //i--;
@@ -1733,7 +1735,7 @@ Result RangeSolver::Solve(){
         }
     bool movesExist = true;
     //std::cout<< "START\n";
-    //printSystemState();
+    printSystemState();
     bool saturated;
     while(movesExist){
         //std::cout << "FINISHED ROUND" << count << "\n";
@@ -1744,6 +1746,7 @@ Result RangeSolver::Solve(){
     //   AlwaysAssert(false);
     //  }
     //count+=1;
+    std::cout << count << "\n";
     //   if (count >=2){
     //      AlwaysAssert(false);    
     //     }
@@ -1839,27 +1842,27 @@ Result RangeSolver::Solve(){
          }
 
        //Now we need to go back to the ST procedure from finite fields 
-        //printSystemState();
+        printSystemState();
         //step 1: find the largest field in the map
-        auto it = fields.rbegin(); // reverse iterator to the last element of the map
-        Field largestRing = it->second; 
-        std::cout << "Found largst field\n";
-        std::cout << largestRing.modulos << "\n";
+        auto it = fields.begin(); // reverse iterator to the last element of the map
+        Field smallestRing = it->second; 
+        std::cout << "Found smallest field\n";
+        std::cout << smallestRing.modulos << "\n";
         std::cout<< "END\n";
         //printSystemState();
         //step 2: compute an ideal for said field using CoCoA
-        CoCoA::ideal myIdeal = getCococaGB(&largestRing);
+        CocoaEncoder enc = CocoaEncoder(smallestRing.modulos);
+        CoCoA::ideal myIdeal = getCocoaGB(&smallestRing, enc);
         std::cout << "Got cocoa Ideal\n";
 
         std::vector<CoCoA::RingElem> root;
-        AlwaysAssert(false);
+        //AlwaysAssert(false);
         //step 3: run the applyZero from finite fields 
          try {
         // Your code that might throw CoCoA::ErrorInfo
         // For example, calling the findZero function
-        std::vector<CoCoA::RingElem> root = theory::ff::findZero(myIdeal);
+        root = theory::ff::findZero(myIdeal);
         } catch (const CoCoA::ErrorInfo& e) {
-         AlwaysAssert(false);
         std::cerr << "Caught CoCoA::ErrorInfo exception: " << e << std::endl;
         } catch (const std::exception& e) {
          AlwaysAssert(false);
@@ -1868,6 +1871,9 @@ Result RangeSolver::Solve(){
          AlwaysAssert(false);
         std::cerr << "Caught unknown exception." << std::endl;
         }
+        //AlwaysAssert(false)
+        std::cout << root.size() << "\n";
+        std::cout << root[0] << "\n";
 
           if (root.empty())
           {
@@ -1879,7 +1885,32 @@ Result RangeSolver::Solve(){
           }
           else
           {
-            std::cout << "Found model but we don't know how to process it\n";
+            std::cout << "Wow we are here?\n";
+            std::unordered_map<Node, Integer> model;
+            for (auto i : root)
+            {
+            std::cout << "seconds before failure\n";
+            Integer literal = enc.cocoaToVal(i);
+            std::cout  << literal
+                                << std::endl;
+            //model.insert({varNode, literal});
+            //std::cout << "Found model but we don't know how to process it\n";
+          }
+
+             size_t index = 0;
+            std::cout << (enc.getCurVars()) << "\n";
+          for (auto node: enc.getCurVars())
+            {
+             
+
+                Integer literal = enc.cocoaToVal(root[index]);
+                std::cout 
+                    << " " << node << " = " << literal << std::endl;
+                //d_model.emplace(node, value);
+              }           
+
+          AlwaysAssert(false);
+          
           }
     //       {
     //         // SAT: populate d_model from the root

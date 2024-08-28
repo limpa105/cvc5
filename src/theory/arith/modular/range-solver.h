@@ -7,6 +7,7 @@
 #include "util/result.h"
 #include "theory/arith/theory_arith.h"
 
+
 #ifndef RANGE_SOLVER_H
 #define RANGE_SOLVER_H
 
@@ -33,9 +34,9 @@ class IntegerField: protected EnvObj{
 
         Node subVarHelper(Node fact, Node ogf, Node newf);
 
-        std::vector<Node> equalities;
+        context::CDList<Node> equalities;
 
-        std::vector<Node> inequalities;
+        context::CDList<Node> inequalities;
 
         bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > Bounds);
 
@@ -88,11 +89,11 @@ class Field:  protected EnvObj {
 
         Integer modulos;
  
-        std::vector<Node> equalities;
+        context::CDList<Node> equalities;
 
-         std::vector<Node> ALLequalities;
+         //std::vector<Node> ALLequalities;
 
-        std::vector<Node> inequalities;
+        context::CDList<Node> inequalities;
 
         void addEquality(Node equality, bool inField,  bool GBAddition=false);
 

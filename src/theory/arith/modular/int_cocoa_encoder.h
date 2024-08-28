@@ -111,6 +111,8 @@ class CocoaEncoder
 
   std::vector<Node> cocoaToNode( std::vector<CoCoA::RingElem>, NodeManager* nm);
 
+  Integer cocoaToVal(CoCoA::RingElem);
+
     /** all symbols */
   std::vector<CoCoA::symbol> d_syms{};
 
