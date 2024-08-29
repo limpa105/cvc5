@@ -28,15 +28,20 @@ class IntegerField: protected EnvObj{
 
         IntegerField(Env &env, RangeSolver* solver);
 
+
         bool unlowerableIneq = false;
 
         RangeSolver* solver;
 
         Node subVarHelper(Node fact, Node ogf, Node newf);
 
-        context::CDList<Node> equalities;
+        std::vector<Node> equalities;
 
-        context::CDList<Node> inequalities;
+        std::vector<Node> inequalities;
+
+        std::vector<Node> old_equalities;
+
+        std::vector<Node> old_inequalities;
 
         bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > Bounds);
 
@@ -89,11 +94,15 @@ class Field:  protected EnvObj {
 
         Integer modulos;
  
-        context::CDList<Node> equalities;
+        std::vector<Node> equalities;
 
-         //std::vector<Node> ALLequalities;
+        std::vector<Node> ALLequalities;
 
-        context::CDList<Node> inequalities;
+        std::vector<Node> inequalities;
+
+        std::vector<Node> old_equalities;
+
+        std::vector<Node> old_inequalities;
 
         void addEquality(Node equality, bool inField,  bool GBAddition=false);
 
@@ -132,6 +141,7 @@ class RangeSolver : protected EnvObj
 {
     public:
 
+        std::set<Integer> og_fields;
         
         std::map<std::string, Node> myVariables;
 

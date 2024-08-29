@@ -143,10 +143,10 @@ void CocoaEncoder::endScan()
   }
 }
 
-std::set<Node> CocoaEncoder::getCurVars(){
-  std::set<Node> answer;
+std::vector<Node> CocoaEncoder::getCurVars(){
+  std::vector<Node> answer;
   for (auto i: d_syms){
-    answer.insert(d_symNodes[extractStr(i)]);
+    answer.push_back(d_symNodes[extractStr(i)]);
   }
   return answer;
 }

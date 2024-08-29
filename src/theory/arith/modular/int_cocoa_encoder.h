@@ -116,7 +116,7 @@ class CocoaEncoder
     /** all symbols */
   std::vector<CoCoA::symbol> d_syms{};
 
-  std::set<Node> getCurVars();
+  std::vector<Node> getCurVars();
 
   std::unordered_map<std::string, Node> d_symNodes{};
 

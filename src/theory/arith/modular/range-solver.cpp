@@ -166,17 +166,29 @@ CoCoA::ideal getCocoaGB(Field *F, CocoaEncoder &enc){
       if ((*F).equalities.size() <= 1) { 
         AlwaysAssert(false) << "NEED TO THINK ABOUT THIS\n";
       }
+      if (!((*F).modulos).isProbablePrime()){
+        AlwaysAssert(false) << "have not thought about how to do this with non primes\n";
+      }
       //CocoaEncoder enc = CocoaEncoder((*F).modulos);
       for (const Node& node : (*F).equalities)
       {
         enc.addFact(node);
       }
+    //    for (const Node& node : (*F).inequalities)
+    //   {
+    //     enc.addFact(node);
+    //   }
 ;
       enc.endScan();
       for (const Node& node :(*F).equalities)
       {
         enc.addFact(node);
       }
+    //   for (const Node& node :(*F).inequalities)
+    //   {
+    //     enc.addFact(node);
+    //   }
+      
 
       std::vector<CoCoA::RingElem> generators;
       generators.insert(
@@ -1546,6 +1558,7 @@ void RangeSolver::preRegisterTerm(TNode node){
         if (node.getKind() == Kind::EQUAL) {
             if (node[0].getKind() == Kind::INTS_MODULUS || node[0].getKind() == Kind::INTS_MODULUS_TOTAL){
                 Integer new_size = node[0][1].getConst<Rational>().getNumerator();
+                 og_fields.insert(new_size);
                  if (fields.count(new_size) == 0) {
                 fields.insert(std::make_pair(new_size, Field(d_env,new_size, this)));
             }
@@ -1842,17 +1855,30 @@ Result RangeSolver::Solve(){
          }
 
        //Now we need to go back to the ST procedure from finite fields 
-        printSystemState();
+        //printSystemState();
+        // step 0: only get the og fields 
+        std::cout << og_fields.size() << "\n";
+        std::map<Integer, Field*> myFields;
+        for (auto i: og_fields){
+            auto it = fields.find(i);
+                if (it != fields.end()) {
+                myFields.insert(std::make_pair(i, &it->second));
+                } else {
+                    // Handle the case where 'i' is not in 'fields'
+                std::cerr << "Key not found in fields: " << i << std::endl;
+                }
+        }
         //step 1: find the largest field in the map
-        auto it = fields.begin(); // reverse iterator to the last element of the map
-        Field smallestRing = it->second; 
+        std::cout << "we are here" << myFields.size()<< "\n";
+        auto it = myFields.begin(); // reverse iterator to the last element of the map
+        Field* smallestRing = it->second; 
         std::cout << "Found smallest field\n";
-        std::cout << smallestRing.modulos << "\n";
+        std::cout << smallestRing->modulos << "\n";
         std::cout<< "END\n";
         //printSystemState();
         //step 2: compute an ideal for said field using CoCoA
-        CocoaEncoder enc = CocoaEncoder(smallestRing.modulos);
-        CoCoA::ideal myIdeal = getCocoaGB(&smallestRing, enc);
+        CocoaEncoder enc = CocoaEncoder(smallestRing->modulos);
+        CoCoA::ideal myIdeal = getCocoaGB(smallestRing, enc);
         std::cout << "Got cocoa Ideal\n";
 
         std::vector<CoCoA::RingElem> root;
@@ -1887,27 +1913,64 @@ Result RangeSolver::Solve(){
           {
             std::cout << "Wow we are here?\n";
             std::unordered_map<Node, Integer> model;
-            for (auto i : root)
-            {
-            std::cout << "seconds before failure\n";
-            Integer literal = enc.cocoaToVal(i);
-            std::cout  << literal
-                                << std::endl;
-            //model.insert({varNode, literal});
-            //std::cout << "Found model but we don't know how to process it\n";
-          }
+            // First we need to save the state of the old system just in case we need to go back to it 
+            for (auto &f: fields){
+                f.second.old_equalities = f.second.equalities;
+                f.second.old_inequalities = f.second.inequalities;
+            }
+            integerField.old_equalities = integerField.equalities;
+            integerField.old_inequalities = integerField.inequalities;
 
+            // Now we get the model and add it to the smallest field 
              size_t index = 0;
             std::cout << (enc.getCurVars()) << "\n";
-          for (auto node: enc.getCurVars())
+            NodeManager* nm = NodeManager::currentNM();
+            for (auto node: enc.getCurVars())
             {
-             
-
+                std::cout << node << "\n";
                 Integer literal = enc.cocoaToVal(root[index]);
-                std::cout 
-                    << " " << node << " = " << literal << std::endl;
-                //d_model.emplace(node, value);
-              }           
+                smallestRing->addEquality(nm->mkNode(Kind::EQUAL, node,  nm->mkConstInt(literal)), true, true);
+                std::cout << index << "\n";
+                std::cout << node << ":" << literal << "\n";
+                std::cout << node << ":" << root[index] << "\n";
+                index+=1;
+            } 
+            // Then do the simplification for loop
+            int count = 0; 
+            std::cout << "starting simplification?\n";
+            std::optional<Field*> unsatField; 
+            while(count < 3){
+                std::cout << count << "\n";
+                for (auto& fieldPair :fields){
+        
+            //printSystemState();
+            //std::cout << fieldPair.second.equalities.size() << "\n";
+                fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
+                if (fieldPair.second.status == Result::UNSAT){
+                        unsatField = &fieldPair.second;
+                        break;
+                    }
+        
+                integerField.Simplify(fields, Bounds);
+                if (integerField.status == Result::UNSAT){
+                        std::cout << "OH NO Integers!\n";
+                    }
+                }
+                count +=1;
+            } 
+            //printSystemState();Theorem
+            std::cout << "Finished simplification\n"; 
+            if (unsatField.has_value()){
+                Integer g;
+                Integer u;
+                Integer v;
+                Integer::extendedGcd(g,u,v, smallestRing->modulos, (unsatField.value())->modulos);
+                std::cout << g << "\n";
+
+
+                std::cout << "This worked!\n";
+                AlwaysAssert(false);
+            }       
 
           AlwaysAssert(false);
           
