@@ -244,6 +244,124 @@ std::string ReplaceGBStringInput(std::string old, std::string input, std::string
     return input;
 }
 
+std::vector<Polynomial> computeSingularGB(Field *F, std::map<std::string, std::pair<Integer, Integer> > Bounds, NodeManager* nm){
+      //std::cout << "Getting weights\n";
+     std::vector<long> weights = getWeights((*(*F).solver).myVariables, (*(*F).solver).Bounds, false, (*(*F).solver).myNotVars);
+     //std::cout << "Got Weights\n";
+    // std::ifstream inputFile("theory/arith/modular/gb_input.txt");
+
+    // // Check if the file was successfully opened
+    // if (!inputFile.is_open()) {
+    //     AlwaysAssert(false) << "Singular GB input file does not exist";
+    // }
+    // Read and print the contents of the file
+    std::string line;
+
+    line = singular_command_weighted;
+    
+   //} else {
+     //line = singular_command_unweighted;
+   //}
+
+    //}
+    //inputFile.close();
+    std::stringstream ss;
+    ss << (*F).modulos;
+    line = ReplaceGBStringInput("{1}", line, ss);
+    ss.str("");
+    ss.clear();
+    //std::cout << (*F).myNodes.size() << "\n";
+    int bound_count = 0;
+    for (auto it =  (*(*F).solver).myVariables.begin(); it != (*(*F).solver).myVariables.end(); ++it) {
+        ss << it->first;
+        if (std::next(it) != (*(*F).solver).myVariables.end()) {
+            ss << ",";
+        }
+    }
+    //std::cout << "Got Variables\n";
+    line = ReplaceGBStringInput("{2}", line, ss);
+    ss.str("");
+    ss.clear();
+    
+    //std::cout << line << "\n";
+    // ss << upperBounds.size();
+    // line = ReplaceGBStringInput("{3}", line, ss);
+    // ss.str("");
+    // ss.clear();
+    
+    for (auto it = weights.begin(); it != weights.end(); ++it) {
+        ss << *it;
+        if (std::next(it) != weights.end()) {
+            ss << ",";
+        }
+    }
+   // std::cout << "got weights\n";
+    line = ReplaceGBStringInput("{4}", line, ss);
+    ss.str("");
+    ss.clear();
+    //std::cout << (*F).equalities.size() << "\n";
+    for (auto it = (*F).equalities.begin(); it != (*F).equalities.end(); ++it) {
+        //std::cout <<(*it) << "\n";
+        ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, (*it)[0], (*it)[1])));
+        if (std::next(it) != (*F).equalities.end()) {
+            ss << ",";
+        }
+    }
+    //std::cout << "Got Equalities";
+    line = ReplaceGBStringInput("{5}", line, ss);
+    ss.str("");
+    ss.clear();
+    //std::string command = "Singular -q -t -c \" " + line + "\"";
+    //std::cout << line << "\n";
+    //int result = system(command.c_str());
+    //AlwaysAssert(false);
+    std::string output = "";
+    std::vector<Node> GBPolys;
+    auto result = std::make_shared<std::string>("");
+    std::shared_ptr<bool> done = std::make_shared<bool>(false);
+    std::mutex resultMutex;
+    //std::cout << "Running Singular\n";
+    // Launch the function asynchronously
+    auto future = std::async(std::launch::async, [&]() {
+        auto res = runSingular(line);
+        {
+            std::lock_guard<std::mutex> lock(resultMutex);
+            *result = res;
+            *done = true;
+            //std::cout << "Function completed." << "\n";
+        }
+    });
+    auto start = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
+        {
+            std::lock_guard<std::mutex> lock(resultMutex);
+            if (*done) {
+                output= *result;
+                break; // Return the final result if the function completes
+            }
+        }
+        //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
+    }
+    if (output.empty()){
+        AlwaysAssert(false);
+    }
+    std::vector<Polynomial> polys = parsePolynomialList(output);
+    return polys;
+
+}
+
+
+Node polynomialToNode(Polynomial poly, NodeManager* nm, Field *F){
+        std::vector<Node> products;
+        for (auto m: poly.monomials){
+            //std::cout << m << "\n";
+            products.push_back(monomialToNode(m, nm, F));
+        }
+        return nm->mkNode(Kind::ADD, products);
+
+}
+
+
 std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Integer, Integer> > Bounds, NodeManager* nm, bool inIntegers){
     // std::cout << (*F).modulos << "\n";
     // std::cout << (*F).equalities.size() << "\n";

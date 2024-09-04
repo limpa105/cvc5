@@ -373,11 +373,9 @@ Integer CocoaEncoder::cocoaToVal(CoCoA::RingElem elem) {
   return Integer(extractStr(elem), 10);
 }
 
-std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, NodeManager* nm){
-  std::vector<Node> result;
-  for (CoCoA::RingElem RingPolynomial: basis){
-    //std::vector<Node> NodePolynomial;
-    std::vector<Node> LHS;
+Node CocoaEncoder::cocoaToNodeOne(CoCoA::RingElem RingPolynomial, NodeManager* nm){
+
+std::vector<Node> LHS;
     //LHS.push_back(nm->mkConst(0));
     std::vector<Node> RHS;
     //RHS.push_back(nm->mkConst(0));
@@ -488,34 +486,7 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
           }
         }
       }
-      // if (outside.size() > 0) {
-      //   std::vector<Node> outsideVector(outside.begin(), outside.end());
-      //   Node outsideNode = nm->mkNode(Kind::FINITE_FIELD_MULT, outsideVector);
-      //   if (LHS.size()>0 && RHS.size()>0){
-      //   result.push_back(nm->mkNode(
-      //     Kind::EQUAL, 
-      //     nm->mkNode(Kind::FINITE_FIELD_MULT, outsideNode, 
-      //         nm->mkNode(Kind::FINITE_FIELD_ADD, LHS)),
-      //     nm->mkNode(Kind::FINITE_FIELD_MULT, outsideNode,
-      //         nm->mkNode(Kind::FINITE_FIELD_ADD, RHS))));
-      //   }
-      //   else if(LHS.size()>0){
-      //     result.push_back(nm->mkNode(
-      //     Kind::EQUAL, 
-      //     nm->mkNode(Kind::FINITE_FIELD_MULT, outsideNode, 
-      //         nm->mkNode(Kind::FINITE_FIELD_ADD, LHS)),
-      //     nm->mkConst(FiniteFieldValue::mkZero(size()))));
-      //   } else if(RHS.size()>0){
-      //     result.push_back(nm->mkNode(
-      //     Kind::EQUAL, 
-      //     nm->mkConst(FiniteFieldValue::mkZero(size())),
-      //     nm->mkNode(Kind::FINITE_FIELD_MULT, outsideNode,
-      //         nm->mkNode(Kind::FINITE_FIELD_ADD, RHS))));
-      //   }
-      //   else {
-      //     AlwaysAssert(false);
-      //   }
-      // }
+  
       Node LHS_node;
       Node RHS_node;
 
@@ -533,25 +504,33 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
 
 
       if (LHS.size()>0 && RHS.size()>0){
-        result.push_back(nm->mkNode(
+        return nm->mkNode(
           Kind::EQUAL, 
               LHS_node,
-              RHS_node));
+              RHS_node);
         }
         else if(LHS.size()>0){
-          result.push_back(nm->mkNode(
+          return nm->mkNode(
           Kind::EQUAL,  
               LHS_node,
-          nm->mkConstInt(0)));
+          nm->mkConstInt(0));
         } else if(RHS.size()>0){
-          result.push_back(nm->mkNode(
+          return nm->mkNode(
           Kind::EQUAL, 
           nm->mkConstInt(0),
-              RHS_node));
+              RHS_node);
         }
         else {
           AlwaysAssert(false);
         }
+
+}
+
+std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, NodeManager* nm){
+  std::vector<Node> result;
+  for (CoCoA::RingElem RingPolynomial: basis){
+    //std::vector<Node> NodePolynomial;
+      cocoaToNodeOne(RingPolynomial, nm);
       //next_iteration: ;
     }
     return result;

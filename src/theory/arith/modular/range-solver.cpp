@@ -739,7 +739,6 @@ Node Field::modOut(Node fact){
 
 
 void Field::addEquality(Node fact, bool inField, bool GBAddition){
-    //std::cout <<"Adding equality:" << fact << "\n";
     fact = rewrite(fact); 
     if (fact.getKind() == Kind::CONST_BOOLEAN){
         if (fact.getConst<bool>() == false){
@@ -1702,6 +1701,34 @@ void RangeSolver::setTrivialConflict()
 }
 
 
+
+bool RangeSolver::addAssignment(Node asgn, Field *f){
+    std::cout << asgn << "\n";
+    f->addEquality(asgn, true, true);
+    f->Simplify(integerField, Bounds, false, 0);
+    if (f->status == Result::UNSAT){
+        AlwaysAssert(false)<< "something bad with the model";
+    }
+    int count = 0;
+     while(count < 2){
+            std::cout << count << "\n";
+            for (auto& fieldPair :fields){
+                fieldPair.second.Simplify(integerField, Bounds, false, 0);
+                if (fieldPair.second.status == Result::UNSAT){
+                        return false;
+                    }
+            }
+            integerField.Simplify(fields, Bounds);
+                if (integerField.status == Result::UNSAT){
+                        std::cout << "OH NO Integers!\n";
+                    }
+            count +=1;
+     }
+    return true; 
+
+}
+
+
 Result RangeSolver::Solve(){
     #ifdef CVC5_USE_COCOA
     #else 
@@ -1764,6 +1791,7 @@ Result RangeSolver::Solve(){
     //      AlwaysAssert(false);    
     //     }
     count+=1;
+    
     //   if (count >=25){
     //        WeightedGB = false;
     //        startLearningLemmas = 0;
@@ -1868,6 +1896,9 @@ Result RangeSolver::Solve(){
                 std::cerr << "Key not found in fields: " << i << std::endl;
                 }
         }
+        bool sat = false;
+
+        while(myFields.size()> 1 || sat ) { 
         //step 1: find the largest field in the map
         std::cout << "we are here" << myFields.size()<< "\n";
         auto it = myFields.begin(); // reverse iterator to the last element of the map
@@ -1914,67 +1945,101 @@ Result RangeSolver::Solve(){
             std::cout << "Wow we are here?\n";
             std::unordered_map<Node, Integer> model;
             // First we need to save the state of the old system just in case we need to go back to it 
-            for (auto &f: fields){
-                f.second.old_equalities = f.second.equalities;
-                f.second.old_inequalities = f.second.inequalities;
-            }
-            integerField.old_equalities = integerField.equalities;
-            integerField.old_inequalities = integerField.inequalities;
-
             // Now we get the model and add it to the smallest field 
              size_t index = 0;
             std::cout << (enc.getCurVars()) << "\n";
             NodeManager* nm = NodeManager::currentNM();
+            
+            sat = true;
             for (auto node: enc.getCurVars())
             {
-                std::cout << node << "\n";
+                for (auto &f: fields){
+                    f.second.old_equalities = f.second.equalities;
+                    f.second.old_inequalities = f.second.inequalities;
+                }
+                integerField.old_equalities = integerField.equalities;
+                integerField.old_inequalities = integerField.inequalities;
                 Integer literal = enc.cocoaToVal(root[index]);
-                smallestRing->addEquality(nm->mkNode(Kind::EQUAL, node,  nm->mkConstInt(literal)), true, true);
-                std::cout << index << "\n";
-                std::cout << node << ":" << literal << "\n";
-                std::cout << node << ":" << root[index] << "\n";
+                if (!addAssignment(nm->mkNode(Kind::EQUAL, node,  nm->mkConstInt(literal)), smallestRing)){
+                    sat = false;
+                   // Assignment was bad need to return to original state before hand
+                    for (auto &f: fields){
+                    f.second.equalities = f.second.old_equalities;
+                    f.second.inequalities = f.second.old_inequalities;
+                    }
+                    integerField.equalities = integerField.old_equalities;
+                    integerField.inequalities = integerField.old_inequalities;
+                    break;
+                }
                 index+=1;
             } 
             // Then do the simplification for loop
             int count = 0; 
             std::cout << "starting simplification?\n";
             std::optional<Field*> unsatField; 
-            while(count < 3){
-                std::cout << count << "\n";
-                for (auto& fieldPair :fields){
-        
-            //printSystemState();
-            //std::cout << fieldPair.second.equalities.size() << "\n";
-                fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
-                if (fieldPair.second.status == Result::UNSAT){
-                        unsatField = &fieldPair.second;
-                        break;
-                    }
-        
-                integerField.Simplify(fields, Bounds);
-                if (integerField.status == Result::UNSAT){
-                        std::cout << "OH NO Integers!\n";
-                    }
+            for (auto &f: fields){
+                if (f.second.status == Result::UNSAT) {
+                    unsatField = &f.second;
                 }
-                count +=1;
-            } 
+            }
             //printSystemState();Theorem
             std::cout << "Finished simplification\n"; 
             if (unsatField.has_value()){
+
+
+
                 Integer g;
                 Integer u;
                 Integer v;
                 Integer::extendedGcd(g,u,v, smallestRing->modulos, (unsatField.value())->modulos);
                 std::cout << g << "\n";
-
+                std::vector<Node> newEqs;
+                if (g == Integer(1)){
+                    printSystemState();
+                    std::vector<Polynomial> BasisA = computeSingularGB(smallestRing, Bounds, nm);
+                    std::vector<Polynomial> BasisB = computeSingularGB(unsatField.value(), Bounds, nm);
+                    for (Polynomial a: BasisA){
+                        for (Polynomial b: BasisB) {
+                            Node LHS_coef = rewrite(nm->mkConstInt(u * smallestRing->modulos* a.lc()));
+                            Node LHS = rewrite(nm->mkNode(Kind::MULT, monomialToNode((a.lm().lcm(b.lm()))/b.lm(), nm, smallestRing), LHS_coef, polynomialToNode(b, nm, smallestRing)));
+                            Node RHS_coef = rewrite(nm-> mkConstInt(v * unsatField.value()->modulos * b.lc()));
+                            Node RHS = rewrite(nm->mkNode(Kind::MULT, monomialToNode((a.lm().lcm(b.lm()))/a.lm(), nm, smallestRing), RHS_coef, polynomialToNode(a, nm, smallestRing)));
+                            newEqs.push_back(nm->mkNode(Kind::EQUAL, nm->mkNode(Kind::ADD, LHS, RHS), nm->mkConstInt(Integer(0))));
+                        }
+                    }
+                     
+                } else {
+                    std::cout << "Something went wrong here\n";
+                    std::cout << g << "\n";
+                    std::cout << unsatField.value()->modulos << "\n";
+                    std::cout << smallestRing->modulos << "\n";
+                    AlwaysAssert(false);
+                }
+                Field combo = Field(d_env, smallestRing->modulos*unsatField.value()->modulos, this);
+                for (Node eq: newEqs){
+                    std::cout << "NEWEQ:" << eq << "\n";
+                    combo.addEquality(eq, false, true);
+                }
+                 std::cout << myFields.size() << "\n";
+                myFields.erase(myFields.begin());
+                auto it2 = myFields.find(unsatField.value()->modulos);
+                    if (it2 != myFields.end()) {
+                myFields.erase(it2);
+                }
+                fields.insert(std::make_pair(combo.modulos, combo));
+                myFields.insert(std::make_pair(combo.modulos, &combo));
+                printSystemState();
+            }
+               
 
                 std::cout << "This worked!\n";
-                AlwaysAssert(false);
             }       
 
+        }
+        std::cout << myFields.size() << "\n";
+        std::cout << sat << "\n";
           AlwaysAssert(false);
           
-          }
     //       {
     //         // SAT: populate d_model from the root
     //         Assert(d_model.empty());

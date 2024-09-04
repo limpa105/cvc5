@@ -77,8 +77,15 @@ struct Monomial
   std::vector<VarPower> varPowers;
   /** Parse from a string (view) */
   static Monomial parse(std::string_view s);
+
   /** Equality */
   bool operator==(const Monomial& rhs) const;
+
+  Monomial operator/(const Monomial& rhs) const;
+
+  Monomial lcm(const Monomial& rhs);
+
+
 };
 
 /** A polynomial */
@@ -89,6 +96,10 @@ struct Polynomial
   static Polynomial parse(std::string_view s);
   /** Equality */
   bool operator==(const Polynomial& rhs) const;
+
+  Monomial lm();
+
+  Integer lc();
 };
 
 /** output */

@@ -139,6 +139,75 @@ bool Monomial::operator==(const Monomial& rhs) const
   return std::tie(coeff, varPowers) == std::tie(rhs.coeff, rhs.varPowers);
 }
 
+
+Monomial Monomial::operator/(const Monomial& rhs) const
+{
+   Integer newCoeff = coeff.floorDivideQuotient(rhs.coeff);
+
+        // Variable powers subtraction
+    std::vector<VarPower> newVarPowers = varPowers;
+
+    for (const auto& vpRhs : rhs.varPowers) {
+        auto it = std::find_if(newVarPowers.begin(), newVarPowers.end(), [&](const VarPower& vp) {
+            return vp.var == vpRhs.var;
+        });
+        if (it != newVarPowers.end()) {
+                // Subtract the powers
+          if (it->power < vpRhs.power) {
+              throw std::invalid_argument("Division results in negative power");
+            }
+              it->power -= vpRhs.power;
+              if (it->power == 0) {
+                 newVarPowers.erase(it);
+              }
+            } else {
+                throw std::invalid_argument("Division by a monomial with a variable not present in the dividend");
+            }
+        }
+
+        return Monomial{newCoeff, newVarPowers};
+}
+
+
+Monomial Monomial::lcm(const Monomial &rhs){
+  Integer lcmCoeff = coeff.lcm(rhs.coeff);
+
+  std::vector<VarPower> lcmVarPowers = varPowers;
+
+  for (const auto& vpB : rhs.varPowers) {
+            auto it = std::find_if(lcmVarPowers.begin(), lcmVarPowers.end(), [&](const VarPower& vpA) {
+                return vpA.var == vpB.var;
+            });
+
+            if (it != lcmVarPowers.end()) {
+                // If the variable is found, take the maximum power
+                it->power = std::max(it->power, vpB.power);
+            } else {
+                // If the variable is not found, add it
+                lcmVarPowers.push_back(vpB);
+            }
+        }
+    
+        return Monomial{lcmCoeff, lcmVarPowers};
+
+}
+
+
+// Monomial Monomial::gcd(Monomial &rhs){
+
+
+//   std::vector<VarPower> gcdVarPowers;
+//     for (const auto& vpA : a.varPowers) {
+//         for (const auto& vpB : b.varPowers) {
+//             if (vpA.var == vpB.var) {
+//                    gcdVarPowers.push_back({vpA.var, std::min(vpA.power, vpB.power)});
+//             }
+//           }
+//       }
+
+//     return Monomial{gcdCoeff, gcdVarPowers};
+// }
+
 Polynomial Polynomial::parse(std::string_view s)
 {
   Polynomial poly;
@@ -159,6 +228,14 @@ Polynomial Polynomial::parse(std::string_view s)
 bool Polynomial::operator==(const Polynomial& rhs) const
 {
   return monomials == rhs.monomials;
+}
+
+Monomial Polynomial::lm(){
+  return Monomial{Integer(1), monomials[0].varPowers};
+}
+
+Integer Polynomial::lc(){
+  return monomials[0].coeff;
 }
 
 std::ostream& operator<<(std::ostream& o, const Var& v)

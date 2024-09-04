@@ -74,6 +74,8 @@ class CocoaEncoder
    * Available in Stage::Encode.
    */
 
+  Node cocoaToNodeOne(CoCoA::RingElem RingPolynomial, NodeManager* nm);
+
   const std::vector<Poly>& polys() const { return d_polys; }
   /**
    * Get the bitsum polys.

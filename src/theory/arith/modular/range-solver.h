@@ -141,6 +141,8 @@ class RangeSolver : protected EnvObj
 {
     public:
 
+        bool addAssignment(Node asgn, Field* f);
+
         std::set<Integer> og_fields;
         
         std::map<std::string, Node> myVariables;
