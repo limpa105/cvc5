@@ -200,7 +200,7 @@ void CocoaEncoder::addFact(const Node& fact)
       }
       else if (node.getKind() == Kind::NOT && isFfFact(node))
       {
-        Trace("ff::cocoa") << "CoCoA != sym for " << node << std::endl;
+        std::cout << "CoCoA != sym for " << node << std::endl;
         CoCoA::symbol sym = freshSym("diseq", d_diseqSyms.size());
         d_diseqSyms.insert({node, sym});
       }

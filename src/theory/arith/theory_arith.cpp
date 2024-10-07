@@ -261,7 +261,9 @@ void TheoryArith::postCheck(Effort level)
     std::cout << lemma << "\n";
     d_im.lemma(lemma, InferenceId::FF_LEMMA);
     } else {
-      return;}
+      std::cout << "WOOO EXTERNAL HERE\n";
+      return;
+      }
     }else {
       return;
     }
@@ -397,6 +399,12 @@ void TheoryArith::propagate(Effort e) {
 bool TheoryArith::collectModelInfo(TheoryModel* m,
                                    const std::set<Node>& termSet)
 {
+
+  if ( d_modularExtension != nullptr)
+  {
+    return  d_modularExtension->collectModelInfo(m, termSet);
+    }
+    //AlwaysAssert(false);
   // If we have a buffered lemma (from the non-linear extension), then we
   // do not assert model values, since those values are likely incorrect.
   // Moreover, the model does not need to satisfy the assertions, so

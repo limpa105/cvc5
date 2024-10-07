@@ -46,12 +46,12 @@ namespace theory {
 namespace arith {
 namespace modular_range_solver {
 
-std::string singular_command_weighted = "option(redSB); ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; ideal G= std(I); G; quit;";
-std::string singular_command_weighted_integers = "option(redSB); ring r = integer, ({2}), (Dp); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_weighted = "ring r = (integer, {1}), ({2}), (wp({4})); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_weighted_integers = "ring r = integer, ({2}), (Dp); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
 std::string singular_command_reduce_integers = "ring r = integer, ({2}), (Dp); ideal I= {5}; reduce({6}, I); quit;";
 
 std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; reduce({6}, I); quit;";
-std::string singular_command_unweighted = "option(redSB); ring r = (integer, {1}), ({2}), (Dp); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_unweighted = "ring r = (integer, {1}), ({2}), (Dp); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
 std::string singular_command_reduce_uw = "ring r = (integer, {1}), ({2}), (Dp); ideal I= {5}; reduce({6}, I); quit;";
 
 Integer BIGINT = Integer("26697537170649044179042152467634255803129704511815242562837925141177577913409118302943186911045680008195241138225131464058766427708039764790250144472755736885526820882067462431042573357558604819957849");
@@ -94,7 +94,7 @@ std::string readFileToString(std::filesystem::path path)
 /** Run Singular on this program and return the output. */
 std::string runSingular(std::string program)
 {
-  //std::cout << program << "\n";
+  std::cout << program << "\n";
   std::filesystem::path output = tmpPath();
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
@@ -103,11 +103,11 @@ std::string runSingular(std::string program)
   int exitCode = std::system(command.c_str());
   Assert(exitCode == 0) << "Singular errored\nCommand: " << command;
   std::string outputContents = readFileToString(output);
-  Assert(outputContents.find("?") == std::string::npos) << "Singular error:\n"
+  AlwaysAssert(outputContents.find("?") == std::string::npos) << "Singular error:\n"
                                                         << outputContents;
   std::filesystem::remove(output);
   std::filesystem::remove(input);
-  //std::cout << outputContents << "\n";
+  std::cout << outputContents << "\n";
   return outputContents;
 }
 
@@ -134,6 +134,7 @@ std::string replaceDots(std::string name) {
 std::vector<long> getWeights(std::map<std::string, Node> variables, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool weightedGB, std::set<std::string> notVars){
     std::vector<long> answer;
     for (auto i: variables){
+        std::cout << i << "\n";
         // std::ostringstream oss;
         // oss << i;
         // std::string symbol = d_symNodes[oss.str()].getName();
@@ -167,6 +168,7 @@ std::vector<long> getWeights(std::map<std::string, Node> variables, std::map<std
                 //Bounds.insert(std::make_pair(symbol, 2));
             } else {
             //std::cout << oss.str() << "\n";
+            std::cout << "symbol is: " << symbol << "\n";
             AlwaysAssert(false) << symbol << "has no bound??";
             float result = BIGINTLOG;
             //std::cout << "NOBOUND" << result << "\n";

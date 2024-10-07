@@ -117,12 +117,17 @@ Monomial Monomial::parse(std::string_view s)
   size_t start = 0, end = 0;
   if (std::isdigit(s[0]))
   {
-    end = s.find("*", start);
+    end = s.find_first_of("*abcdefghijklmnopqrstuvwxyz", start);
     std::string_view coeffStr = s.substr(start, end - start);
     coeff = safeStringToUinteger(coeffStr);
-    start = end + (end != std::string_view::npos);
-    AlwaysAssert(end == std::string_view::npos || start < s.size())
-        << "trailing * in: " << s;
+    start = end;
+    if (start < s.size() && s[start] == '*')
+    {
+      start++; // Skip over '*' if present
+    }
+    // start = end + (end != std::string_view::npos);
+    // AlwaysAssert(end == std::string_view::npos || start < s.size())
+    //     << "trailing * in: " << s;
   }
   std::vector<VarPower> varPowers;
   while (start < s.size())

@@ -25,6 +25,11 @@ class Field;
 class RangeSolver;
 class IntegerField;
 
+std::filesystem::path tmpPath();
+
+std::filesystem::path writeToTmpFile(std::string contents);
+
+std::string readFileToString(std::filesystem::path path);
 
 std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Integer, Integer> > Bounds, NodeManager* nm, bool inIntegers);
 
@@ -39,6 +44,7 @@ std::string ReplaceGBStringInput(std::string old, std::string input, std::string
 std::string nodeToString(const Node node);
 
 Node monomialToNode(Monomial mono, NodeManager* nm, Field *F);
+
 
 Node polynomialToNode(Polynomial poly, NodeManager* nm, Field *F);
 
