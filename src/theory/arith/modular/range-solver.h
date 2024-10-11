@@ -73,7 +73,7 @@ class IntegerField: protected EnvObj{
 class Field:  protected EnvObj {
     public: 
 
-        bool didGurobi = false;
+        int didGurobi = 0;
 
         std::string mySingularReduce;
         
@@ -191,6 +191,8 @@ class RangeSolver : protected EnvObj
 
         void parse_cvc5_output(const std::string& cvc5_output);
 
+        void printSystemState();
+
 
     private:
 
@@ -198,7 +200,7 @@ class RangeSolver : protected EnvObj
 
         Result Solve();
 
-        void printSystemState();
+        
 
 };
 }

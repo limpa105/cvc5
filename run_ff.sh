@@ -24,13 +24,33 @@ else
     > "$output_file"
 fi
 
+# Add CSV headers
+echo "Filename,Result,Global Time (ms)" > "$output_file"
+
 # Find all files in the directory (including nested directories) that contain 'smt' in their names
 find "$TEST_DIR" -type f -name '*smt*' | while read -r file; do
     total=$((total+1))
-    echo -n "$file: " >> "$output_file"
-    "$CVC5" $CVC5_OPTIONS "$file" | tail -n 1 >> "$output_file"
+    
+    echo $file
+
+    # Run cvc5 and capture both stdout and stderr in one go
+    output=$( gtimeout --signal=SIGTERM --kill-after=5s 130s  "$CVC5" --tlimit 120000 $CVC5_OPTIONS --stats  "$file" 2>&1 )
+
+    echo "Finished cvc5"
+
+    # Extract the last line (result) from stdout (assuming unsat/sat is in stdout)
+    result=$(echo "$output" | grep -v 'global::totalTime' | tail -n 6 | head -n 1)
+
+    echo "finished first grep"
+
+    # Extract the global::totalTime from stderr
+    global_time=$(echo "$output" | awk '/global::totalTime/ {print $NF}' || echo "timeout")
+
+     echo "finished second grep"
+
+    # Write filename, result, and global time to the CSV file
+    echo "$file,$result,$global_time" >> "$output_file"
 done 
 
 # Analyze the results
 python3 analyze.py "$output_file"
-
