@@ -71,87 +71,6 @@ int gcd(int a, int b) {
     return b == 0 ? a : gcd(b, a % b);
 }
 
-// Function to perform integer Gaussian elimination and return the rank of the matrix
-int integerGaussianElimination(std::vector<std::vector<int>>& matrix, int n, int d) {
-    int rank = 0;
-    for (int col = 0; col < d; ++col) {
-        // Find the pivot row in the current column
-        int pivotRow = -1;
-        for (int row = rank; row < n; ++row) {
-            if (matrix[row][col] != 0) {
-                pivotRow = row;
-                break;
-            }
-        }
-        // If no pivot is found, move to the next column
-        if (pivotRow == -1) {
-            continue;
-        }
-
-        // Swap the pivot row with the current row
-        std::swap(matrix[rank], matrix[pivotRow]);
-
-        // Normalize the pivot row by dividing by the GCD of the entire row
-        int gcd = 0;
-        for (int j = 0; j < d; ++j) {
-            gcd = std::gcd(gcd, matrix[rank][j]);
-        }
-        if (gcd > 1) {
-            for (int j = 0; j < d; ++j) {
-                matrix[rank][j] /= gcd;
-            }
-        }
-
-        // Ensure the leading coefficient is positive
-        if (matrix[rank][col] < 0) {
-            for (int j = 0; j < d; ++j) {
-                matrix[rank][j] *= -1;
-            }
-        }
-
-        // Eliminate the current column for all rows except the pivot row
-        for (int row = 0; row < n; ++row) {
-            if (row != rank && matrix[row][col] != 0) {
-                int factor = matrix[row][col] / matrix[rank][col]; // Use integer division
-
-                // Perform row operation: row = row - factor * pivot_row
-                for (int j = 0; j < d; ++j) {
-                    matrix[row][j] -= factor * matrix[rank][j];
-                }
-
-                // Normalize the row again to handle any common divisors introduced
-                int rowGcd = 0;
-                for (int j = 0; j < d; ++j) {
-                    rowGcd = std::gcd(rowGcd, matrix[row][j]);
-                }
-                if (rowGcd > 1) {
-                    for (int j = 0; j < d; ++j) {
-                        matrix[row][j] /= rowGcd;
-                    }
-                }
-            }
-        }
-        
-        // Move to the next row
-        ++rank;
-    }
-
-    return rank;
-}
-
-// Function to check if a vector is linearly independent from the current set of vectors
-bool isLinearlyIndependent(const std::vector<std::vector<int>>& matrix, const std::vector<int>& vec, int n, int d, int rank) {
-    // Create a copy of the matrix and add the new vector as a column
-    std::vector<std::vector<int>> augmentedMatrix = matrix;
-    augmentedMatrix.push_back(vec);
-
-    // Perform Gaussian elimination again and check if the rank increases
-    int newRank = integerGaussianElimination(augmentedMatrix, n + 1, d);
-
-    return newRank > rank;  // If the rank increases, the vector is linearly independent
-}
-
-// Helper function to print the basis
 void printBasis(const std::vector<std::vector<int>>& basis) {
     std::cout << "The basis vectors are:\n";
     for (const auto& vec : basis) {
@@ -166,82 +85,165 @@ void printBasis(const std::vector<std::vector<int>>& basis) {
     }
 }
 
+// Function to perform integer Gaussian elimination and return the rank of the matrix
+// Function to perform Gaussian elimination and return the rank
+
+    
+    // Forward Elimination process
+ int gaussianEliminationRank(std::vector<std::vector<double>>& matrix, int n, int d) {
+    int rank = 0;
+
+    // Forward Elimination process
+    for (int row = 0; row < n; ++row) {
+        int pivotCol = row;
+        
+        // Find the pivot element in the current column (transposed matrix, so swap access)
+        for (int col = row; col < d; ++col) {
+            if (std::abs(matrix[row][col]) > std::abs(matrix[row][pivotCol])) {
+                pivotCol = col;
+            }
+        }
+
+        // Check if the pivot element is effectively zero (indicating linear dependence)
+        if (std::abs(matrix[row][pivotCol]) < 1e-8) {  
+            continue; // No valid pivot in this row, skip without incrementing rank
+        }
+
+        // Swap the current row with the pivot row in all columns
+        for (int k = 0; k < n; ++k) {
+            std::swap(matrix[k][pivotCol], matrix[k][row]); // Access adjusted for transposition
+        }
+
+        // Eliminate the elements below the pivot
+        for (int col = row + 1; col < d; ++col) {
+            if (std::abs(matrix[row][row]) < 1e-10) continue;  // Skip if the pivot is effectively zero
+            double factor = matrix[row][col] / matrix[row][row];
+            for (int k = 0; k < n; ++k) {
+                matrix[k][col] -= factor * matrix[k][row]; // Access adjusted for transposition
+            }
+        }
+
+        // Perform backward substitution to ensure that the entire matrix is reduced
+        for (int col = 0; col < row; ++col) {
+            double factor = matrix[row][col] / matrix[row][row];
+            for (int k = 0; k < n; ++k) {
+                matrix[k][col] -= factor * matrix[k][row]; // Access adjusted for transposition
+            }
+        }
+
+        // Increment rank only if the current row has a non-zero pivot (i.e., independent)
+        ++rank;
+    }
+
+    return rank;
+}
+
+// Function to check if a vector is linearly independent from the current set of vectors
+bool isLinearlyIndependent(const std::vector<std::vector<double>>& matrix, const std::vector<double>& vec, int n, int d, int rank) {
+    std::vector<std::vector<double>> augmentedMatrix = matrix;
+    augmentedMatrix.push_back(vec);
+
+    int newRank = gaussianEliminationRank(augmentedMatrix, n + 1, d);
+
+    return newRank > rank; 
+}
+
+int computeRowGCD(const std::vector<double>& row) {
+    int gcd = 0;
+    for (const auto& val : row) {
+        if (std::abs(val) > 1e-10) {  // Only consider non-zero entries
+            gcd = std::gcd(gcd, static_cast<int>(std::round(std::abs(val))));
+        }
+    }
+    return gcd;
+}
+
+// Function to scale a row to integer values
+std::vector<int> convertToIntegerRow(const std::vector<double>& row) {
+    // Find the smallest multiplier that converts the row to integers
+    int gcd = computeRowGCD(row);
+    std::vector<int> intRow(row.size());
+
+    if (gcd == 0) return intRow; // If all entries are zero
+
+    for (size_t i = 0; i < row.size(); ++i) {
+        intRow[i] = static_cast<int>(std::round(row[i] * gcd));  // Scale by the GCD
+    }
+    return intRow;
+}
+
+// Updated findBasis function
 std::vector<std::vector<int>> findBasis(const std::vector<std::vector<int>>& inputVectors) {
     int n = inputVectors.size();
     int d = inputVectors[0].size();  // Assuming all vectors have the same dimension
-
-    // Copy the input vectors into a matrix
-    std::vector<std::vector<int>> matrix = inputVectors;
-
-    std::cout << "Original Basis\n";
     printBasis(inputVectors);
-    std::cout << "No memeroy issues untill here?\n";
-
-    // Perform integer Gaussian elimination on the matrix to get its rank
-    int rank = integerGaussianElimination(matrix, n, d);
-    AlwaysAssert(rank == n) << "rank:" << rank << " size" << n  ;
-    std::cout << rank << "\n";
-
-    // If we already have a full basis, return the input vectors
-    if (rank == d) {
-        return inputVectors;  // Already a full basis
+    // Copy the input vectors into a matrix of double type for Gaussian elimination
+    std::vector<std::vector<double>> matrix(n, std::vector<double>(d));
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < d; ++j) {
+            matrix[i][j] = static_cast<double>(inputVectors[i][j]);
+        }
     }
-    std::cout << "Memeory issue = Gaussian elim\n";
+    std::cout << "Made the double matrix\n";
+
+    // Perform Gaussian elimination on the matrix to get its rank
+    int rank = gaussianEliminationRank(matrix, n, d);
+
+     std::cout << "Performed the gaussian Elimnation\n";
+
+    // If we already have a full basis, return the input vectors converted to integers
+    if (rank == d) {
+        std::vector<std::vector<int>> intBasis;
+        for (const auto& row : matrix) {
+            intBasis.push_back(convertToIntegerRow(row));
+        }
+        return intBasis;  // Return integer basis
+    }
 
     // Start with the original set of input vectors as the basis
-    std::vector<std::vector<int>> basis = inputVectors;
+    std::vector<std::vector<int>> basis;
+    for (const auto& row : matrix) {
+        basis.push_back(convertToIntegerRow(row));  // Convert each row to integer
+    }
 
     // Try to add standard basis vectors to complete the basis
     for (int i = 0; i < d; ++i) {
-        std::vector<int> e_i(d, 0);
-        e_i[i] = 1;  // e_i is the ith standard basis vector
+        std::vector<double> e_i(d, 0.0);
+        e_i[i] = 1.0;  // e_i is the ith standard basis vector
 
         // Check if the standard basis vector is linearly independent
         if (isLinearlyIndependent(matrix, e_i, n, d, rank)) {
             ++rank;
-            basis.push_back(e_i);
             matrix.push_back(e_i);  // Add the new vector to the matrix
-            std::cout << "Added standard basis vector: ";
-            for (auto j: e_i){
-                std::cout << "," << j ;
-            }
-            std::cout << "\n";
-            n +=1;
-        } else {
-            std::cout << "Did not add a vector";
-            for (auto j: e_i){
-                std::cout << "," << j;
-            }
-            std::cout << "\n";
+            basis.push_back(convertToIntegerRow(e_i));  // Convert to integer row
+            ++n;
         }
-        std::cout << "Current rank: " << rank << std::endl;
-        std::cout << "Current dim: " << d << std::endl;
-        if (rank == d) {
 
-            std::cout << "We exited early\n";
+        if (rank == d) {
             break;  // Stop if we've found a full basis
         }
     }
-    std::cout << "Memeory issue = adding stuff\n";
 
     return basis;
 }
 
 
 
+
 std::vector<int> parseGurobiOutput(const std::string& output) {
     // Check if the model is infeasible
     std::vector<int> variableMap;
-    if (output.find("Model is infeasible") != std::string::npos) {
+    std::cout << "SIZE:" << output.size() << "\n";
+    if (output.size()==0) {
         std::cout << "No feasible solution found." << std::endl;
         return variableMap;
     }
 
     // Check if the model is optimal
-    if (output.find("Optimal solution found") != std::string::npos) {
-
+    if (output.find("Objective value") != std::string::npos) {
+        std::size_t start = output.find("\n", start) + 1;
         // Find the section where the optimal solution is printed
-        std::size_t start = output.find("Optimal solution:");
+        //std::size_t start = output.find("Optimal solution:");
         if (start == std::string::npos) {
             std::cout << "No variable values found." << std::endl;
             return variableMap;
@@ -251,29 +253,38 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
         std::string variableSection = output.substr(start);
 
         // Refined regex: match variable names (e.g., alphanumeric names) and their values
-        std::regex variableRegex(R"(([a-zA-Z_]\w*): (-?\d+\.?\d*))");
+        std::regex variableRegex(R"((gb_(\d+))\s+(-?\d+))");
         std::smatch match;
 
-        // Use regex to find variables and their values
+        // Map to store variable values with the numeric part as key (to sort later)
+        std::map<int, int> sortedVariableMap;
+
+        // Use regex to find "gb" variables and their values
         std::string::const_iterator searchStart(variableSection.cbegin());
         while (std::regex_search(searchStart, variableSection.cend(), match, variableRegex)) {
-            std::string varName = match[1];
-            int value = static_cast<int>(std::round(std::stod(match[2])));
-            variableMap.push_back(value);
+            int index = std::stoi(match[2]);  // Extract the numeric part (e.g., "0" in "gb_0")
+            int value = std::stoi(match[3]);  // Extract the value
+            sortedVariableMap[index] = value; // Store the value using the index as key
 
             // Move the search start to the next position
             searchStart = match.suffix().first;
         }
 
-        // Print the map of variable names to their values
-        // std::cout << "Variable to Value map:" << std::endl;
-        // for (const auto& pair : variableMap) {
-        //     std::cout << pair.first << ": " << pair.second << std::endl;
-        // }
+        // Now that we have all variables in sorted order by index (gb_0, gb_1, ...)
+        for (const auto& pair : sortedVariableMap) {
+            variableMap.push_back(pair.second); // Push the values in sorted order
+        }
+
         return variableMap;
     }
+}
 
-    std::cout << "Unexpected output or status." << std::endl;
+std::string stringify(std::vector<std::string> elements, std::string op){
+    std::string result =""; 
+    for (auto i: elements){
+        result+= " " + op + " " + i;
+    }
+    return result;
 }
 
  void write_gurobi_query(const std::string& filename, std::vector<Node> equalities,
@@ -283,7 +294,7 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
                         Integer modulos,
                         std::vector<std::vector<int>> pastSolutions) {
     std::map<std::string, std::vector<Node>> nonlinearMap;
-    std::map<std::string, std::string> varCoefMap;
+    std::map<std::string, std::vector<std::string>> varCoefMap;
     std::vector<std::string> new_vars;
     std::map<std::string, std::pair<Integer, Integer>> nonlinearBounds;
     Integer addConst = Integer(0);
@@ -294,18 +305,18 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
         return;
     }  
     std::cout << "Writing to file: " << filename << std::endl;  // Debug print
-    file << "#include \"/Library/gurobi1103/macos_universal2/include/gurobi_c++.h\"\n"
-         << "#include <iostream>\n"
-         << "int main() {\n"
-         << "    GRBEnv env = GRBEnv();\n"
-         << "    env.start();\n"
-         << "    GRBModel model = GRBModel(&env);\n";
+    file << "Subject To\n";
+    // file << "#include \"/Library/gurobi1103/macos_universal2/include/gurobi_c++.h\"\n"
+    //      << "#include <iostream>\n"
+    //      << "int main() {\n"I 
+    //      << "    GRBEnv env = GRBEnv();\n"
+    //      << "    env.start();\n"
+    //      << "    GRBModel model = GRBModel(&env);\n";
     for(int j = 0; j<equalities.size(); j++){
         new_vars.push_back("gb_"+ std::to_string(j));
     // Currently operating under the fact that the all the terms are of the form
     // + (*..) no pluses inside multiplication if this is not true need to through an 
     // error :) 
-        // 
         for (auto eq: equalities[j]){
             std::cout << eq << "\n";
             // x = z this should become x + (-1) z = 0;
@@ -329,9 +340,9 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
             }
             else if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM){
                 if (varCoefMap.find(node.getName()) == varCoefMap.end()){
-                    varCoefMap[node.getName()] =  new_vars[j];
+                    varCoefMap[node.getName()].push_back(new_vars[j]);
                 } else {
-                    varCoefMap[node.getName()] += " + " + new_vars[j];
+                    varCoefMap[node.getName()].push_back(new_vars[j]);
                 }
             }
             else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT){
@@ -361,18 +372,18 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
                             UB = Integer::max(Integer::max(pos1,pos2), Integer::max(pos3,pos4));
                         }
                         if (varCoefMap.find(name) == varCoefMap.end()){
-                            varCoefMap[name] =addConst.toString() + " * " + new_vars[j];
+                            varCoefMap[name].push_back(addConst.toString() + "  " + new_vars[j]);
                         } else {
-                            varCoefMap[name] += " + " + addConst.toString() + " * " + new_vars[j];
+                            varCoefMap[name].push_back(addConst.toString() + "  " + new_vars[j]);
                         }
                         nonlinearMap[name] = myNodes;
                         nonlinearBounds[name] = std::make_pair(LB, UB);
                         // we need to get the resulting lower and upper bounds,
                     } else { AlwaysAssert(node[1].getKind()==Kind::VARIABLE || node[1].getKind()==Kind::SKOLEM  ) << node[1] << "\n";
                     if (varCoefMap.find(node[1].getName()) == varCoefMap.end()){
-                        varCoefMap[node[1].getName()] = addConst.toString() + " * " + new_vars[j];
+                        varCoefMap[node[1].getName()].push_back(addConst.toString() + "  " + new_vars[j]);
                     } else {
-                         varCoefMap[node[1].getName()] += " + "+  addConst.toString() + " * " + new_vars[j];
+                         varCoefMap[node[1].getName()].push_back(addConst.toString() + "  " + new_vars[j]);
                     }
                     }
                 } else {
@@ -409,9 +420,9 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
                         AlwaysAssert(false);
                     }
                      if (varCoefMap.find(name) == varCoefMap.end()){
-                         varCoefMap[name] =addConst.toString() + " * " + new_vars[j];
+                         varCoefMap[name].push_back(addConst.toString() + "  " + new_vars[j]);
                     } else {
-                         varCoefMap[name] += " + " + addConst.toString() + " * " + new_vars[j];
+                         varCoefMap[name].push_back(addConst.toString() + "  " + new_vars[j]);
                     }
                     nonlinearMap[name] = myNodes;
                     nonlinearBounds[name] = std::make_pair(LB, UB);
@@ -426,31 +437,21 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
     // Okay now we have our data structures its time to write stuff :) 
     // First write in all the variables we made.
     
-    for (const auto& var : new_vars) {
-        file << "    GRBVar " << var << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << var << "\");" << std::endl;
-    }
+    // for (const auto& var : new_vars) {
+    //     file << "    GRBVar " << var << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << var << "\");" << std::endl;
+    // }
     std::map<std::string, std::string> pos_relu_vars;
     std::map<std::string, std::string> neg_relu_vars;
     std::map<std::string, std::string> neg_coefficients;
     std::map<std::string, std::string> pos_coefficients;
-    for (const auto&  pair: varCoefMap) {
+    std::vector<std::string> binaries;
+    std::string upper_bound ="";
+    std::string lower_bound ="";
+    for (auto&  pair: varCoefMap) {
         pos_relu_vars[pair.first] = pair.first + "coef_pos_relu";
         neg_relu_vars[pair.first] = pair.first + "coef_neg_relu";
         neg_coefficients[pair.first] = pair.first + "neg_coef";
         pos_coefficients[pair.first] = pair.first + "pos_coef";
-        file << "    GRBVar " << neg_coefficients[pair.first] << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << neg_coefficients[pair.first] << "\");" << std::endl;
-        file << "    GRBVar " << pos_coefficients[pair.first] << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << pos_coefficients[pair.first] << "\");" << std::endl;
-        file << "    GRBVar " << pos_relu_vars[pair.first] << " = model.addVar(0, GRB_INFINITY, 0.0, 'I', \"" << pos_relu_vars[pair.first] << "\");" << std::endl;
-        file << "    GRBVar " << neg_relu_vars[pair.first] << " = model.addVar(0, GRB_INFINITY, 0.0, 'I', \"" << neg_relu_vars[pair.first]  << "\");" << std::endl;
-        file << "    model.addConstr(" << pos_coefficients[pair.first] << " == "<< pair.second << ");" << std::endl;
-        file << "    model.addGenConstrMax(" << pos_relu_vars[pair.first] << ", &" << pos_coefficients[pair.first] << ", 1, 0,\"max_const_" << pos_relu_vars[pair.first] << "\");" << std::endl;
-        file << "    model.addConstr(" << neg_coefficients[pair.first] << " == -1 * ("<< pair.second << "));" << std::endl;
-        file << "    model.addGenConstrMax(" << neg_relu_vars[pair.first] << ", &" << neg_coefficients[pair.first] << ", 1, 0, \"max_const_" << neg_relu_vars[pair.first] << "\");" << std::endl;
-        
-    }
-    std::string upper_bound ="";
-    std::string lower_bound ="";
-    for (auto&  pair: varCoefMap) {
         Integer UB; 
         Integer LB;
         auto it = bounds.find(pair.first);
@@ -464,7 +465,7 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
             }
             std::cout << it->second.first<< "turned into" <<  LB << "\n";
             if ( (it->second.second).abs() <= 2) {
-                LB = it->second.second;
+                UB = it->second.second;
             } else {
             UB = static_cast<int>(std::round(10 * log2((it->second.second).getDouble())));
             }
@@ -481,7 +482,7 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
             }
             std::cout << it->second.first<< "turned into" <<  LB << "\n";
             if ((it->second.second).abs() <= 2) {
-                LB = it->second.second;
+                UB = it->second.second;
             } else {
             UB = static_cast<int>(std::round(10 * log2((it->second.second).getDouble())));
             }
@@ -492,18 +493,43 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
         }
         //std::cout << UB.toString() << "\n";
         if (upper_bound.size() == 0){
-            upper_bound = UB.toString() + " * " + pos_relu_vars[pair.first] + " - " + LB.toString() + " * " + neg_relu_vars[pair.first];
+            upper_bound = UB.toString() + "  " + pos_relu_vars[pair.first] + " - " + LB.toString() + "  " + neg_relu_vars[pair.first];
         } else {
-            upper_bound += " + " + UB.toString() + " * " + pos_relu_vars[pair.first] + " - " + LB.toString() + " * " + neg_relu_vars[pair.first];
+            upper_bound += " + " + UB.toString() + "  " + pos_relu_vars[pair.first] + " - " + LB.toString() + "  " + neg_relu_vars[pair.first];
         }
         if (lower_bound.size() == 0){
-            lower_bound = LB.toString() + " * " + pos_relu_vars[pair.first] + " - " + UB.toString() + " * " + neg_relu_vars[pair.first];
+            lower_bound = LB.toString() + "  " + pos_relu_vars[pair.first] + " - " + UB.toString() + "  " + neg_relu_vars[pair.first];
         } else {
-            lower_bound += " + " + LB.toString() + " * " + pos_relu_vars[pair.first] + " - " + UB.toString() + " * " + neg_relu_vars[pair.first];
+            lower_bound += " + " + LB.toString() + "  " + pos_relu_vars[pair.first] + " - " + UB.toString() + "  " + neg_relu_vars[pair.first];
         }
+
+        Integer maxPos = Integer(static_cast<int>(std::round(10*log2(modulos.getDouble() -1)))).ceilingDivideQuotient(Integer::max(LB*-1, UB));
+
+        //file << "    GRBVar " << neg_coefficients[pair.first] << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << neg_coefficients[pair.first] << "\");" << std::endl;
+        //file << "    GRBVar " << pos_coefficients[pair.first] << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << pos_coefficients[pair.first] << "\");" << std::endl;
+        //file << "    GRBVar " << pos_relu_vars[pair.first] << " = model.addVar(0, GRB_INFINITY, 0.0, 'I', \"" << pos_relu_vars[pair.first] << "\");" << std::endl;
+        //file << "    GRBVar " << neg_relu_vars[pair.first] << " = model.addVar(0, GRB_INFINITY, 0.0, 'I', \"" << neg_relu_vars[pair.first]  << "\");" << std::endl;
+        file << pos_coefficients[pair.first] << ": " << pos_coefficients[pair.first] << stringify(pair.second, "-") << " = 0" << "\n";
+        binaries.push_back(pair.first + "pos_binary");
+        file << "geq1_" << pos_coefficients[pair.first] << ": " <<  pos_relu_vars[pair.first]  << stringify(pair.second, "-") << " >= " << "0" << "\n";
+        file << "geq2_" << pos_coefficients[pair.first] << ": " <<  pos_relu_vars[pair.first] << " >= " << "0" << "\n";
+        file << "leq1_" << pos_coefficients[pair.first] << ": " <<  pos_relu_vars[pair.first] << stringify(pair.second, "-")  <<  " - "  << maxPos << " " << binaries[binaries.size()-1] << " <= " << 0 << "\n";
+        file << "leq2_" << pos_coefficients[pair.first] << ": " <<  pos_relu_vars[pair.first]  <<  " + "  << maxPos << " " << binaries[binaries.size()-1] << " <= " << maxPos << "\n";
+       
+
+        //file << pos_relu_vars[pair.first] << ": " << pos_relu_vars[pair.first] << " MAX (" << pos_coefficients[pair.first] << " , 0 )" << "\n";
+        file << neg_coefficients[pair.first] << ": "  << neg_coefficients[pair.first] << stringify(pair.second, "+") << " = 0" << "\n";
+        binaries.push_back(pair.first + "neg_binary");
+         file << "geq1_" << neg_coefficients[pair.first] << ": " <<  neg_relu_vars[pair.first]  << stringify(pair.second, "+") << " >= " << "0" << "\n";
+        file << "geq2_" << neg_coefficients[pair.first] << ": " <<  neg_relu_vars[pair.first] << " >= " << "0" << "\n";
+        file << "leq1_" << neg_coefficients[pair.first] << ": " <<  neg_relu_vars[pair.first] << stringify(pair.second, "+")  <<  " - "  << maxPos << " " << binaries[binaries.size()-1] << " <= " << 0 << "\n";
+        file << "leq2_" << neg_coefficients[pair.first] << ": " <<  neg_relu_vars[pair.first]  <<  " + "  << maxPos << " " << binaries[binaries.size()-1] <<  " <= " << maxPos << "\n";
+        //file << neg_relu_vars[pair.first] << ": " << neg_relu_vars[pair.first] << " MAX (" << neg_coefficients[pair.first] << " , 0 )" << "\n";
+        
+
     }
-    file << "    model.addConstr(" << upper_bound << " <= " << static_cast<int>(std::round(10*log2(modulos.getDouble() -1))) <<  ");" << std::endl;
-    file << "    model.addConstr(" << lower_bound << " >= " <<  "-1 * " << static_cast<int>(std::round(10*log2(modulos.getDouble() -1)))  << ");" << std::endl;
+    file << "upper : "  << upper_bound << " <= " << static_cast<int>(std::round(10*log2(modulos.getDouble() -1)))  << std::endl;
+    file << "lower : " <<  lower_bound << " >= " <<  "-  " << static_cast<int>(std::round(10*log2(modulos.getDouble() -1)))  << std::endl;
     std::string nonzero="";
     for (auto&  pair: varCoefMap) {
         if (nonzero.size()==0){
@@ -513,26 +539,26 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
         }
     }
 
-    file << "    model.addConstr(" << nonzero << " >= 1);" << std::endl;
-
+    file << "nonzero : " << nonzero << " >= 1" << std::endl;
+    std::vector<std::string> c_old;
+    std::vector<std::string> c_orth;
     if (pastSolutions.size()>0){
+        std::cout << "Started finding basis\n";
         std::vector<std::vector<int>> curBasis = findBasis(pastSolutions);
         std::cout << "So the issue is here?\n";
         printBasis(curBasis);
         AlwaysAssert(curBasis.size() == curBasis[0].size()) << curBasis.size() << " but " << curBasis[0].size();
         int n = pastSolutions.size();
-        std::vector<std::string> c_old;
-        std::vector<std::string> c_orth;
         std::vector<std::string> constraints;
         for(int i = 0;i <curBasis.size(); i++){
             constraints.push_back("");
             if (i < n){
                 c_old.push_back("c_old" + std::to_string(i));
-                file << "    GRBVar " << c_old.back() << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << c_old.back() << "\");" << std::endl;
+                //file << "    GRBVar " << c_old.back() << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << c_old.back() << "\");" << std::endl;
 
             } else {
                 c_orth.push_back("c_orth" + std::to_string(i));
-                 file << "    GRBVar " << c_orth.back() << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << c_orth.back() << "\");" << std::endl;
+                 //file << "    GRBVar " << c_orth.back() << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << c_orth.back() << "\");" << std::endl;
             }
 
         }
@@ -547,15 +573,15 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
                     cur_c = c_orth[i-n];
                 }
             if (constraints[j].size() == 0){
-                constraints[j] = cur_c + " * " + std::to_string(curBasis[i][j]);
+                constraints[j] = std::to_string(curBasis[i][j]) + " " +  cur_c;
             } else {
-                 constraints[j] += " + " + cur_c + " * " + std::to_string(curBasis[i][j]);
+                 constraints[j] += " + " + std::to_string(curBasis[i][j]) + " " +  cur_c;
 
             }
             }
         }
         for(int i = 0; i<constraints.size(); i++){
-            file << "   model.addConstr(" << new_vars[i] << " == "  + constraints[i] + ");" << std::endl;
+            file << new_vars[i]  << " : " <<  constraints[i] << " - " << new_vars[i] << " = 0" <<  std::endl;
         }
         std::string nonzero_c = "";
         for(int i=0; i<c_orth.size(); i++){
@@ -565,32 +591,77 @@ std::vector<int> parseGurobiOutput(const std::string& output) {
                 nonzero_c += " + " + c_orth[i];
             }
         }
-        file <<  "  model.addConstr(" + nonzero_c + " >= 1);" << std::endl;
+        file <<  "nonzero_c : " + nonzero_c + " >= 1" << std::endl;
 
 
+    }
+    file << std::endl;
+    file << "Bounds" << std::endl;
+    // now we have to define the bounds 
+    for (auto i: c_orth){
+        file <<  "-inf <= " << i << " <= inf" << std::endl;
+    }
+    for (auto i: c_old){
+        file <<  "-inf <= " << i << " <= inf" << std::endl;
+    }
+    for (const auto& var : new_vars) {
+        file << "-inf <= " << var <<  " <= inf" << std::endl;
+    }
+    for (const auto&  pair: varCoefMap) {
+        file << "-inf <= " << pos_relu_vars[pair.first] <<  " <= inf" << std::endl;
+        file << "-inf <= " << neg_relu_vars[pair.first] <<  " <= inf" << std::endl;;
+        file << "-inf <= " << neg_coefficients[pair.first] << " <= inf" <<  std::endl; 
+        file << "-inf <= " <<  pos_coefficients[pair.first] << " <= inf" <<  std::endl;
+    }
+
+    // now we have to define that all our variables are general
+    file << std::endl;
+    file << "General" << std::endl;
+    for (auto i: c_orth){
+        file << i << std::endl;
+    }
+    for (auto i: c_old){
+        file << i << std::endl;
+    }
+    for (const auto& var : new_vars) {
+        file << var <<  std::endl;
+    }
+    for (const auto&  pair: varCoefMap) {
+        file << pos_relu_vars[pair.first] << std::endl;
+        file << neg_relu_vars[pair.first] << std::endl;;
+        file << neg_coefficients[pair.first] << std::endl; 
+        file << pos_coefficients[pair.first] << std::endl;
+    }
+
+    file << std::endl;
+    file << "Binaries" << std::endl;
+    for (auto i: binaries){
+        file << i << std::endl;
     }
     std::cout << "We actually got here \n";
-    file << "    model.optimize();" << std::endl;
-    file << "    std::cout << \"Optimal solution:\" << std::endl;" << std::endl;
-    for (const auto&  var: new_vars) {
-        file  << "    std::cout << \"" << var << ": \" << " << var << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
-    }
-    //  for (const auto&  var: pos_coefficients) {
-    //     file  << "    std::cout << \"" << var.second << ": \" << " << var.second << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
+    // file << "    model.optimize();" << std::endl;
+    // file << "    std::cout << \"Optimal solution:\" << std::endl;" << std::endl;
+    // for (const auto&  var: new_vars) {
+    //     file  << "    std::cout << \"" << var << ": \" << " << var << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
     // }
-    //  for (const auto&  var: neg_coefficients) {
-    //     file  << "    std::cout << \"" << var.second << ": \" << " << var.second << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
-    // }
-    //  for (const auto&  var: pos_relu_vars) {
-    //     file  << "    std::cout << \"" << var.second << ": \" << " << var.second << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
-    // }
-    //  for (const auto&  var: neg_relu_vars) {
-    //     file  << "    std::cout << \"" << var.second << ": \" << " << var.second << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
-    // }
-    file << "    };" << std::endl;
+    // //  for (const auto&  var: pos_coefficients) {
+    // //     file  << "    std::cout << \"" << var.second << ": \" << " << var.second << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
+    // // }
+    // //  for (const auto&  var: neg_coefficients) {
+    // //     file  << "    std::cout << \"" << var.second << ": \" << " << var.second << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
+    // // }
+    // //  for (const auto&  var: pos_relu_vars) {
+    // //     file  << "    std::cout << \"" << var.second << ": \" << " << var.second << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
+    // // }
+    // //  for (const auto&  var: neg_relu_vars) {
+    // //     file  << "    std::cout << \"" << var.second << ": \" << " << var.second << ".get(GRB_DoubleAttr_X) << std::endl;" << std::endl;
+    // // }
+    // file << "    };" << std::endl;
     std::cout << "Sanity Check\n";
     std::cout << "Number of OG Variables:" << varCoefMap.size() << "\n";
     std::cout << "Number of New Variables:" << new_vars.size() << "\n";
+    std::string hellp = readFileToString(filename);
+    std::cout << hellp << "\n";
     
    file.flush(); 
    file.close();
@@ -665,29 +736,30 @@ std::string runGurobi(const std::string& filename)
 {
   //std::cout << program << "\n";
   std::filesystem::path output1 = tmpPath();
-  std::filesystem::path output2 = tmpPath();
+  output1 = output1.concat(".sol");
+  //std::string output1 = "hello.txt";
+  //std::filesystem::path output2 = tmpPath();
   std::cout << "Program is in " << filename << "\n";
   std::cout << "We will write it to " << output1 << "\n";
-  std::cout << "And then compile it to " << output2 << "\n";
   //std::filesystem::path input = writeToTmpFile(program);
 
   std::stringstream commandStream;
-  commandStream << "g++ " << filename <<  " -o " << output1 <<  " -I/Library/gurobi1103/macos_universal2/include -L/Library/gurobi1103/macos_universal2/lib /Library/gurobi1103/macos_universal2/lib/libgurobi110.dylib -lgurobi_c++";
+  //commandStream << "g++ " << filename <<  " -o " << output1 <<  " -I/Library/gurobi1103/macos_universal2/include -L/Library/gurobi1103/macos_universal2/lib /Library/gurobi1103/macos_universal2/lib/libgurobi110.dylib -lgurobi_c++";
+  commandStream << "gurobi_cl ResultFile=" << output1 << " " << filename;
   std::string command = commandStream.str();
   std::cout << command << "\n";
   int exitCode = std::system(command.c_str());
-  Assert(exitCode == 0) << "Singular errored\nCommand: " << command;
-  std::cout << "Compilation worked\n";
-  exitCode = std::system(( output1.string() +  " >> " + output2.string()).c_str());
-    std::cout << "Running the command worked\n";
-  std::string outputContents = readFileToString(output2);
-  std::cout << outputContents << "\n";
-  Assert(outputContents.find(" error:") == std::string::npos) << "Gurobi error:\n"
-                                                         << outputContents;
+  AlwaysAssert(exitCode == 0) << "Gurobi errored\nCommand: " << command;
+//   std::cout << "Compilation worked\n";
+//   exitCode = std::system(( output1.string() +  " >> " + output2.string()).c_str());
+//     std::cout << "Running the command worked\n";
+ std::string outputContents = readFileToString(output1);
+ std::cout << "Result:" << outputContents << "\n";
+//   Assert(outputContents.find(" error:") == std::string::npos) << "Gurobi error:\n"
+// std::string word;
+    // Read the file word by word
+  //std::filesystem::remove(filename);
   std::filesystem::remove(output1);
-  std::filesystem::remove(output2);
-  std::filesystem::remove(filename);
-  //std::filesystem::remove(input);
   //std::cout << outputContents << "\n";
   return outputContents;
 }
@@ -1588,46 +1660,50 @@ void Field::addInequality(Node fact){
 
 bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool WeightedGB, int startLearningLemmas){
     NodeManager* nm = NodeManager::currentNM();
-    // if (didGurobi< 2 &&  startLearningLemmas == 20 && equalities.size() > 1){
-    //     bool gurobiNew = true;
-    //     std::vector<std::vector<int>> curBasis;
-    //     std::string output; 
-    //     std::vector<int> coefficients;
-    //     std::vector<Node> procEqual;
-    //     for (auto i: equalities){
-    //         procEqual.push_back(nm->mkNode(
-    //             Kind::ADD, i[0], rewrite(nm->mkNode( Kind::MULT, i[1], 
-    //             nm->mkConstInt(-1)))));
-    //     }
-    //     while(gurobiNew) {
-    //         std::filesystem::path input = tmpPath();
-    //         std::filesystem::remove(input);
-    //         input = input.concat(".cpp");
-    //         write_gurobi_query(input, procEqual, Bounds, nm, modulos, curBasis);
-    //         output = runGurobi(input);
-    //         coefficients = parseGurobiOutput(output);
-    //         if (coefficients.size() == 0){
-    //             gurobiNew = false; 
-    //             break;
-    //         }
-    //         std::vector<Node> sum;
-    //         std::cout << coefficients.size() << "\n";
-    //         for (int i=0; i<procEqual.size(); i++){
-    //             Node result =  nm->mkNode(Kind::MULT, procEqual[i], nm->mkConstInt(coefficients[i]));
-    //             std::cout << result << "\n";
-    //             sum.push_back(rewrite(result));
+    if (startLearningLemmas == 1 && didGurobi< 2 && equalities.size() > 1 & modulos > 2){
+    // &&  startLearningLemmas == 1 && equalities.size() > 1 & modulos > 2){
+        bool gurobiNew = true;
+        std::vector<std::vector<int>> curBasis;
+        std::string output; 
+        std::vector<int> coefficients;
+        std::vector<Node> procEqual;
+        for (auto i: equalities){
+            procEqual.push_back(nm->mkNode(
+                Kind::ADD, i[0], rewrite(nm->mkNode( Kind::MULT, i[1], 
+                nm->mkConstInt(-1)))));
+        }
+        while(gurobiNew) {
+            std::filesystem::path input = tmpPath();
+            std::filesystem::remove(input);
+            input = input.concat(".lp");
+            write_gurobi_query(input, procEqual, Bounds, nm, modulos, curBasis);
+            output = runGurobi(input);
+            std::cout << output << "\n";
+            //AlwaysAssert(false);
+            coefficients = parseGurobiOutput(output);
+            if (coefficients.size() == 0){
+                gurobiNew = false; 
+                break;
+            }
+            std::vector<Node> sum;
+            std::cout << coefficients.size() << "\n";
+            for (int i=0; i<procEqual.size(); i++){
+                Node result =  nm->mkNode(Kind::MULT, procEqual[i], nm->mkConstInt(coefficients[i]));
+                std::cout << result << "\n";
+                sum.push_back(rewrite(result));
                     
-    //         } 
-    //         curBasis.push_back(coefficients);
-    //         if (curBasis.size() == curBasis[0].size()){
-    //             gurobiNew = false; 
-    //             break;
-    //         }
-    //         addEquality(rewrite(nm->mkNode(Kind::EQUAL, nm->mkNode(Kind::ADD, sum), nm->mkConstInt(0))), false, true);
-    //     }
-    //     //AlwaysAssert(false);
-    //     didGurobi +=1;
-        
+            } 
+            curBasis.push_back(coefficients);
+            if (curBasis.size() == curBasis[0].size()){
+                gurobiNew = false; 
+                break;
+            }
+            addEquality(rewrite(nm->mkNode(Kind::EQUAL, nm->mkNode(Kind::ADD, sum), nm->mkConstInt(0))), false, true);
+        }
+        //AlwaysAssert(false);
+        didGurobi +=1;
+        //AlwaysAssert(false);
+    }
         
     // //     // std::cout << curBasis.size() << "\n";
     // //     // std::cout << curBasis[0].size() << "\n";
@@ -1636,7 +1712,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     // //    //printBasis(finalBasis);
         
     // //     //PAUSE HERE 
-    //  } 
+     //} 
     
 
     //std::cout << "Starting field simplifcation \n";

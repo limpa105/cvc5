@@ -94,7 +94,7 @@ std::string readFileToString(std::filesystem::path path)
 /** Run Singular on this program and return the output. */
 std::string runSingular(std::string program)
 {
-  std::cout << program << "\n";
+  //std::cout << program << "\n";
   std::filesystem::path output = tmpPath();
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
@@ -107,7 +107,7 @@ std::string runSingular(std::string program)
                                                         << outputContents;
   std::filesystem::remove(output);
   std::filesystem::remove(input);
-  std::cout << outputContents << "\n";
+  //std::cout << outputContents << "\n";
   return outputContents;
 }
 
