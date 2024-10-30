@@ -34,7 +34,7 @@ find "$TEST_DIR" -type f -name '*smt*' | while read -r file; do
     echo $file
 
     # Run cvc5 and capture both stdout and stderr in one go
-    output=$( gtimeout --signal=SIGTERM --kill-after=5s 130s  "$CVC5" --tlimit 120000 $CVC5_OPTIONS --stats  "$file" 2>&1 )
+    output=$( gtimeout --signal=SIGTERM --kill-after=5s 130s  "$CVC5" --tlimit 1200000 $CVC5_OPTIONS --stats  "$file" 2>&1 )
 
     echo "Finished cvc5"
 

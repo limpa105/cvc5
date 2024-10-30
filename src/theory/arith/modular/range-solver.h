@@ -73,6 +73,8 @@ class IntegerField: protected EnvObj{
 class Field:  protected EnvObj {
     public: 
 
+        std::map<std::string, std::vector<int>> collectMonomials(IntegerField z, Field f, NodeManager* nm);
+
         int didGurobi = 0;
 
         std::string mySingularReduce;
