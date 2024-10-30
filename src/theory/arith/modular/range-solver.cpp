@@ -2941,7 +2941,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     // // }
     //checkUnsat();
     Lift(Integers, Bounds,startLearningLemmas);
-    solver->printSystemState();
+    //solver->printSystemState();
     //AlwaysAssert(false);
     //AlwaysAssert(false);
     //substituteVariables();
@@ -3123,9 +3123,9 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
                 lemmas.push_back(rewrite(orStat));
                 lemmas.push_back(rewrite(nm->mkNode(Kind::LEQ, sk, nm->mkConstInt(Integer(1)))));
                 lemmas.push_back(rewrite(nm->mkNode(Kind::GEQ, sk, nm->mkConstInt(Integer(0)))));
-                std::cout << "LOOOK HERE!!!" << sk.getName() << "\n";
+                //std::cout << "LOOOK HERE!!!" << sk.getName() << "\n";
                 for (auto& item : LearntLemmasFrom) {
-                    std::cout << item << " ";
+                    //std::cout << item << " ";
                 }
                 (*solver).Bounds[sk.getName()] = std::make_pair(0,2);
                 LearntLemmasFrom.insert(equalities[i]);
@@ -3661,7 +3661,7 @@ void RangeSolver::processFact(TNode fact){
         }
     }
     else {
-        std::cout << "Not set up for this fact\n";
+        //std::cout << "Not set up for this fact\n";
         AlwaysAssert(false);
     }
     //std::cout << "Done with fact\n";
@@ -3723,21 +3723,21 @@ std::string findSmallestUpperBound(const std::map<std::string, std::pair<Integer
     });
 
     for (const auto& entry : sortedBounds) {
-         std::cout << "ASSIGNED VARIABLES\n";
+         //std::cout << "ASSIGNED VARIABLES\n";
      for (const auto& pair : assignedVariables) {
         const Node& node = pair.first;
         const Integer& value = pair.second;
 
-        std::cout << "Node: " << node.getName() << ", Value: " << value << std::endl;
+        //std::cout << "Node: " << node.getName() << ", Value: " << value << std::endl;
     }
 
-        std::cout << entry.first << ": (" << entry.second.first << ", " << entry.second.second << ")" << std::endl;
+       // std::cout << entry.first << ": (" << entry.second.first << ", " << entry.second.second << ")" << std::endl;
         if (assignedVariables.find(myVariables[replaceDots(entry.first)]) != assignedVariables.end()) {
-            std::cout << "Variable already assigned\n";
+            //std::cout << "Variable already assigned\n";
             continue;
         }
         if (currentVariables.find(entry.first) == currentVariables.end()) {
-            std::cout << "Variable not present in the equation\n";
+            //std::cout << "Variable not present in the equation\n";
             continue;
         }
         Integer low_val = 0;
@@ -3755,16 +3755,16 @@ std::string findSmallestUpperBound(const std::map<std::string, std::pair<Integer
                 high_val-=1; // Decrement high_val after using it
             }
             oldEqualities = f->equalities;
-            std::cout << "Trying:" << pos_val << std::endl;
-            std::cout << f->status << "\n";
-            std::cout << entry.first << "\n";
+            // std::cout << "Trying:" << pos_val << std::endl;
+            // std::cout << f->status << "\n";
+            // std::cout << entry.first << "\n";
 
                 std::cout << "MY VARIABLES\n";
      for (const auto& pair : myVariables) {
         //const Node& node = pair.first;
        // const Integer& value = pair.second;
 
-        std::cout << pair.first << " : " << pair.second << std::endl;
+        //std::cout << pair.first << " : " << pair.second << std::endl;
     }
 
             //std::cout << myVariables[entry.first] << "\n";
@@ -3775,27 +3775,27 @@ std::string findSmallestUpperBound(const std::map<std::string, std::pair<Integer
             //std::cout << "Finished GB\n";
             //std::cout << newPoly.size() << "\n";
             if (newPoly.size() == 0){
-                std::cout << "Bad Assignment \n";
+                //std::cout << "Bad Assignment \n";
                 for(auto i: f->equalities){
-                    std::cout << i << "\n";
+                    //std::cout << i << "\n";
                 }
                 pos_val +=1;
                 f->equalities = oldEqualities;
                 goto start_loop;
             }
             if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
-                 std::cout << "GB TOOK TOO LONG\n";
+                 //std::cout << "GB TOOK TOO LONG\n";
                  AlwaysAssert(false) << "No clue what to do here :(";
             }
             for (auto h: newPoly){
                 Node eq = rewrite(h);
-                std::cout << eq << "\n";
+                //std::cout << eq << "\n";
                 if (eq[0].getKind() == Kind::VARIABLE && eq[1].getKind() == Kind::CONST_INTEGER){
                     Integer num = eq[1].getConst<Rational>().getNumerator().floorDivideRemainder(f->modulos);
                     if (Bounds[eq[0].getName()].first > num || Bounds[eq[0].getName()].second < num ) {
-                        std::cout << "BOUNDS VIOLATED BADDD \n";
-                        printSystemState();
-                        std::cout << eq << "\n";
+                        //std::cout << "BOUNDS VIOLATED BADDD \n";
+                        //printSystemState();
+                        //std::cout << eq << "\n";
                         pos_val +=1;
                         f->equalities = oldEqualities;
                         goto start_loop;
@@ -3807,17 +3807,17 @@ std::string findSmallestUpperBound(const std::map<std::string, std::pair<Integer
         break; 
         }
     }
-     std::cout << "We got here!\n";
-     printSystemState();
+     //std::cout << "We got here!\n";
+     //printSystemState();
      return assignedVariables;
  }
 
 
 bool RangeSolver::addAssignment(Node asgn, Field *f){
-    std::cout << asgn << "\n";
-    std::cout << f->status << "\n";
+    // std::cout << asgn << "\n";
+    // std::cout << f->status << "\n";
     f->addEquality(asgn, true, true);
-    std::cout << f->status << "\n";
+    // std::cout << f->status << "\n";
     f->Simplify(integerField, Bounds, false, 0);
     if (f->status == Result::UNSAT){
         //printSystemState();
@@ -3825,7 +3825,7 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
     }
     int count = 0;
      while(count < 3){
-            std::cout << count << "\n";
+            //std::cout << count << "\n";
             for (auto& fieldPair :fields){
                 fieldPair.second.Simplify(integerField, Bounds, false, 0);
                 if (fieldPair.second.status == Result::UNSAT){
@@ -3834,7 +3834,7 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
             }
             integerField.Simplify(fields, Bounds);
                 if (integerField.status == Result::UNSAT){
-                        std::cout << "OH NO Integers!\n";
+                        //std::cout << "OH NO Integers!\n";
                     }
             count +=1;
      }
@@ -3893,14 +3893,14 @@ Result RangeSolver::Solve(){
     bool saturated;
     while(movesExist){
         //std::cout << "FINISHED ROUND" << count << "\n";
-        printSystemState();
+        //printSystemState();
         
         // //std::cout << count << "\n";
     // if (count==0){
     //   AlwaysAssert(false);
     //  }
     //count+=1;
-    std::cout << count << "\n";
+    //std::cout << count << "\n";
     //   if (count >=2){
     //      AlwaysAssert(false);    
     //     }
@@ -3927,7 +3927,7 @@ Result RangeSolver::Solve(){
             //std::cout << fieldPair.second.equalities.size() << "\n";
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
-                printSystemState();
+                //printSystemState();
                 return Result::UNSAT;
             }
 
@@ -3935,7 +3935,7 @@ Result RangeSolver::Solve(){
         integerField.Simplify(fields, Bounds);
         if (integerField.status == Result::UNSAT){
             integerField.status = Result::UNKNOWN;
-            printSystemState();
+            //printSystemState();
             return Result::UNSAT;
         }
         //std::cout << "FINISHED FIELDS\n";
@@ -3963,7 +3963,7 @@ Result RangeSolver::Solve(){
                 //std::cout << "UNSAT\n";
                 //printSystemState();
                 fieldPair.second.status = Result::UNKNOWN;
-                printSystemState();
+                //printSystemState();
                 return Result::UNSAT;
             }
             if (fieldPair.second.newEqualitySinceGB == true){
@@ -3978,11 +3978,11 @@ Result RangeSolver::Solve(){
             startLearningLemmas = 3;
         }
         if (saturated && startLearningLemmas == 2){
-            std::cout << "GB SATURATED NOTHING TO DO\n";
+            //std::cout << "GB SATURATED NOTHING TO DO\n";
             movesExist = false;
         }
         if (saturated && startLearningLemmas == 1){
-            std::cout << "Changed starting lemmas to Gurobi\n";
+            //std::cout << "Changed starting lemmas to Gurobi\n";
             startLearningLemmas  = 2;
         }
         // if (saturated && startLearningLemmas == 1.5){
@@ -3994,7 +3994,7 @@ Result RangeSolver::Solve(){
         // //    WeightedGB = false ;
         // // }
         if (saturated && startLearningLemmas == 0){
-            std::cout << "Changed starting lemmas to LearnLemmas\n";
+            //std::cout << "Changed starting lemmas to LearnLemmas\n";
             ///movesExist = false;
             startLearningLemmas = 1;
         }
@@ -4013,7 +4013,7 @@ Result RangeSolver::Solve(){
         //printSystemState();
         // step 0: only get the og fields 
         AlwaysAssert(false) << "Could not determine UNSAT :)";
-        std::cout << "OG FIELD SIZE:" << og_fields.size() << "\n";
+        //std::cout << "OG FIELD SIZE:" << og_fields.size() << "\n";
         std::map<Integer, Field*> myFields;
         for (auto i: og_fields){
             auto it = fields.find(i);
@@ -4155,7 +4155,7 @@ Result RangeSolver::Solve(){
             std::cout << "Finished simplification\n"; 
             if (unsatField.has_value()){
                 std::cout << "YIKES\n";
-                printSystemState();
+                //printSystemState();
                 std::cout << unsatField.value()->modulos << "\n";
                 AlwaysAssert(false);
 
@@ -4210,7 +4210,7 @@ Result RangeSolver::Solve(){
                 // it = myFields.begin();
             } else {
                 std::cout << "UNSAT FIELD HAD NO VALUE\n";
-                printSystemState();
+                //printSystemState();
                 if (it == myFields.begin()) {
                 break; // We are at the first element, stop the loop
                  }

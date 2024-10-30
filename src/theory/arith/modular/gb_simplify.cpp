@@ -98,6 +98,7 @@ std::string runSingular(std::string program)
   std::filesystem::path output = tmpPath();
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
+  //commandStream << "Singular -q -t " << input << " > " << output;
   commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
   std::string command = commandStream.str();
   int exitCode = std::system(command.c_str());
@@ -134,7 +135,7 @@ std::string replaceDots(std::string name) {
 std::vector<long> getWeights(std::map<std::string, Node> variables, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool weightedGB, std::set<std::string> notVars){
     std::vector<long> answer;
     for (auto i: variables){
-        std::cout << i << "\n";
+        //std::cout << i << "\n";
         // std::ostringstream oss;
         // oss << i;
         // std::string symbol = d_symNodes[oss.str()].getName();
@@ -168,7 +169,7 @@ std::vector<long> getWeights(std::map<std::string, Node> variables, std::map<std
                 //Bounds.insert(std::make_pair(symbol, 2));
             } else {
             //std::cout << oss.str() << "\n";
-            std::cout << "symbol is: " << symbol << "\n";
+            //std::cout << "symbol is: " << symbol << "\n";
             AlwaysAssert(false) << symbol << "has no bound??";
             float result = BIGINTLOG;
             //std::cout << "NOBOUND" << result << "\n";
@@ -594,9 +595,9 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
             std::string result1 = output.substr(pos + 1);
             try{
             if (std::stoi(result1) == 0){
-                std::cout << "OUTPUT ZERO WWOOO\n";
+                //std::cout << "OUTPUT ZERO WWOOO\n";
                 (*F).status = Result::UNSAT;
-                std::cout << "set status unsat?" << (*F).modulos << "\n";
+                //std::cout << "set status unsat?" << (*F).modulos << "\n";
                 return EmptyPolys;
             }
             } catch (const std::invalid_argument& e) { //std::cout << output << "\n";
@@ -783,7 +784,7 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
                     (*F).inequalities[i].getConst<bool>()==  true){
                         //AlwaysAssert(false);
                         (*F).status = Result::UNSAT;
-                        std::cout << "set status unsat? integers" << "\n";
+                        //std::cout << "set status unsat? integers" << "\n";
                         //AlwaysAssert(false);
                         return EmptyPolys;
                     }
@@ -827,9 +828,9 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
             std::string result1 = output.substr(pos + 1);
             try{
             if (std::stoi(result1) == 0){
-                std::cout << "OUTPUT ZERO WWOOO\n";
+                //std::cout << "OUTPUT ZERO WWOOO\n";
                 (*F).status = Result::UNSAT;
-                std::cout << "set status unsat? INTEGERS" << "\n";
+                //std::cout << "set status unsat? INTEGERS" << "\n";
                 return EmptyPolys;
             }
             } catch (const std::invalid_argument& e) { //std::cout << output << "\n";
