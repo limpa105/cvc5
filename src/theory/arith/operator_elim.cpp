@@ -120,18 +120,18 @@ Node OperatorElim::eliminateOperators(Node node,
 
     case Kind::INTS_DIVISION_TOTAL:
     case Kind::INTS_MODULUS_TOTAL:
-    {
-    //   if (partialOnly)
-    //   {
-    //     // not eliminating total operators
-    //     return node;
-    //   }
-       Node den = rewrite(node[1]);
-       Node num = rewrite(node[0]);
-       Node rw = nm->mkNode(k, num, den);
-       return rw;
-       break;
-    }
+    // {
+    // //   if (partialOnly)
+    // //   {
+    // //     // not eliminating total operators
+    // //     return node;
+    // //   }
+    //    Node den = rewrite(node[1]);
+    //    Node num = rewrite(node[0]);
+    //    Node rw = nm->mkNode(k, num, den);
+    //    return rw;
+    //    break;
+    // }
     //   // we use the purification skolem for div
     //   Node pterm = nm->mkNode(Kind::INTS_DIVISION_TOTAL, node[0], node[1]);
     //   Node v = sm->mkPurifySkolem(pterm);
@@ -278,14 +278,14 @@ Node OperatorElim::eliminateOperators(Node node,
     }
 
     case Kind::INTS_MODULUS:
-    {
-    //   // partial function: mod
-     Node num = rewrite(node[0]);
-     Node den = rewrite(node[1]);
-     Node ret = nm->mkNode(Kind::INTS_MODULUS_TOTAL, num, den);
-     return ret;
-     break;
-    }
+    // {
+    // //   // partial function: mod
+    //  Node num = rewrite(node[0]);
+    //  Node den = rewrite(node[1]);
+    //  Node ret = nm->mkNode(Kind::INTS_MODULUS_TOTAL, num, den);
+    //  return ret;
+    //  break;
+    // }
     //   if (!den.isConst() || den.getConst<Rational>().sgn() == 0)
     //   {
     //     checkNonLinearLogic(node);
