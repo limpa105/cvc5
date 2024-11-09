@@ -217,32 +217,32 @@ Node OperatorElim::eliminateOperators(Node node,
     //   }
     //   return v;
     // }
-    // case Kind::DIVISION_TOTAL:
-    // {
-    //   if (partialOnly)
-    //   {
-    //     // not eliminating total operators
-    //     return node;
-    //   }
-    //   Node num = rewrite(node[0]);
-    //   Node den = rewrite(node[1]);
-    //   if (den.isConst())
-    //   {
-    //     // No need to eliminate here, can eliminate via rewriting later.
-    //     // Moreover, rewriting may change the type of this node from real to
-    //     // int, which impacts certain issues with subtyping.
-    //     return node;
-    //   }
-    //   checkNonLinearLogic(node);
-    //   Node rw = nm->mkNode(k, num, den);
-    //   Node v = sm->mkPurifySkolem(rw);
-    //   Node lem = nm->mkNode(Kind::IMPLIES,
-    //                         den.eqNode(mkZero(den.getType())).negate(),
-    //                         mkEquality(nm->mkNode(Kind::MULT, den, v), num));
-    //   lems.push_back(mkSkolemLemma(lem, v));
-    //   return v;
-    //   break;
-    // }
+    case Kind::DIVISION_TOTAL:
+    {
+      if (partialOnly)
+      {
+        // not eliminating total operators
+        return node;
+      }
+      Node num = rewrite(node[0]);
+      Node den = rewrite(node[1]);
+      if (den.isConst())
+      {
+        // No need to eliminate here, can eliminate via rewriting later.
+        // Moreover, rewriting may change the type of this node from real to
+        // int, which impacts certain issues with subtyping.
+        return node;
+      }
+      checkNonLinearLogic(node);
+      Node rw = nm->mkNode(k, num, den);
+      Node v = sm->mkPurifySkolem(rw);
+      Node lem = nm->mkNode(Kind::IMPLIES,
+                            den.eqNode(mkZero(den.getType())).negate(),
+                            mkEquality(nm->mkNode(Kind::MULT, den, v), num));
+      lems.push_back(mkSkolemLemma(lem, v));
+      return v;
+      break;
+    }
     case Kind::DIVISION:
     {
       Node num = rewrite(node[0]);
@@ -276,7 +276,6 @@ Node OperatorElim::eliminateOperators(Node node,
       return ret;
       break;
     }
-
     case Kind::INTS_MODULUS:
     // {
     // //   // partial function: mod
@@ -297,17 +296,17 @@ Node OperatorElim::eliminateOperators(Node node,
     //   break;
     // }
 
-    // case Kind::ABS:
-    // {
-    //   return nm->mkNode(
-    //       Kind::ITE,
-    //       nm->mkNode(Kind::LT,
-    //                  node[0],
-    //                  nm->mkConstRealOrInt(node[0].getType(), Rational(0))),
-    //       nm->mkNode(Kind::NEG, node[0]),
-    //       node[0]);
-    //   break;
-    // }
+    case Kind::ABS:
+    {
+      return nm->mkNode(
+          Kind::ITE,
+          nm->mkNode(Kind::LT,
+                     node[0],
+                     nm->mkConstRealOrInt(node[0].getType(), Rational(0))),
+          nm->mkNode(Kind::NEG, node[0]),
+          node[0]);
+      break;
+    }
     case Kind::SQRT:
     case Kind::ARCSINE:
     case Kind::ARCCOSINE:
@@ -316,6 +315,7 @@ Node OperatorElim::eliminateOperators(Node node,
     case Kind::ARCSECANT:
     case Kind::ARCCOTANGENT:
     {
+      //std::cout << "We are here?\n";
       if (partialOnly)
       {
         // not eliminating total operators

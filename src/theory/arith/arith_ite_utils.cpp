@@ -245,6 +245,7 @@ Node ArithIteUtils::reduceIteConstantIteByGCD_rec(Node n, const Rational& q){
 }
 
 Node ArithIteUtils::reduceIteConstantIteByGCD(Node n){
+  std::cout << "AAAA\n";
   Assert(n.getKind() == Kind::ITE);
   Assert(n.getType().isRealOrInt());
   const Integer& gcd = gcdIte(n);
@@ -268,6 +269,7 @@ Node ArithIteUtils::reduceIteConstantIteByGCD(Node n){
 }
 
 Node ArithIteUtils::reduceConstantIteByGCD(Node n){
+  std::cout << "AAAA\n";
   if(d_reduceGcd.find(n) != d_reduceGcd.end()){
     return d_reduceGcd[n];
   }

@@ -98,8 +98,8 @@ std::string runSingular(std::string program)
   std::filesystem::path output = tmpPath();
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
-  //commandStream << "Singular -q -t " << input << " > " << output;
-  commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
+  commandStream << "Singular -q -t " << input << " > " << output;
+  //commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
   std::string command = commandStream.str();
   int exitCode = std::system(command.c_str());
   Assert(exitCode == 0) << "Singular errored\nCommand: " << command;
@@ -157,9 +157,13 @@ std::vector<long> getWeights(std::map<std::string, Node> variables, std::map<std
         
         
         if (Bounds.find(symbol)!= Bounds.end()){
-            long result = 10*log2(Bounds[symbol].second.getDouble());
+            if (Bounds[symbol].second.getDouble() == 0){
+                answer.push_back(0);
+            } else {
+                long result = 10*log2(Bounds[symbol].second.getDouble());
             //std::cout << result << "\n";
-            answer.push_back(long(result));
+                answer.push_back(long(result));
+            }
         }
         else {
             //AlwaysAssert(false);

@@ -243,9 +243,15 @@ RewriteResponse ArithRewriter::preRewriteTerm(TNode t){
       case Kind::ARCCOTANGENT:
       case Kind::SQRT: return preRewriteTranscendental(t);
       case Kind::INTS_DIVISION:
-      case Kind::INTS_MODULUS: return rewriteIntsDivMod(t, true);
+      case Kind::INTS_MODULUS: { 
+       // std::cout << "INTS_MOD_RESULT_TRUE" << rewriteIntsDivMod(t, true).d_node << "\n";
+        return rewriteIntsDivMod(t, true);
+      }
       case Kind::INTS_DIVISION_TOTAL:
-      case Kind::INTS_MODULUS_TOTAL: return rewriteIntsDivModTotal(t, true);
+      case Kind::INTS_MODULUS_TOTAL: { 
+        //std::cout << "INTS_MOD_TOTAL_TRUE" << rewriteIntsDivModTotal(t, true).d_node << "\n";
+        return rewriteIntsDivModTotal(t, true);
+      }
       case Kind::ABS: return rewriteAbs(t);
       case Kind::IS_INTEGER:
       case Kind::TO_INTEGER:
@@ -292,9 +298,15 @@ RewriteResponse ArithRewriter::postRewriteTerm(TNode t){
       case Kind::ARCCOTANGENT:
       case Kind::SQRT: return postRewriteTranscendental(t);
       case Kind::INTS_DIVISION:
-      case Kind::INTS_MODULUS: return rewriteIntsDivMod(t, false);
+      case Kind::INTS_MODULUS: {
+          //std::cout << "INTS_MOD_RESULT_FALSE" << rewriteIntsDivMod(t, false).d_node << "\n";
+         return rewriteIntsDivMod(t, false);
+      }
       case Kind::INTS_DIVISION_TOTAL:
-      case Kind::INTS_MODULUS_TOTAL: return rewriteIntsDivModTotal(t, false);
+      case Kind::INTS_MODULUS_TOTAL: {
+        //std::cout << "INTS_MOD_TOTAL_FALSE" << rewriteIntsDivModTotal(t, false).d_node << "\n";
+        return rewriteIntsDivModTotal(t, false);
+      }
       case Kind::ABS: return rewriteAbs(t);
       case Kind::TO_REAL: return rewriteToReal(t);
       case Kind::TO_INTEGER: return rewriteExtIntegerOp(t);
@@ -650,6 +662,7 @@ RewriteResponse ArithRewriter::rewriteAbs(TNode t)
 
 RewriteResponse ArithRewriter::rewriteIntsDivMod(TNode t, bool pre)
 {
+  //std::cout << "We are here2" << t << "\n";
   NodeManager* nm = NodeManager::currentNM();
   Kind k = t.getKind();
   if (k == Kind::INTS_MODULUS)
@@ -675,6 +688,7 @@ RewriteResponse ArithRewriter::rewriteIntsDivMod(TNode t, bool pre)
 
 RewriteResponse ArithRewriter::rewriteIntsDivModTotal(TNode t, bool pre)
 {
+  //std::cout << "We are here" << t << "\n";;
   if (pre)
   {
     // do not rewrite at prewrite.
@@ -715,6 +729,7 @@ RewriteResponse ArithRewriter::rewriteIntsDivModTotal(TNode t, bool pre)
   }
   else if (dIsConstant && n.isConst())
   {
+    //std::cout << "THIS IS TRIGGERED\n";
     Assert(d.getConst<Rational>().isIntegral());
     Assert(n.getConst<Rational>().isIntegral());
     Assert(!d.getConst<Rational>().isZero());

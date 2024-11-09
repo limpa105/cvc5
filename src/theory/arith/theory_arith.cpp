@@ -256,6 +256,7 @@ void TheoryArith::postCheck(Effort level)
     conflictCount +=1;
     std::cout << "CONFLICT COUNT" << conflictCount << "\n";
     } else if(result.getStatus() == Result::UNKNOWN){
+      AlwaysAssert(false);
     NodeManager* nm = NodeManager::currentNM();
     const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
     std::cout << lemma << "\n";

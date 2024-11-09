@@ -2002,7 +2002,7 @@ std::set<std::string> getVarsHelper(Node eq){
         }
         return answer;       
     }
-    AlwaysAssert(false) << eq;
+    AlwaysAssert(false) << eq << "," << eq.getKind();
 }
 
 
@@ -2250,16 +2250,270 @@ bool IntegerField::checkUnsat(){
     return false;
 }
 
+Node IntegerField::substituteTargetVariableWithZero(const Node& node, std::string targetNode) {
+     NodeManager* nm = NodeManager::currentNM();
+    if (node.getKind() == Kind::VARIABLE && node.getName() == targetNode) {
+        // Replace target variable with zero
+        return nm->mkConstInt(0);
+    }
+
+    // If the node has children, apply substitution to each child
+    std::vector<Node> newChildren;
+    bool hasChanged = false;
+
+    for (size_t i = 0; i < node.getNumChildren(); ++i) {
+        Node child = node[i];
+        Node newChild = substituteTargetVariableWithZero(child, targetNode);
+
+        if (newChild != child) {
+            hasChanged = true;
+        }
+
+        newChildren.push_back(newChild);
+    }
+
+    // If any children changed, create a new node with substituted children
+    if (hasChanged) {
+        return nm->mkNode(node.getKind(), newChildren);
+    } else {
+        // Return the original node if no substitution was needed
+        return node;
+    }
+
+}
+bool containsVariable(const Node& node, std::string targetNode) {
+    if (node.getName() == targetNode) {
+        return true;
+    }
+    for (size_t i = 0; i < node.getNumChildren(); ++i) {
+        if (containsVariable(node[i], targetNode)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::pair<Node, Node> IntegerField::separateTerms(const Node& node, std::string targetNode) {
+    std::vector<Node> withTarget, withoutTarget;
+    NodeManager* nm = NodeManager::currentNM();
+    if (node.getKind()  == Kind::VARIABLE){
+        if (containsVariable(node,targetNode)){
+            return {nm->mkConstInt(0), node };
+        } else {
+            AlwaysAssert(false);
+        }
+        
+    }
+    else if (node.getKind() == Kind::ADD) {
+        for (size_t i = 0; i < node.getNumChildren(); ++i) {
+            Node child = node[i];
+            if (containsVariable(child, targetNode)) {
+                withTarget.push_back(child);
+            } else {
+                withoutTarget.push_back(child);
+            }
+        }
+        Node withTargetNode = rewrite(nm->mkNode(Kind::ADD, withTarget));
+        Node withoutTargetNode = rewrite(nm->mkNode(Kind::ADD, withoutTarget));
+        return {withoutTargetNode, withTargetNode};
+
+    } else if (node.getKind() == Kind::MULT) {
+          if (containsVariable(node,targetNode)){
+            return {nm->mkConstInt(0), node };
+        } else {
+            AlwaysAssert(false);
+        }
+    } else {
+        AlwaysAssert(false) << node;
+    }
+}
+
+
+
+
+bool IntegerField::tightenBounds(std::map<std::string, std::pair<Integer, Integer> > &Bounds){
+for (int i = 0; i < equalities.size(); i++) {
+        //std::cout << equalities[i] << "\n";
+        if (equalities[i][0].getKind() == Kind::VARIABLE && equalities[i][1].getKind() == Kind::CONST_INTEGER){
+            //std::cout << "triggered\n";
+            Integer value = equalities[i][1].getConst<Rational>().getNumerator();
+            Bounds[equalities[i][0].getName()] = std::make_pair(value,value);
+            continue;
+        }
+        std::set<std::string> variables = getVarsHelper(equalities[i]);
+        
+        std::vector<std::string> largeBoundVars;
+        
+        std::string maxVar;
+        Integer maxRange = -1;
+        bool isUnique = true;
+
+        for (const auto& var : variables) {
+            Integer boundRange = Bounds[var].second - Bounds[var].first;
+            if (boundRange > maxRange) {
+                maxRange = boundRange;
+                maxVar = var;
+                isUnique = true; // Reset uniqueness as we found a larger range
+            } else if (boundRange == maxRange) {
+                isUnique = false; // Not unique if another variable shares this range
+            }
+        }
+        
+        if (!isUnique) {
+            continue;
+        } else {
+            std::string targetVar =maxVar;
+            //std::cout << "INFERING BOUNDS FOR" << targetVar << "\n";
+            //std::cout << equalities[i] << "\n";
+            NodeManager* nm = NodeManager::currentNM();
+            Node changed = nm->mkNode(Kind::ADD, equalities[i][1], nm->mkNode(Kind::MULT, nm->mkConstInt(-1), equalities[i][0]));
+            std::pair<Node, Node> seperatedNodes = separateTerms(rewrite(changed),targetVar);
+            Integer frac =  Integer(-1);
+            //std::cout << "With" << seperatedNodes.second << "\n";
+            //std::cout << "Without" << seperatedNodes.first << "\n";
+            if (seperatedNodes.second.getNumChildren()>= 2){
+                if (seperatedNodes.second.getKind() == Kind::MULT && 
+                   seperatedNodes.second.getNumChildren() == 2 && 
+                   seperatedNodes.second[0].getKind() == Kind::CONST_INTEGER ){
+                    frac = frac * seperatedNodes.second[0].getConst<Rational>().getNumerator() ;
+                    //std::cout << "Frac was set to true\n";
+                   } else {
+                    std::cout << "ISOLATION FAILED\n";
+                    std::cout << seperatedNodes.first << "\n";
+                    std::cout << seperatedNodes.second << "\n";
+                    return true;
+                   }
+            }
+            
+           
+            
+            //Node finalNode = nm->mkNode(Kind::SUB, equalityNode[0], equalityNode[1]);
+            std::pair<Integer, Integer> inferredBounds = inferBoundsRecursive(seperatedNodes.first, Bounds);
+            //std::cout << inferredBounds << "\n";
+            //Bounds[targetVar] = inferredBounds;
+            //std::cout << "INFEREED BOUNDS " << inferredBounds << "\n";
+            Integer product1 = inferredBounds.first.ceilingDivideQuotient(frac);
+            Integer product2 = inferredBounds.second.ceilingDivideQuotient(frac);
+            Integer upper = std::max({product1, product2});
+            Integer lower = std::min({product1, product2});
+            inferredBounds = std::make_pair(lower,upper);
+            
+            // Integer products[4] = {
+            //     childBounds.first * childBounds.first,
+            //     childBounds.first * childBounds.second,
+            //     childBounds.second * childBounds.first,
+            //     childBounds.second * childBounds.second
+            // };
+
+
+
+            // if (frac){
+            //     // Think about this
+            //     Integer divisor = Integer(-1) * seperatedNodes.second[0].getConst<Rational>().getNumerator();
+            //     inferredBounds = std::make_pair(inferredBounds.first.floorDivideQuotient(divisor), inferredBounds.second.floorDivideQuotient(divisor));
+            //     std::cout << "INFEREED BOUNDS " << inferredBounds << "\n";
+            // }
+            // std::cout << targetVar << "\n";
+            // std::cout << "oldBounds: " << Bounds[targetVar] << "\n";
+            // if (inferredBounds.second <0){
+            //     AlwaysAssert(false) << inferredBounds;
+            // }
+            
+            if (inferredBounds.second < Bounds[targetVar].second){
+                Bounds[targetVar].second = inferredBounds.second ;
+                //std::cout << inferredBounds.second;
+                //std::cout << Bounds[targetVar].second;
+            } 
+            if (inferredBounds.first > Bounds[targetVar].first ){
+                 Bounds[targetVar].first = inferredBounds.first;
+                 //std::cout << inferredBounds.second;
+                 //std::cout << Bounds[targetVar].second;
+            }
+            //std::cout << "NewBounds " << Bounds[targetVar] << "\n";
+            if (Bounds[targetVar].first > Bounds[targetVar].second){
+                //std::cout << "BOUNDS ISSUE!!!";
+                this->status = Result::UNSAT;
+                return true;
+            }
+            //AlwaysAssert(false);
+        }
+        
+    }
+    return true;
+}
+
+// Recursive helper function that returns both lower and upper inferred bounds
+std::pair<Integer, Integer> IntegerField::inferBoundsRecursive(const Node& node, std::map<std::string,  std::pair<Integer, Integer>>& Bounds) {
+    //std::cout << node << "\n";
+    if (node.getKind() == Kind::CONST_INTEGER) {
+        Integer constValue = node.getConst<Rational>().getNumerator();
+        //std::cout << constValue << "\n";
+        return {constValue, constValue};  // Both lower and upper are the constant value
+    } else if (node.getKind() == Kind::VARIABLE) {
+        std::string varName = node.getName();
+        return Bounds[varName];  // Return both lower and upper bounds for the variable
+    }
+
+     std::pair<Integer, Integer> result;
+    if (node.getKind() == Kind::ADD) {
+        Integer lowerSum = 0, upperSum = 0;
+        for (const Node& child : node) {
+            std::pair<Integer, Integer> childBounds = inferBoundsRecursive(child, Bounds);
+            lowerSum += childBounds.first;
+            upperSum += childBounds.second;
+        }
+        result = {lowerSum, upperSum};
+    } else if (node.getKind() == Kind::MULT) {
+        Integer minProduct = 1;
+        Integer maxProduct = 1;
+        for (const Node& child : node) {
+             std::pair<Integer, Integer> childBounds = inferBoundsRecursive(child, Bounds);
+
+            // Multiply each combination of lower and upper bounds
+            Integer products[4] = {
+                childBounds.first * minProduct,
+                childBounds.first * maxProduct,
+                childBounds.second * minProduct,
+                childBounds.first * maxProduct
+            };
+        
+
+            minProduct = std::min({products[0], products[1], products[2], products[3]});
+            maxProduct = std::max({products[0], products[1], products[2], products[3]});
+        }
+        result = {minProduct, maxProduct};
+    } else if (node.getKind() == Kind::SUB) {
+        std::pair<Integer, Integer> leftBounds = inferBoundsRecursive(node[0], Bounds);
+        std::pair<Integer, Integer> rightBounds = inferBoundsRecursive(node[1], Bounds);
+        result = {
+            leftBounds.first - rightBounds.second,  // Min difference
+            leftBounds.second - rightBounds.first    // Max difference
+        };
+    }
+
+    // Handle other operations similarly if needed
+    return result;
+}
+
+
 /////////////////////////////////////////////////// INTEGERFIELD ////////////////////////////////////////////////////////////////////
 
 IntegerField::IntegerField(Env &env, RangeSolver* solver):EnvObj(env){this->solver = solver;};
 
-bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > Bounds){
+bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > &Bounds){
     //std::cout << "STARTED INTEGERS\n";
     //CancelConstants();
     NodeManager* nm = NodeManager::currentNM();
+    tightenBounds(Bounds);
+    //std::cout << "FINISHED tightening bounds?\n";
+    if (status == Result::UNSAT){
+        std::cout << "INTEGER UNSAT DUE TO BOUNDS\n";
+        return false;
+    }
+
+
     if (unlowerableIneq){
-        std::cout << "COMPUTING GB IN THE INTEGERS WOOO!\n";
+        //std::cout << "COMPUTING GB IN THE INTEGERS WOOO!\n";
         std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
         //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
         //      //std::cout << "Finished GB\n";
@@ -2283,7 +2537,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
                 if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
                     rewrite(poly).getConst<bool>() == false){
                         status = Result::UNSAT;
-                        std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
+                        std::cout << "SOME ISSUE WE ARE NOT CATCHING\n" << poly;
                         //AlwaysAssert(lemmas.size()==0) << modulos;
                         return false;
                 }
@@ -2696,13 +2950,14 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
             //AlwaysAssert(false) << result;
             newEqualitySinceGB = true;
             equalities.push_back(fact);
-             //std::cout << "NEW EQUALITY" << fact << "for" << modulos << "\n";
+            //std::cout << "NEW EQUALITY" << fact << "for" << modulos << "\n";
             ALLequalities.push_back(fact);
 
         }
 
         //if(inField){
         newEqualitySinceGB = true;
+        //std::cout << "ADDED WITHOUT REDUCTION " << fact << "for" << modulos << "\n";
         equalities.push_back(fact);
         ALLequalities.push_back(fact);
         return;
@@ -2950,12 +3205,13 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     //std::cout << "Substitute Eqs done \n";
     //std::cout << "Checking Unsat is done \n";
     if (status == Result::UNSAT){
+        std::cout << "UNSAT \n";
         return false;
     }
     //std::cout << "Finished UNSAT\n";
     
     if (newEqualitySinceGB ){
-        //std::cout << "STARING GB\n";
+        //std::cout << "STARING GB IN FIELD\n";
         std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, false);
         //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
          //std::cout << "Finished GB\n";
@@ -3507,7 +3763,7 @@ void RangeSolver::preRegisterTerm(TNode node){
     //         upperBounds[node.getName()] = std::min(ty.getFfSize(), upperBounds[node.getName()]);
     //     }
     //   }
-    if (node.getKind() == Kind::VARIABLE ){
+    if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM ){
             // if (upperBounds.count(node.getName())==0){
             std::string singularName = replaceDots(node.getName());
             myVariables[singularName] = node;
@@ -3548,7 +3804,6 @@ void RangeSolver::notifyFact(TNode fact){
 }
 
 void RangeSolver::processFact(TNode fact){
-    //std::cout << fact << "\n";
     NodeManager* nm = NodeManager::currentNM();
     if(fact.getKind() == Kind::GEQ && fact[0].getNumChildren()<=1){
         AlwaysAssert(fact[1].getKind()==Kind::CONST_INTEGER) << fact;
@@ -3557,7 +3812,7 @@ void RangeSolver::processFact(TNode fact){
             AlwaysAssert(false) << fact;
             }
             else {
-            Bounds[fact[0].getName()].first = Bound;
+            Bounds[fact[0].getName()].first = std::max({Bound, Bounds[fact[0].getName()].first});
             }
     }
     else if(fact.getKind() == Kind::GEQ && fact[0].getNumChildren()>1){
@@ -3569,7 +3824,7 @@ void RangeSolver::processFact(TNode fact){
             //std::cout << "PROCESSING" << fact << "\n";
             }
             Integer Bound = Integer(-1) * fact[1].getConst<Rational>().getNumerator();
-            Bounds[fact[0][1].getName()].second = Bound;
+            Bounds[fact[0][1].getName()].second = std::min({Bound, Bounds[fact[0][1].getName()].second}) ;
 
             //AlwaysAssert(fact[1].getConst<Rational>().getNumerator() == Integer(0)) << fact;}
     }
@@ -3577,7 +3832,7 @@ void RangeSolver::processFact(TNode fact){
             AlwaysAssert(fact[0][1].getKind()==Kind::CONST_INTEGER) << fact;
             Integer Bound = fact[0][1].getConst<Rational>().getNumerator()-1;
             //AlwaysAssert(Bound > 0) << fact;
-        if (fact[0][0].getKind()!=Kind::VARIABLE){
+        if (fact[0][0].getKind()!=Kind::VARIABLE && fact[0][0].getKind()!=Kind::SKOLEM ){
             if (fact[0][0].getKind() == Kind::MULT && 
                 fact[0][0][0].getKind() == Kind::CONST_INTEGER && 
                 fact[0][0][0].getConst<Rational>().getNumerator() == Integer(-1) && 
@@ -3585,7 +3840,7 @@ void RangeSolver::processFact(TNode fact){
                  fact[0][1].getKind() == Kind::CONST_INTEGER
                 ){
                     Integer Bound = Integer(-1) * fact[0][0][0].getConst<Rational>().getNumerator();
-                    Bounds[fact[0][0][1].getName()].first = Bound;
+                    Bounds[fact[0][0][1].getName()].first = std::max({Bound, Bounds[fact[0][0][1].getName()].first}) ;
 
                 }
             else {
@@ -3621,7 +3876,7 @@ void RangeSolver::processFact(TNode fact){
 
             }
             else {
-            Bounds[fact[0][0].getName()].second = Bound;
+            Bounds[fact[0][0].getName()].second = std::min({Bound, Bounds[fact[0][0].getName()].second});
             }
         }
     else if (fact.getKind() == Kind::EQUAL) {
@@ -3859,9 +4114,22 @@ Result RangeSolver::Solve(){
     for(auto &f : fields){
         f.second.clearAll();
     }
+    //CLEAN BOUNDS HEAR
+    for (auto &pair: Bounds){
+        Bounds[pair.first]= std::make_pair(Integer(-1) *BIGINT, BIGINT);
+    }
     for (auto fact:d_facts){
         processFact(fact);
     }
+    // Check Bounds for incosinstency 
+    for (auto &pair: Bounds){
+        if (pair.second.first > pair.second.second){
+            std::cout << "INITIAL BOUNDS WRONG\n";
+            return Result::UNSAT;
+        }
+    }
+
+
     std::vector<Node> newLemmas;
     for (auto fact:Lemmas){
         if (fact.getNumChildren()>0){
@@ -3973,17 +4241,17 @@ Result RangeSolver::Solve(){
             }
         }
         //std::cout << "Saturation status:" << saturated << "\n";
+        // if (saturated && startLearningLemmas == 2){
+        //     //std::cout << "GB SATURATED NOTHING TO DO\n";
+        //     startLearningLemmas = 3;
+        // }
         if (saturated && startLearningLemmas == 2){
             //std::cout << "GB SATURATED NOTHING TO DO\n";
             startLearningLemmas = 3;
         }
-        if (saturated && startLearningLemmas == 2){
-            //std::cout << "GB SATURATED NOTHING TO DO\n";
-            movesExist = false;
-        }
-        if (saturated && startLearningLemmas == 1){
+        if (saturated && startLearningLemmas == 3){
             //std::cout << "Changed starting lemmas to Gurobi\n";
-            startLearningLemmas  = 2;
+            movesExist = false;
         }
         // if (saturated && startLearningLemmas == 1.5){
         //     std::cout << "Changed starting lemmas to RangeLiftEq\n";
@@ -3996,7 +4264,7 @@ Result RangeSolver::Solve(){
         if (saturated && startLearningLemmas == 0){
             //std::cout << "Changed starting lemmas to LearnLemmas\n";
             ///movesExist = false;
-            startLearningLemmas = 1;
+            startLearningLemmas = 2;
         }
         //     startLearningLemmas = true;
         //      //AlwaysAssert(false);

@@ -36,6 +36,7 @@ TheoryPreprocess::TheoryPreprocess(PreprocessingPassContext* preprocContext)
 PreprocessingPassResult TheoryPreprocess::applyInternal(
     AssertionPipeline* assertions)
 {
+  //return PreprocessingPassResult::NO_CONFLICT;
   d_preprocContext->spendResource(Resource::PreprocessStep);
 
   IteSkolemMap& imap = assertions->getIteSkolemMap();

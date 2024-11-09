@@ -29,6 +29,13 @@ class IntegerField: protected EnvObj{
 
         IntegerField(Env &env, RangeSolver* solver);
 
+        std::pair<Node, Node>  separateTerms(const Node& node, std::string targetNode);
+
+        bool tightenBounds(std::map<std::string, std::pair<Integer, Integer> > &Bounds);
+
+        Node substituteTargetVariableWithZero(const Node& node, std::string targetNode);
+
+        std::pair<Integer, Integer> inferBoundsRecursive(const Node& node, std::map<std::string,  std::pair<Integer, Integer>>& Bounds);
 
         bool unlowerableIneq = false;
 
@@ -44,7 +51,7 @@ class IntegerField: protected EnvObj{
 
         std::vector<Node> old_inequalities;
 
-        bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > Bounds);
+        bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > &Bounds);
 
         void addEquality(Node equality);
 

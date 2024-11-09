@@ -39,7 +39,7 @@ find "$TEST_DIR" -type f -name '*smt*' | while read -r file; do
     echo "Finished cvc5"
 
     # Extract the last line (result) from stdout (assuming unsat/sat is in stdout)
-    result=$(echo "$output" | grep -v 'global::totalTime' | tail -n 6 | head -n 1)
+    result=$(echo "$output" | grep -v 'global::totalTime' | tail -n 5 | head -n 1)
 
     echo "finished first grep"
 

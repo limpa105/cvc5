@@ -144,8 +144,8 @@ PreprocessingPassResult NonClausalSimp::applyInternal(
     Node learnedLiteral = learned_literals[i].getNode();
     Trace("non-clausal-simplify")
         << "Process learnedLiteral : " << learnedLiteral;
-    Assert(rewrite(learnedLiteral) == learnedLiteral);
-    Assert(top_level_substs.apply(learnedLiteral) == learnedLiteral)
+    AlwaysAssert(rewrite(learnedLiteral) == learnedLiteral);
+    AlwaysAssert(top_level_substs.apply(learnedLiteral) == learnedLiteral)
         << learnedLiteral << " after subs is "
         << top_level_substs.apply(learnedLiteral);
     // process the learned literal with substitutions and const propagations
@@ -432,6 +432,8 @@ Node NonClausalSimp::processLearnedLit(Node lit,
                                        theory::TrustSubstitutionMap* subs,
                                        theory::TrustSubstitutionMap* cp)
 {
+  //return lit;
+  Node og = lit;
   Rewriter* rw = d_env.getRewriter();
   TrustNode tlit;
   if (subs != nullptr)
@@ -444,6 +446,18 @@ Node NonClausalSimp::processLearnedLit(Node lit,
     Trace("non-clausal-simplify")
         << "Process learnedLiteral, after newSubs : " << lit << std::endl;
   }
+  // std::cout << "Resulting " << lit << "\n";
+  // if (lit.getNumChildren()>1){
+  //   std::cout << lit[1].getKind() << "\n";
+  //   if (lit[1].getKind() == Kind::ADD ){
+  //   std::cout << lit[1][0].getKind() << "\n";
+  //   }
+  // }
+  // if (lit.getNumChildren() > 1 && lit[1].getKind() == Kind::ADD && lit[1][0].getKind() == Kind::ITE){
+  //   std::cout << "TRIGGERED\n";
+  //   std::cout << og << "\n";
+  //   return og;
+  // }
   // apply to fixed point
   if (cp != nullptr)
   {

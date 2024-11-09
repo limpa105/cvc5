@@ -34,6 +34,7 @@ Node NlExtPurify::purifyNlTerms(TNode n,
                                 std::vector<Node>& var_eq,
                                 bool beneathMult)
 {
+  std::cout << "why are we running this\n";
   NodeManager* nm = NodeManager::currentNM();
   SkolemManager* sm = nm->getSkolemManager();
   if (beneathMult)
