@@ -160,7 +160,7 @@ std::vector<long> getWeights(std::map<std::string, Node> variables, std::map<std
             if (Bounds[symbol].second.getDouble() == 0){
                 answer.push_back(0);
             } else {
-                long result = 10*log2(Bounds[symbol].second.getDouble());
+                long result = 10*log2(std::abs(Bounds[symbol].second.getDouble()));
             //std::cout << result << "\n";
                 answer.push_back(long(result));
             }

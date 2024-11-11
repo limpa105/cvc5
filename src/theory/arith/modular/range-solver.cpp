@@ -85,6 +85,10 @@ void printBasis(const std::vector<std::vector<int>>& basis) {
     }
 }
 
+bool isVariableOrSkolem(Node node) {
+    return (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM);
+}
+
 // Function to perform integer Gaussian elimination and return the rank of the matrix
 // Function to perform Gaussian elimination and return the rank
 
@@ -346,7 +350,7 @@ std::vector<int> getLastRow(Node eq, std::map<std::string, std::vector<int>> mon
             if (node.getKind() == Kind::CONST_INTEGER){
                 continue;
             }
-            else if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM ){
+            else if (isVariableOrSkolem(node) ){
                 monomials[node.getName()].push_back(1); 
             }
             else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT){ 
@@ -411,7 +415,7 @@ std::map<std::string, std::vector<int>> Field::collectMonomials(IntegerField z, 
             if (node.getKind() == Kind::CONST_INTEGER){
                 continue;
             }
-            else if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM ){
+            else if ( isVariableOrSkolem(node)){
                 monomials[node.getName()] = std::vector<int>(); 
             }
             else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT){ 
@@ -444,7 +448,7 @@ std::map<std::string, std::vector<int>> Field::collectMonomials(IntegerField z, 
             if (node.getKind() == Kind::CONST_INTEGER){
                 continue;
             }
-            else if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM ){
+            else if ( isVariableOrSkolem(node)){
                 if (monomials.find(node.getName()) != monomials.end()){
                     broken = true;
                     break;
@@ -486,7 +490,7 @@ std::map<std::string, std::vector<int>> Field::collectMonomials(IntegerField z, 
             if (node.getKind() == Kind::CONST_INTEGER){
                 continue;
             }
-            else if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM ){
+            else if (isVariableOrSkolem(node) ){
                 monomials[node.getName()].push_back(1); 
             }
             else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT){ 
@@ -589,7 +593,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
                 //varCoefMap[node.getName()].push_back(new_vars[j]);
                 
             }
-            else if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM){
+            else if (isVariableOrSkolem(node)){
                 if (varCoefMap.find(node.getName()) == varCoefMap.end()){
                     varCoefMap[node.getName()].push_back(new_vars[j]);
                 } else {
@@ -615,7 +619,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
                         Integer LB = 1;
                         Integer UB = 1;
                         for (int i = 0; i<node[1].getNumChildren(); i++) {
-                            AlwaysAssert(node[1][i].getKind()==Kind::VARIABLE || node[1][i].getKind() == Kind::SKOLEM) << node[i];
+                            AlwaysAssert(isVariableOrSkolem(node[1][i])) << node[i];
                             name += node[1][i].getName() + "_";
                             myNodes.push_back(node[1][i]);
                             Integer pos1 = LB * bounds[node[1][i].getName()].second;
@@ -633,7 +637,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
                         nonlinearMap[name] = myNodes;
                         nonlinearBounds[name] = std::make_pair(LB, UB);
                         // we need to get the resulting lower and upper bounds,
-                    } else { AlwaysAssert(node[1].getKind()==Kind::VARIABLE || node[1].getKind()==Kind::SKOLEM  ) << node[1] << "\n";
+                    } else { AlwaysAssert(isVariableOrSkolem(node[1])  ) << node[1] << "\n";
                     if (varCoefMap.find(node[1].getName()) == varCoefMap.end()){
                         varCoefMap[node[1].getName()].push_back(addConst.toString() + "  " + new_vars[j]);
                     } else {
@@ -663,7 +667,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
                             }
                             continue;
                         }
-                        AlwaysAssert(node[i].getKind()==Kind::VARIABLE || node[i].getKind() == Kind::SKOLEM);
+                        AlwaysAssert(isVariableOrSkolem(node[i]));
                         name += node[i].getName() + "_";
                         myNodes.push_back(node[i]);
                         Integer pos1 = LB * bounds[node[i].getName()].second;
@@ -992,7 +996,7 @@ void write_gurobi_query(const std::string& filename, std::vector<Node> equalitie
                 //varCoefMap[node.getName()].push_back(new_vars[j]);
                 
             }
-            else if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM){
+            else if (isVariableOrSkolem(node)){
                 if (varCoefMap.find(node.getName()) == varCoefMap.end()){
                     varCoefMap[node.getName()].push_back(new_vars[j]);
                 } else {
@@ -1018,7 +1022,7 @@ void write_gurobi_query(const std::string& filename, std::vector<Node> equalitie
                         Integer LB = 1;
                         Integer UB = 1;
                         for (int i = 0; i<node[1].getNumChildren(); i++) {
-                            AlwaysAssert(node[1][i].getKind()==Kind::VARIABLE || node[1][i].getKind() == Kind::SKOLEM) << node[i];
+                            AlwaysAssert(isVariableOrSkolem(node[1][i])) << node[i];
                             name += node[1][i].getName() + "_";
                             myNodes.push_back(node[1][i]);
                             Integer pos1 = LB * bounds[node[1][i].getName()].second;
@@ -1036,7 +1040,7 @@ void write_gurobi_query(const std::string& filename, std::vector<Node> equalitie
                         nonlinearMap[name] = myNodes;
                         nonlinearBounds[name] = std::make_pair(LB, UB);
                         // we need to get the resulting lower and upper bounds,
-                    } else { AlwaysAssert(node[1].getKind()==Kind::VARIABLE || node[1].getKind()==Kind::SKOLEM  ) << node[1] << "\n";
+                    } else { AlwaysAssert(isVariableOrSkolem(node[1])) << node[1] << "\n";
                     if (varCoefMap.find(node[1].getName()) == varCoefMap.end()){
                         varCoefMap[node[1].getName()].push_back(addConst.toString() + "  " + new_vars[j]);
                     } else {
@@ -1066,7 +1070,7 @@ void write_gurobi_query(const std::string& filename, std::vector<Node> equalitie
                             }
                             continue;
                         }
-                        AlwaysAssert(node[i].getKind()==Kind::VARIABLE || node[i].getKind() == Kind::SKOLEM);
+                        AlwaysAssert(isVariableOrSkolem(node[i]));
                         name += node[i].getName() + "_";
                         myNodes.push_back(node[i]);
                         Integer pos1 = LB * bounds[node[i].getName()].second;
@@ -1397,7 +1401,7 @@ void write_gurobi_query(const std::string& filename, std::vector<Node> equalitie
                 } else {
                     varCoefMap["const"][new_vars[j]] = addConst;
                 }
-            } else if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM){
+            } else if (isVariableOrSkolem(node)){
                 AlwaysAssert(!node.getName().empty()) << node ;
                 std::cout << node.getName() << "\n";
                 if (varCoefMap.find(node.getName()) != varCoefMap.end()){
@@ -1429,7 +1433,7 @@ void write_gurobi_query(const std::string& filename, std::vector<Node> equalitie
                         Integer LB = 1;
                         Integer UB = 1;
                         for (int i = 0; i<node[1].getNumChildren(); i++) {
-                            AlwaysAssert(node[1][i].getKind()==Kind::VARIABLE || node[1][i].getKind() == Kind::SKOLEM) << node[i];
+                            AlwaysAssert(isVariableOrSkolem(node[1][i])) << node[i];
                             name += node[1][i].getName() + "_";
                             myNodes.push_back(node[1][i]);
                             Integer pos1 = LB * bounds[node[1][i].getName()].second;
@@ -1455,7 +1459,7 @@ void write_gurobi_query(const std::string& filename, std::vector<Node> equalitie
                         nonlinearMap[name] = myNodes;
                         nonlinearBounds[name] = std::make_pair(LB, UB);
                         // we need to get the resulting lower and upper bounds,
-                    } else { AlwaysAssert(node[1].getKind()==Kind::VARIABLE || node[1].getKind()==Kind::SKOLEM  ) << node[1] << "\n";
+                    } else { AlwaysAssert(isVariableOrSkolem(node[1]) ) << node[1] << "\n";
                     // now use node[1]
                     AlwaysAssert(!node[1].getName().empty()) << node ;
                     std::cout << node[1].getName() << "\n";
@@ -1492,7 +1496,7 @@ void write_gurobi_query(const std::string& filename, std::vector<Node> equalitie
                             }
                             continue;
                         }
-                        AlwaysAssert(node[i].getKind()==Kind::VARIABLE || node[i].getKind() == Kind::SKOLEM);
+                        AlwaysAssert(isVariableOrSkolem(node[i]));
                         name += node[i].getName() + "_";
                         myNodes.push_back(node[i]);
                         Integer pos1 = LB * bounds[node[i].getName()].second;
@@ -1928,11 +1932,6 @@ std::string runGLPK(const std::string& filename)
 
 
 
-bool isVariableOrSkolem(Node node) {
-    return node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM;
-}
-
-
 std::optional<std::pair<Integer,Integer>> getBounds(Node fact, Integer new_field, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool ineq=false){
     //TODO MAKE THIS NON OPTIONAL!!!!
     if (isVariableOrSkolem(fact)) {
@@ -2252,7 +2251,7 @@ bool IntegerField::checkUnsat(){
 
 Node IntegerField::substituteTargetVariableWithZero(const Node& node, std::string targetNode) {
      NodeManager* nm = NodeManager::currentNM();
-    if (node.getKind() == Kind::VARIABLE && node.getName() == targetNode) {
+    if ( isVariableOrSkolem(node) && node.getName() == targetNode) {
         // Replace target variable with zero
         return nm->mkConstInt(0);
     }
@@ -2296,7 +2295,7 @@ bool containsVariable(const Node& node, std::string targetNode) {
 std::pair<Node, Node> IntegerField::separateTerms(const Node& node, std::string targetNode) {
     std::vector<Node> withTarget, withoutTarget;
     NodeManager* nm = NodeManager::currentNM();
-    if (node.getKind()  == Kind::VARIABLE){
+    if (isVariableOrSkolem(node)){
         if (containsVariable(node,targetNode)){
             return {nm->mkConstInt(0), node };
         } else {
@@ -2332,9 +2331,12 @@ std::pair<Node, Node> IntegerField::separateTerms(const Node& node, std::string 
 
 
 bool IntegerField::tightenBounds(std::map<std::string, std::pair<Integer, Integer> > &Bounds){
+bool newBound = true;
+while (newBound) {
+    newBound = false;
 for (int i = 0; i < equalities.size(); i++) {
         //std::cout << equalities[i] << "\n";
-        if (equalities[i][0].getKind() == Kind::VARIABLE && equalities[i][1].getKind() == Kind::CONST_INTEGER){
+        if ( isVariableOrSkolem(equalities[i][0])  && equalities[i][1].getKind() == Kind::CONST_INTEGER){
             //std::cout << "triggered\n";
             Integer value = equalities[i][1].getConst<Rational>().getNumerator();
             Bounds[equalities[i][0].getName()] = std::make_pair(value,value);
@@ -2413,30 +2415,34 @@ for (int i = 0; i < equalities.size(); i++) {
             //     inferredBounds = std::make_pair(inferredBounds.first.floorDivideQuotient(divisor), inferredBounds.second.floorDivideQuotient(divisor));
             //     std::cout << "INFEREED BOUNDS " << inferredBounds << "\n";
             // }
-            // std::cout << targetVar << "\n";
-            // std::cout << "oldBounds: " << Bounds[targetVar] << "\n";
+            //std::cout << targetVar << "\n";
+            //std::cout << "oldBounds: " << Bounds[targetVar] << "\n";
             // if (inferredBounds.second <0){
             //     AlwaysAssert(false) << inferredBounds;
             // }
             
             if (inferredBounds.second < Bounds[targetVar].second){
                 Bounds[targetVar].second = inferredBounds.second ;
+                newBound = true;
                 //std::cout << inferredBounds.second;
                 //std::cout << Bounds[targetVar].second;
             } 
             if (inferredBounds.first > Bounds[targetVar].first ){
                  Bounds[targetVar].first = inferredBounds.first;
+                 newBound = true;
                  //std::cout << inferredBounds.second;
                  //std::cout << Bounds[targetVar].second;
             }
             //std::cout << "NewBounds " << Bounds[targetVar] << "\n";
             if (Bounds[targetVar].first > Bounds[targetVar].second){
                 //std::cout << "BOUNDS ISSUE!!!";
+                //std::cout << targetVar << "\n";
                 this->status = Result::UNSAT;
                 return true;
             }
             //AlwaysAssert(false);
         }
+    }
         
     }
     return true;
@@ -2449,7 +2455,7 @@ std::pair<Integer, Integer> IntegerField::inferBoundsRecursive(const Node& node,
         Integer constValue = node.getConst<Rational>().getNumerator();
         //std::cout << constValue << "\n";
         return {constValue, constValue};  // Both lower and upper are the constant value
-    } else if (node.getKind() == Kind::VARIABLE) {
+    } else if ( isVariableOrSkolem(node)) {
         std::string varName = node.getName();
         return Bounds[varName];  // Return both lower and upper bounds for the variable
     }
@@ -2505,7 +2511,11 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     //CancelConstants();
     NodeManager* nm = NodeManager::currentNM();
     tightenBounds(Bounds);
-    //std::cout << "FINISHED tightening bounds?\n";
+    // std::cout << "FINISHED tightening bounds?\n";
+    // std::cout << "Bounds\n";
+    // for(auto i : Bounds){
+    //     std::cout << "(" << i.first << "," << i.second  << ")\n";
+    // }
     if (status == Result::UNSAT){
         std::cout << "INTEGER UNSAT DUE TO BOUNDS\n";
         return false;
@@ -2988,10 +2998,10 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
     //std::cout <<"Done adding equality:" << fact << "\n";
 
 bool Field::ShouldLearnLemmas(Node fact,std::map<std::string, std::pair<Integer, Integer> > Bounds ){
-    if (fact[0].getKind() == Kind::VARIABLE
+    if ( isVariableOrSkolem(fact[0])
     && (fact[1].getKind() == Kind::MULT || fact[1].getKind() == Kind::NONLINEAR_MULT)
-    && fact[1][0].getKind() == Kind::VARIABLE
-    && fact[1][1].getKind() == Kind::VARIABLE
+    && isVariableOrSkolem(fact[1][0])
+    && isVariableOrSkolem(fact[1][1]) 
     && fact[0].getName() == fact[1][0].getName()
     && fact[0].getName() == fact[1][1].getName()
     & modulos.isProbablePrime()) {
@@ -3002,10 +3012,10 @@ bool Field::ShouldLearnLemmas(Node fact,std::map<std::string, std::pair<Integer,
         status = Result::UNSAT;
         return true;
     }
-    if (fact[1].getKind() == Kind::VARIABLE
-    && (fact[0].getKind() == Kind::MULT || fact[0].getKind() == Kind::NONLINEAR_MULT)
-    && fact[0][0].getKind() == Kind::VARIABLE
-    && fact[0][1].getKind() == Kind::VARIABLE
+    if ( isVariableOrSkolem(fact[1])
+    && ( fact[0].getKind() == Kind::MULT || fact[0].getKind() == Kind::NONLINEAR_MULT)
+    && isVariableOrSkolem(fact[0][0]) 
+    && isVariableOrSkolem(fact[0][1]) 
     && fact[1].getName() == fact[0][0].getName()
     && fact[1].getName() == fact[0][1].getName()
     & modulos.isProbablePrime()) {
@@ -3763,7 +3773,7 @@ void RangeSolver::preRegisterTerm(TNode node){
     //         upperBounds[node.getName()] = std::min(ty.getFfSize(), upperBounds[node.getName()]);
     //     }
     //   }
-    if (node.getKind() == Kind::VARIABLE || node.getKind() == Kind::SKOLEM ){
+    if ( isVariableOrSkolem(node) ){
             // if (upperBounds.count(node.getName())==0){
             std::string singularName = replaceDots(node.getName());
             myVariables[singularName] = node;
@@ -3819,7 +3829,7 @@ void RangeSolver::processFact(TNode fact){
         if (fact[0].getKind() == Kind::MULT && 
             fact[0][0].getKind() == Kind::CONST_INTEGER &&
             fact[0][0].getConst<Rational>().getNumerator() == Integer(-1) &&
-            fact[0][1].getKind() == Kind::VARIABLE &&
+            isVariableOrSkolem(fact[0][1]) &&
             fact[1].getKind() == Kind::CONST_INTEGER){
             //std::cout << "PROCESSING" << fact << "\n";
             }
@@ -3832,11 +3842,11 @@ void RangeSolver::processFact(TNode fact){
             AlwaysAssert(fact[0][1].getKind()==Kind::CONST_INTEGER) << fact;
             Integer Bound = fact[0][1].getConst<Rational>().getNumerator()-1;
             //AlwaysAssert(Bound > 0) << fact;
-        if (fact[0][0].getKind()!=Kind::VARIABLE && fact[0][0].getKind()!=Kind::SKOLEM ){
+        if ( ! isVariableOrSkolem(fact[0][0]) ){
             if (fact[0][0].getKind() == Kind::MULT && 
                 fact[0][0][0].getKind() == Kind::CONST_INTEGER && 
                 fact[0][0][0].getConst<Rational>().getNumerator() == Integer(-1) && 
-                fact[0][0][1].getKind() == Kind::VARIABLE &&
+                isVariableOrSkolem(fact[0][0][1]) &&
                  fact[0][1].getKind() == Kind::CONST_INTEGER
                 ){
                     Integer Bound = Integer(-1) * fact[0][0][0].getConst<Rational>().getNumerator();
@@ -3962,7 +3972,7 @@ std::string findSmallestUpperBound(const std::map<std::string, std::pair<Integer
     // Step 1: Learn which variables have already been assigned 
     std::set<std::string> currentVariables = getVars(f->equalities);
     for (auto eq: f->equalities){
-        if (eq[0].getKind() == Kind::VARIABLE && eq[1].getKind() == Kind::CONST_INTEGER){
+        if ( isVariableOrSkolem(eq[0]) && eq[1].getKind() == Kind::CONST_INTEGER){
             Integer num = eq[1].getConst<Rational>().getNumerator().floorDivideRemainder(f->modulos);
             if (Bounds[eq[0].getName()].first > num || Bounds[eq[0].getName()].second < num ) {
                 AlwaysAssert(false) << "The field was already UNSAT this should not happen\n";
@@ -4045,7 +4055,7 @@ std::string findSmallestUpperBound(const std::map<std::string, std::pair<Integer
             for (auto h: newPoly){
                 Node eq = rewrite(h);
                 //std::cout << eq << "\n";
-                if (eq[0].getKind() == Kind::VARIABLE && eq[1].getKind() == Kind::CONST_INTEGER){
+                if ( isVariableOrSkolem(eq[0]) && eq[1].getKind() == Kind::CONST_INTEGER){
                     Integer num = eq[1].getConst<Rational>().getNumerator().floorDivideRemainder(f->modulos);
                     if (Bounds[eq[0].getName()].first > num || Bounds[eq[0].getName()].second < num ) {
                         //std::cout << "BOUNDS VIOLATED BADDD \n";
@@ -4111,8 +4121,10 @@ Result RangeSolver::Solve(){
     start:
     
     integerField.clearAll();
+    integerField.status == Result::UNKNOWN;
     for(auto &f : fields){
         f.second.clearAll();
+        f.second.status == Result::UNKNOWN;
     }
     //CLEAN BOUNDS HEAR
     for (auto &pair: Bounds){
@@ -4125,6 +4137,7 @@ Result RangeSolver::Solve(){
     for (auto &pair: Bounds){
         if (pair.second.first > pair.second.second){
             std::cout << "INITIAL BOUNDS WRONG\n";
+            // std::cout << pair.first << "\n";
             return Result::UNSAT;
         }
     }

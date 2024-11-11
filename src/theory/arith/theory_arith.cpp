@@ -250,17 +250,17 @@ void TheoryArith::postCheck(Effort level)
     if (Theory::fullEffort(level)){
     auto result = d_modularExtension->postCheck(level);
     if (result.getStatus() == Result::UNSAT){
-    NodeManager* nm = NodeManager::currentNM();
-    const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
-    d_im.conflict(conflict, InferenceId::FF_LEMMA);
-    conflictCount +=1;
-    std::cout << "CONFLICT COUNT" << conflictCount << "\n";
+      NodeManager* nm = NodeManager::currentNM();
+      const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
+      d_im.conflict(conflict, InferenceId::FF_LEMMA);
+      conflictCount +=1;
+      std::cout << "CONFLICT COUNT" << conflictCount << "\n";
     } else if(result.getStatus() == Result::UNKNOWN){
-      AlwaysAssert(false);
-    NodeManager* nm = NodeManager::currentNM();
-    const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
-    std::cout << lemma << "\n";
-    d_im.lemma(lemma, InferenceId::FF_LEMMA);
+        AlwaysAssert(false);
+      NodeManager* nm = NodeManager::currentNM();
+      const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
+      std::cout << lemma << "\n";
+      d_im.lemma(lemma, InferenceId::FF_LEMMA);
     } else {
       std::cout << "WOOO EXTERNAL HERE\n";
       return;
