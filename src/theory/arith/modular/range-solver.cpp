@@ -787,8 +787,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
         file << "leq1_" << neg_coefficients[pair.first] << ": " <<  neg_relu_vars[pair.first] << stringify_gurobi(pair.second, "+")  <<  " - "  << maxPos << " " << binaries[binaries.size()-1] << " <= " << 0 << "\n";
         file << "leq2_" << neg_coefficients[pair.first] << ": " <<  neg_relu_vars[pair.first]  <<  " + "  << maxPos << " " << binaries[binaries.size()-1] <<  " <= " << maxPos << "\n";
         //file << neg_relu_vars[pair.first] << ": " << neg_relu_vars[pair.first] << " MAX (" << neg_coefficients[pair.first] << " , 0 )" << "\n";
-        
-
+    
     }
     
     file << "upper : "  << upper_bound << " <= " <<  static_cast<int>(std::round(10*log2(modulos.getDouble() -1)))   << std::endl;
@@ -2380,7 +2379,7 @@ for (int i = 0; i < equalities.size(); i++) {
                     frac = frac * seperatedNodes.second[0].getConst<Rational>().getNumerator() ;
                     //std::cout << "Frac was set to true\n";
                    } else {
-                    std::cout << "ISOLATION FAILED\n";
+                    std::cout << "ISOLATION FAILED for" << targetVar << "\n";
                     std::cout << seperatedNodes.first << "\n";
                     std::cout << seperatedNodes.second << "\n";
                     return true;
@@ -2523,22 +2522,33 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
 
 
     if (unlowerableIneq){
-        //std::cout << "COMPUTING GB IN THE INTEGERS WOOO!\n";
+        std::cout << "COMPUTING GB IN THE INTEGERS WOOO!\n";
         std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
         //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
         //      //std::cout << "Finished GB\n";
         //      //std::cout << newPoly.size() << "\n";
+
+        //This should be switched!!! 
         if (newPoly.size() == 0 && equalities.size()!=0){
-                //std::cout << equalities.size() << "\n";
-                std::cout << "GB FAULT \n";
-                status = Result::UNSAT;
-                //AlwaysAssert(false);
+                std::cout << "GB TOOK TOO LONG\n";
+                for (auto& fieldPair : fields){
+        //std::cout << "LOWERING\n";
+                Lower(fieldPair.second,Bounds);
+                }
+                unlowerableIneq = false;
                 return false;
+
+                return false;
+                //std::cout << equalities.size() << "\n";
+               
                 //AlwaysAssert(false);
             }
-        if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
+        if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(1))){
+                std::cout << "INTEGER GB FAULT \n";
+                status = Result::UNSAT;
+                //AlwaysAssert(false);
+                
                 return false;
-                std::cout << "GB TOOK TOO LONG\n";
         }
             //std::cout <<  "Finished GB check\n";
             clearEqualities();
@@ -3221,7 +3231,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     //std::cout << "Finished UNSAT\n";
     
     if (newEqualitySinceGB ){
-        //std::cout << "STARING GB IN FIELD\n";
+        std::cout << "STARING GB IN FIELD\n";
         std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, false);
         //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
          //std::cout << "Finished GB\n";

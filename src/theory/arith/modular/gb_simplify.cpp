@@ -47,7 +47,7 @@ namespace arith {
 namespace modular_range_solver {
 
 std::string singular_command_weighted = "ring r = (integer, {1}), ({2}), (wp({4})); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
-std::string singular_command_weighted_integers = "ring r = integer, ({2}), (Dp); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_weighted_integers = " LIB \"general.lib\"; ring r = integer, ({2}), (Dp); option(redSB); ideal I= {5}; ideal G= timeStd(I, 35); G; quit;";
 std::string singular_command_reduce_integers = "ring r = integer, ({2}), (Dp); ideal I= {5}; reduce({6}, I); quit;";
 
 std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; reduce({6}, I); quit;";
@@ -339,7 +339,7 @@ std::vector<Polynomial> computeSingularGB(Field *F, std::map<std::string, std::p
         }
     });
     auto start = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(30)) {
         {
             std::lock_guard<std::mutex> lock(resultMutex);
             if (*done) {
@@ -709,7 +709,7 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
         }
     });
     auto start = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(30)) {
         {
             std::lock_guard<std::mutex> lock(resultMutex);
             if (*done) {
@@ -719,12 +719,16 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
         }
         //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
     }
+    std::vector<Node> EmptyPolys;
+    std::vector<Node> unsatPolys;
+    unsatPolys.push_back(nm->mkConstInt(1));
     if (output.empty()){
-        AlwaysAssert(false);
+        std::cout << "NO OUTPUT\n";
+        return EmptyPolys;
     }
     std::vector<Polynomial> polys = parsePolynomialList(output);
     if(polys.size()==1 && polys[0]== Polynomial{{Monomial{1, {}}}}){
-        return GBPolys;
+        return unsatPolys;
     }
     //std::cout << "OG GB\n";
     for (auto p: polys){
@@ -736,7 +740,6 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
         GBPolys.push_back(nm->mkNode(Kind::EQUAL, 
         nm->mkNode(Kind::ADD, products), nm->mkConstInt(0)));
     }
-    std::vector<Node> EmptyPolys;
     /// NOW WE WILL REDUCE THE INEQUALITIES AGAINST THE COMPUTED BASIS 
     //if (WeightedGB){
 
@@ -790,7 +793,7 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
                         (*F).status = Result::UNSAT;
                         //std::cout << "set status unsat? integers" << "\n";
                         //AlwaysAssert(false);
-                        return EmptyPolys;
+                        return unsatPolys;
                     }
            // std::cout << (*F).inequalities[i] << "\n";
             ss.str("");
@@ -824,7 +827,8 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
     }
 
     if (output.empty()){
-        AlwaysAssert(false);
+        std::cout << "NO OUTPUT\n";
+        return EmptyPolys;
     }
             //std::cout << line <<"\n";
             //std::cout << output << "\n" ;
@@ -835,7 +839,7 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
                 //std::cout << "OUTPUT ZERO WWOOO\n";
                 (*F).status = Result::UNSAT;
                 //std::cout << "set status unsat? INTEGERS" << "\n";
-                return EmptyPolys;
+                return unsatPolys;
             }
             } catch (const std::invalid_argument& e) { //std::cout << output << "\n";
             } catch (const std::out_of_range& e) { //std::cout << output << "\n"; }
