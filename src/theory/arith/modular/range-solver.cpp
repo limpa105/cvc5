@@ -2521,7 +2521,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     }
 
 
-    if (unlowerableIneq){
+    // if (unlowerableIneq){
         std::cout << "COMPUTING GB IN THE INTEGERS WOOO!\n";
         std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
         //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
@@ -2563,7 +2563,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
                 }
                 addEquality(rewrite(poly));
             }
-    }
+    //}
     if (status == Result::UNSAT){
         std::cout << "INTEGER UNSAT AAAA\n";
         return false;
@@ -3413,8 +3413,8 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
         else {
             Integer inv = smallerInverse(equalities[i]);
             if(inv!=0){
-                //std::cout << "INV:" << inv << "\n";
-                //std::cout << "BEFORE" << equalities[i] << "\n";
+                std::cout << "INV:" << inv << "\n";
+                std::cout << "BEFORE" << equalities[i] << "\n";
                 NodeManager* nm = NodeManager::currentNM();
                 Node eq = nm->mkNode(Kind::
                 EQUAL,
@@ -3422,10 +3422,11 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
                 modOut(rewrite(nm->mkNode(Kind::MULT, nm->mkConstInt(inv), equalities[i][1]))));
                 //eq = modOut(rewrite(eq));
                 if (checkIfConstraintIsMet(rewrite(eq), modulos, Bounds)){
+                    std::cout << "THIS ACTUALLY HELPED??\n";
                     integerField.addEquality(eq);
                 }
-                //std::cout << "AFTER" << eq << "\n";
-                //std::cout << "AFTER" << rewrite(eq) << "\n";
+                std::cout << "AFTER" << eq << "\n";
+                std::cout << "AFTER" << rewrite(eq) << "\n";
                 //if rewrite
                 
                 //Lift(rewrite(integerField, rewrite(eq), Bounds, LearnLemmas));
@@ -4184,7 +4185,7 @@ Result RangeSolver::Solve(){
     bool saturated;
     while(movesExist){
         //std::cout << "FINISHED ROUND" << count << "\n";
-        //printSystemState();
+        printSystemState();
         
         // //std::cout << count << "\n";
     // if (count==0){
@@ -4219,6 +4220,7 @@ Result RangeSolver::Solve(){
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
                 //printSystemState();
+                std::cout << "LOOP COUNT" << count << "\n";
                 return Result::UNSAT;
             }
 
@@ -4227,6 +4229,7 @@ Result RangeSolver::Solve(){
         if (integerField.status == Result::UNSAT){
             integerField.status = Result::UNKNOWN;
             //printSystemState();
+            std::cout << "LOOP COUNT" << count << "\n";
             return Result::UNSAT;
         }
         //std::cout << "FINISHED FIELDS\n";
@@ -4255,6 +4258,8 @@ Result RangeSolver::Solve(){
                 //printSystemState();
                 fieldPair.second.status = Result::UNKNOWN;
                 //printSystemState();
+                std::cout << "LOOP COUNT" << count << "\n";
+                return Result::UNSAT;
                 return Result::UNSAT;
             }
             if (fieldPair.second.newEqualitySinceGB == true){

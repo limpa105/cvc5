@@ -115,6 +115,7 @@ void InstStrategyMbqi::process(Node q)
   // bound variables to skolems. This is to ensure we avoid variable shadowing
   // for model values for functions
   Node skq = skolems.apply(q[1]);
+  std::cout << skq << "\n";
   // convert to query
   Node cbody = convertToQuery(skq, tmpConvertMap, freshVarType);
   Trace("mbqi") << "- converted body: " << cbody << std::endl;

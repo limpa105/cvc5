@@ -255,6 +255,9 @@ void TheoryArith::postCheck(Effort level)
       d_im.conflict(conflict, InferenceId::FF_LEMMA);
       conflictCount +=1;
       std::cout << "CONFLICT COUNT" << conflictCount << "\n";
+      // if (conflictCount == 1){
+      //   AlwaysAssert(false);
+      // }
     } else if(result.getStatus() == Result::UNKNOWN){
         AlwaysAssert(false);
       NodeManager* nm = NodeManager::currentNM();
