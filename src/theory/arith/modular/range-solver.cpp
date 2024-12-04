@@ -2330,6 +2330,7 @@ std::pair<Node, Node> IntegerField::separateTerms(const Node& node, std::string 
 
 
 bool IntegerField::tightenBounds(std::map<std::string, std::pair<Integer, Integer> > &Bounds){
+this->novelBound = false;
 bool newBound = true;
 while (newBound) {
     newBound = false;
@@ -2350,20 +2351,21 @@ for (int i = 0; i < equalities.size(); i++) {
         bool isUnique = true;
 
         for (const auto& var : variables) {
-            Integer boundRange = Bounds[var].second - Bounds[var].first;
-            if (boundRange > maxRange) {
-                maxRange = boundRange;
-                maxVar = var;
-                isUnique = true; // Reset uniqueness as we found a larger range
-            } else if (boundRange == maxRange) {
-                isUnique = false; // Not unique if another variable shares this range
-            }
-        }
+        //     Integer boundRange = Bounds[var].second - Bounds[var].first;
+        //     if (boundRange > maxRange) {
+        //         maxRange = boundRange;
+        //         maxVar = var;
+        //         isUnique = true; // Reset uniqueness as we found a larger range
+        //     } else if (boundRange == maxRange) {
+        //         isUnique = false; // Not unique if another variable shares this range
+        //     }
+        // }
         
-        if (!isUnique) {
-            continue;
-        } else {
-            std::string targetVar =maxVar;
+        // if (!isUnique) {
+        // //     continue;
+        // } else {
+            // std::string targetVar =maxVar;
+            std::string targetVar = var;
             //std::cout << "INFERING BOUNDS FOR" << targetVar << "\n";
             //std::cout << equalities[i] << "\n";
             NodeManager* nm = NodeManager::currentNM();
@@ -2379,9 +2381,9 @@ for (int i = 0; i < equalities.size(); i++) {
                     frac = frac * seperatedNodes.second[0].getConst<Rational>().getNumerator() ;
                     //std::cout << "Frac was set to true\n";
                    } else {
-                    std::cout << "ISOLATION FAILED for" << targetVar << "\n";
-                    std::cout << seperatedNodes.first << "\n";
-                    std::cout << seperatedNodes.second << "\n";
+                    // std::cout << "ISOLATION FAILED for" << targetVar << "\n";
+                    // std::cout << seperatedNodes.first << "\n";
+                    // std::cout << seperatedNodes.second << "\n";
                     return true;
                    }
             }
@@ -2392,11 +2394,15 @@ for (int i = 0; i < equalities.size(); i++) {
             std::pair<Integer, Integer> inferredBounds = inferBoundsRecursive(seperatedNodes.first, Bounds);
             //std::cout << inferredBounds << "\n";
             //Bounds[targetVar] = inferredBounds;
+            //std::cout << targetVar << "\n";
             //std::cout << "INFEREED BOUNDS " << inferredBounds << "\n";
-            Integer product1 = inferredBounds.first.ceilingDivideQuotient(frac);
-            Integer product2 = inferredBounds.second.ceilingDivideQuotient(frac);
-            Integer upper = std::max({product1, product2});
-            Integer lower = std::min({product1, product2});
+            //std::cout << "FRAC" << frac << "\n";
+            double product1 = inferredBounds.first.getLong()/ frac.getDouble();
+            double product2 = inferredBounds.second.getLong()/ frac.getDouble();
+            //std::cout << "(" << product1 << "," << product2 << ")" << "\n";
+            Integer upper = Integer(static_cast<int>(floor(std::max<double>({product1, product2}))));
+            Integer lower = Integer(static_cast<int>(ceil(std::min<double>({product1, product2}))));
+            //std::cout << "(" << lower << "," << upper << ")" << "\n";
             inferredBounds = std::make_pair(lower,upper);
             
             // Integer products[4] = {
@@ -2439,11 +2445,23 @@ for (int i = 0; i < equalities.size(); i++) {
                 this->status = Result::UNSAT;
                 return true;
             }
+            if (Bounds[targetVar].first == Bounds[targetVar].second){
+                NodeManager* nm = NodeManager::currentNM();
+                std::string singularName = replaceDots(targetVar);
+                Node target = this->solver->myVariables[singularName];
+                this->addEquality(nm->mkNode(Kind::EQUAL, target, nm->mkConstInt(Bounds[targetVar].first)));
+                //std::string singularName = replaceDots(sk.getName());
+                //myVariables[singularName] = sk;
+            }
             //AlwaysAssert(false);
-        }
+        //}
     }
         
     }
+    if (newBound){
+        this->novelBound = true;
+    }
+}
     return true;
 }
 
@@ -2513,6 +2531,9 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     // std::cout << "FINISHED tightening bounds?\n";
     // std::cout << "Bounds\n";
     // for(auto i : Bounds){
+    //     if (i.first == ""){
+    //         AlwaysAssert(false);
+    //     }
     //     std::cout << "(" << i.first << "," << i.second  << ")\n";
     // }
     if (status == Result::UNSAT){
@@ -3413,8 +3434,8 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
         else {
             Integer inv = smallerInverse(equalities[i]);
             if(inv!=0){
-                std::cout << "INV:" << inv << "\n";
-                std::cout << "BEFORE" << equalities[i] << "\n";
+                // std::cout << "INV:" << inv << "\n";
+                // std::cout << "BEFORE" << equalities[i] << "\n";
                 NodeManager* nm = NodeManager::currentNM();
                 Node eq = nm->mkNode(Kind::
                 EQUAL,
@@ -3425,8 +3446,8 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
                     std::cout << "THIS ACTUALLY HELPED??\n";
                     integerField.addEquality(eq);
                 }
-                std::cout << "AFTER" << eq << "\n";
-                std::cout << "AFTER" << rewrite(eq) << "\n";
+                // std::cout << "AFTER" << eq << "\n";
+                // std::cout << "AFTER" << rewrite(eq) << "\n";
                 //if rewrite
                 
                 //Lift(rewrite(integerField, rewrite(eq), Bounds, LearnLemmas));
@@ -3790,6 +3811,7 @@ void RangeSolver::preRegisterTerm(TNode node){
             myVariables[singularName] = node;
             myNodes.insert(node);
             // }
+           
             Bounds[node.getName()] = std::make_pair(Integer(-1) *BIGINT, BIGINT);
         }
       if (node.getKind() == Kind::CONST_INTEGER){
@@ -3843,9 +3865,36 @@ void RangeSolver::processFact(TNode fact){
             isVariableOrSkolem(fact[0][1]) &&
             fact[1].getKind() == Kind::CONST_INTEGER){
             //std::cout << "PROCESSING" << fact << "\n";
-            }
+            
             Integer Bound = Integer(-1) * fact[1].getConst<Rational>().getNumerator();
-            Bounds[fact[0][1].getName()].second = std::min({Bound, Bounds[fact[0][1].getName()].second}) ;
+            Bounds[fact[0][1].getName()].second = std::min({Bound, Bounds[fact[0][1].getName()].second});
+            }else {
+            if (fact[1].getKind() == Kind::CONST_INTEGER){
+                Integer Bound =  fact[1].getConst<Rational>().getNumerator();
+                if (tempSkolemMap.find(fact[0])!= tempSkolemMap.end()){
+                    Node sk = tempSkolemMap[fact[0]];
+                    Bounds[sk.getName()].first = std::max(Bound,Bounds[sk.getName()].first );
+                } else {
+                NodeManager* nm = NodeManager::currentNM();
+                SkolemManager* sm = nm->getSkolemManager();
+
+                Node sk = sm->mkDummySkolem("Var", nm->integerType());
+                Bounds[sk.getName()].first = Bound;
+                Bounds[sk.getName()].second = BIGINT;
+                Node new_node = nm->mkNode(Kind::EQUAL, sk, fact[0]);
+                integerField.addEquality(new_node);
+                std::string singularName = replaceDots(sk.getName());
+                myVariables[singularName] = sk;
+                myNodes.insert(sk);
+                tempSkolemMap.insert(std::make_pair(fact[0], sk));
+                }
+
+            }
+            else {
+                AlwaysAssert(false) << "unsuppoirted case ";
+            }
+
+        }
 
             //AlwaysAssert(fact[1].getConst<Rational>().getNumerator() == Integer(0)) << fact;}
     }
@@ -3867,15 +3916,22 @@ void RangeSolver::processFact(TNode fact){
             else {
                 if (fact[0][1].getKind() == Kind::CONST_INTEGER){
                      Integer Bound =  fact[0][1].getConst<Rational>().getNumerator();
+                     if (tempSkolemMap.find(fact[0][0])!= tempSkolemMap.end()){
+                        Node sk = tempSkolemMap[fact[0][0]];
+                        Bounds[sk.getName()].second = std::min(Bound-1,Bounds[sk.getName()].second );
+                    } else {
                      NodeManager* nm = NodeManager::currentNM();
                      SkolemManager* sm = nm->getSkolemManager();
                      Node sk = sm->mkDummySkolem("Var", nm->integerType());
                      Bounds[sk.getName()].second = Bound-1;
+                     Bounds[sk.getName()].first = Integer(-1) * BIGINT;
                      Node new_node = nm->mkNode(Kind::EQUAL, sk, fact[0][0]);
                      integerField.addEquality(new_node);
                      std::string singularName = replaceDots(sk.getName());
                      myVariables[singularName] = sk;
                      myNodes.insert(sk);
+                    tempSkolemMap.insert(std::make_pair(fact[0][0], sk));
+                    }
 
                 } else {
                 AlwaysAssert(false) << fact;
@@ -4132,6 +4188,7 @@ Result RangeSolver::Solve(){
     start:
     
     integerField.clearAll();
+    tempSkolemMap.clear();
     integerField.status == Result::UNKNOWN;
     for(auto &f : fields){
         f.second.clearAll();
@@ -4143,9 +4200,16 @@ Result RangeSolver::Solve(){
     }
     for (auto fact:d_facts){
         processFact(fact);
+        if (Bounds.find("") != Bounds.end()) {
+            std::cout << fact << "\n";
+            AlwaysAssert(false);
+        }
     }
     // Check Bounds for incosinstency 
     for (auto &pair: Bounds){
+        if (pair.first == ""){
+            AlwaysAssert(false);
+        }
         if (pair.second.first > pair.second.second){
             std::cout << "INITIAL BOUNDS WRONG\n";
             // std::cout << pair.first << "\n";
@@ -4266,6 +4330,9 @@ Result RangeSolver::Solve(){
                 saturated = false;
                 //std::cout << "NOT SATURATED:" << fieldPair.second.modulos << "\n";
                 AlwaysAssert(!saturated);
+            }
+            if (integerField.novelBound == true){
+                saturated = false;
             }
         }
         //std::cout << "Saturation status:" << saturated << "\n";

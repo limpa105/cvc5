@@ -27,6 +27,8 @@ class RangeSolver;
 class IntegerField: protected EnvObj{
     public:
 
+        bool novelBound; 
+
         IntegerField(Env &env, RangeSolver* solver);
 
         std::pair<Node, Node>  separateTerms(const Node& node, std::string targetNode);
@@ -152,6 +154,8 @@ class Field:  protected EnvObj {
 class RangeSolver : protected EnvObj
 {
     public:
+
+        std::map<Node,Node> tempSkolemMap;
 
         bool addAssignment(Node asgn, Field* f);
 
