@@ -3252,9 +3252,11 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     }
     //std::cout << "Finished UNSAT\n";
     
-    if (newEqualitySinceGB ){
+    if (newEqualitySinceGB & equalities.size()>1){
         std::cout << "STARING GB IN FIELD\n";
+        solver->totalGB+=1;
         std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, false);
+
         //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
          //std::cout << "Finished GB\n";
          //std::cout << newPoly.size() << "\n";
@@ -3272,6 +3274,8 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         }
         //std::cout <<  "Finished GB check\n";
         clearEqualities();
+        //std::cout << newPoly.size() << "\n";
+        bool complete = false;
         for (Node poly: newPoly){
             //std::cout << "New Poly F:" << poly << "\n";
             if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
@@ -3282,9 +3286,22 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
                      //AlwaysAssert(lemmas.size()==0) << modulos;
                     return false;
             }
+            // Here we should check if our theorem applies 
+            if (!complete & !checkIfConstraintIsMet(rewrite(poly), modulos, Bounds)){
+                if (poly[0].getKind() == Kind::ADD){
+                    if (checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
+                         complete = true;
+                    }
+                }
+
+            }
             addEquality(rewrite(poly), false, true);
             //std::cout << "WHAT\n";
         }
+        if (complete){
+            solver->completeGB+=1;
+        }
+        //AlwaysAssert(false);
         newEqualitySinceGB = false;
         // std::cout << "MOD:" << modulos << "\n";
         // std::cout << "Equalities\n";
@@ -3791,7 +3808,11 @@ bool Field::checkUnsat(){
 /////////////////////////////////////////////////// RangeSolver ////////////////////////////////////////////////////////////////////
 
 RangeSolver::RangeSolver(Env& env, TheoryArith& parent)
-    :EnvObj(env), integerField(env, this), d_facts(context()){}
+    :EnvObj(env), 
+    integerField(env, this), 
+    d_facts(context()),
+    completeGB(statisticsRegistry().registerInt("theory::arith::modular::CompleteGBCalc", false)),
+    totalGB(statisticsRegistry().registerInt("theory::arith::modular::totalGBCalc", false)) {}
 
 void RangeSolver::preRegisterTerm(TNode node){ 
         //std::cout << node << "\n";
@@ -4376,7 +4397,8 @@ Result RangeSolver::Solve(){
        //Now we need to go back to the ST procedure from finite fields 
         //printSystemState();
         // step 0: only get the og fields 
-        AlwaysAssert(false) << "Could not determine UNSAT :)";
+        //AlwaysAssert(false) << "Could not determine UNSAT :)";
+        return Result::UNKNOWN;
         //std::cout << "OG FIELD SIZE:" << og_fields.size() << "\n";
         std::map<Integer, Field*> myFields;
         for (auto i: og_fields){

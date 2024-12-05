@@ -7,6 +7,7 @@
 #include "util/result.h"
 #include "theory/arith/theory_arith.h"
 #include "theory/theory_model.h"
+#include "util/statistics_stats.h"
 
 
 #ifndef RANGE_SOLVER_H
@@ -80,7 +81,7 @@ class IntegerField: protected EnvObj{
 };
 
 class Field:  protected EnvObj {
-    public: 
+    public:   
 
         std::map<std::string, std::vector<int>> collectMonomials(IntegerField z, Field f, NodeManager* nm);
 
@@ -154,6 +155,10 @@ class Field:  protected EnvObj {
 class RangeSolver : protected EnvObj
 {
     public:
+
+        IntStat completeGB;
+
+        IntStat totalGB;  
 
         std::map<Node,Node> tempSkolemMap;
 

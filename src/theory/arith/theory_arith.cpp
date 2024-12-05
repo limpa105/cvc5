@@ -259,7 +259,7 @@ void TheoryArith::postCheck(Effort level)
       //   AlwaysAssert(false);
       // }
     } else if(result.getStatus() == Result::UNKNOWN){
-        AlwaysAssert(false);
+        return;
       NodeManager* nm = NodeManager::currentNM();
       const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
       std::cout << lemma << "\n";

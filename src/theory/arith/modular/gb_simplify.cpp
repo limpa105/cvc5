@@ -98,8 +98,8 @@ std::string runSingular(std::string program)
   std::filesystem::path output = tmpPath();
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
-  commandStream << "Singular -q -t " << input << " > " << output;
-  //commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
+  //commandStream << "Singular -q -t " << input << " > " << output;
+  commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
   std::string command = commandStream.str();
   int exitCode = std::system(command.c_str());
   Assert(exitCode == 0) << "Singular errored\nCommand: " << command;
@@ -489,6 +489,7 @@ std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Intege
         GBPolys.push_back(nm->mkNode(Kind::EQUAL, 
         nm->mkNode(Kind::ADD, products), nm->mkConstInt(0)));
     }
+
     std::vector<Node> EmptyPolys;
     /// NOW WE WILL REDUCE THE INEQUALITIES AGAINST THE COMPUTED BASIS 
     //if (WeightedGB){
