@@ -310,6 +310,13 @@ class Rational
 
   /** Equivalent to calling (this->abs()).cmp(b.abs()) */
   int absCmp(const Rational& q) const;
+  
+
+  /** Returns a reference to the minimum of two rationals. */
+  static const Rational& min(const Rational& a, const Rational& b);
+
+  /** Returns a reference to the maximum of two rationals. */
+  static const Rational& max(const Rational& a, const Rational& b);
 
  private:
   /**

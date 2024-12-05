@@ -96,4 +96,15 @@ std::optional<Rational> Rational::fromDouble(double d)
   return std::optional<Rational>();
 }
 
+const Rational& Rational::min(const Rational& a, const Rational& b)
+{
+  return (a <= b) ? a : b;
+}
+
+/** Returns a reference to the maximum of two integers. */
+const Rational& Rational::max(const Rational& a, const Rational& b)
+{
+  return (a >= b) ? a : b;
+}
+
 }  // namespace cvc5::internal

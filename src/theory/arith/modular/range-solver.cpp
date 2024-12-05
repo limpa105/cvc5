@@ -2394,17 +2394,18 @@ for (int i = 0; i < equalities.size(); i++) {
             std::pair<Integer, Integer> inferredBounds = inferBoundsRecursive(seperatedNodes.first, Bounds);
             //std::cout << inferredBounds << "\n";
             //Bounds[targetVar] = inferredBounds;
-            //std::cout << targetVar << "\n";
-            //std::cout << "INFEREED BOUNDS " << inferredBounds << "\n";
-            //std::cout << "FRAC" << frac << "\n";
-            double product1 = inferredBounds.first.getLong()/ frac.getDouble();
-            double product2 = inferredBounds.second.getLong()/ frac.getDouble();
-            //std::cout << "(" << product1 << "," << product2 << ")" << "\n";
-            Integer upper = Integer(static_cast<int>(floor(std::max<double>({product1, product2}))));
-            Integer lower = Integer(static_cast<int>(ceil(std::min<double>({product1, product2}))));
-            //std::cout << "(" << lower << "," << upper << ")" << "\n";
+            std::cout << targetVar << "\n";
+	    std::cout << "ogBounds" << Bounds[targetVar] << "\n";
+            std::cout << "INFEREED BOUNDS " << inferredBounds << "\n";
+            std::cout << "FRAC" << frac << "\n";
+            Rational product1 = Rational(inferredBounds.first)/ Rational(frac);
+            Rational product2 = Rational(inferredBounds.second)/ Rational(frac);
+            std::cout << "(" << product1 << "," << product2 << ")" << "\n";
+            Integer upper = (Rational::max(product1, product2)).floor();
+            Integer lower = (Rational::min(product1, product2)).ceiling();
+            std::cout << "(" << lower << "," << upper << ")" << "\n";
             inferredBounds = std::make_pair(lower,upper);
-            
+	    std::cout << inferredBounds << "\n";
             // Integer products[4] = {
             //     childBounds.first * childBounds.first,
             //     childBounds.first * childBounds.second,
@@ -2440,8 +2441,8 @@ for (int i = 0; i < equalities.size(); i++) {
             }
             //std::cout << "NewBounds " << Bounds[targetVar] << "\n";
             if (Bounds[targetVar].first > Bounds[targetVar].second){
-                //std::cout << "BOUNDS ISSUE!!!";
-                //std::cout << targetVar << "\n";
+                std::cout << "BOUNDS ISSUE!!!";
+                std::cout << targetVar << "\n";
                 this->status = Result::UNSAT;
                 return true;
             }
@@ -4249,7 +4250,7 @@ Result RangeSolver::Solve(){
     bool saturated;
     while(movesExist){
         //std::cout << "FINISHED ROUND" << count << "\n";
-        printSystemState();
+        //printSystemState();
         
         // //std::cout << count << "\n";
     // if (count==0){
