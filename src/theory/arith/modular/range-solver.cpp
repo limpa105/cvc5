@@ -2394,18 +2394,18 @@ for (int i = 0; i < equalities.size(); i++) {
             std::pair<Integer, Integer> inferredBounds = inferBoundsRecursive(seperatedNodes.first, Bounds);
             //std::cout << inferredBounds << "\n";
             //Bounds[targetVar] = inferredBounds;
-            std::cout << targetVar << "\n";
-	    std::cout << "ogBounds" << Bounds[targetVar] << "\n";
-            std::cout << "INFEREED BOUNDS " << inferredBounds << "\n";
-            std::cout << "FRAC" << frac << "\n";
+            //std::cout << targetVar << "\n";
+	    //std::cout << "ogBounds" << Bounds[targetVar] << "\n";
+            //std::cout << "INFEREED BOUNDS " << inferredBounds << "\n";
+            //std::cout << "FRAC" << frac << "\n";
             Rational product1 = Rational(inferredBounds.first)/ Rational(frac);
             Rational product2 = Rational(inferredBounds.second)/ Rational(frac);
-            std::cout << "(" << product1 << "," << product2 << ")" << "\n";
+            //std::cout << "(" << product1 << "," << product2 << ")" << "\n";
             Integer upper = (Rational::max(product1, product2)).floor();
             Integer lower = (Rational::min(product1, product2)).ceiling();
-            std::cout << "(" << lower << "," << upper << ")" << "\n";
+            //std::cout << "(" << lower << "," << upper << ")" << "\n";
             inferredBounds = std::make_pair(lower,upper);
-	    std::cout << inferredBounds << "\n";
+	    //std::cout << inferredBounds << "\n";
             // Integer products[4] = {
             //     childBounds.first * childBounds.first,
             //     childBounds.first * childBounds.second,
@@ -3444,7 +3444,7 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
                 modOut(rewrite(nm->mkNode(Kind::MULT, nm->mkConstInt(inv), equalities[i][1]))));
                 //eq = modOut(rewrite(eq));
                 if (checkIfConstraintIsMet(rewrite(eq), modulos, Bounds)){
-                    std::cout << "THIS ACTUALLY HELPED??\n";
+                    //std::cout << "THIS ACTUALLY HELPED??\n";
                     integerField.addEquality(eq);
                 }
                 // std::cout << "AFTER" << eq << "\n";
