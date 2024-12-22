@@ -259,11 +259,12 @@ void TheoryArith::postCheck(Effort level)
       //   AlwaysAssert(false);
       // }
     } else if(result.getStatus() == Result::UNKNOWN){
-        return;
-      NodeManager* nm = NodeManager::currentNM();
-      const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
-      std::cout << lemma << "\n";
-      d_im.lemma(lemma, InferenceId::FF_LEMMA);
+        d_im.setModelUnsound(IncompleteId::ARITH_NL_DISABLED);
+      // return;
+      // NodeManager* nm = NodeManager::currentNM();
+      // const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
+      // std::cout << lemma << "\n";
+      // d_im.lemma(lemma, InferenceId::FF_LEMMA);
     } else {
       std::cout << "WOOO EXTERNAL HERE\n";
       return;
