@@ -2898,123 +2898,44 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
     if (fact.getKind() == Kind::CONST_BOOLEAN){
         if (fact.getConst<bool>() == false){
             status = Result::UNSAT;
-            //std::cout << "WE ARE HERE TM\n";
         }
         return;
     } 
     if (inField && std::find(equalities.begin(), equalities.end(), fact) == equalities.end()
         && fact.getKind() != Kind::CONST_BOOLEAN && fact.getKind()!=Kind::NULL_EXPR
-        //getVarsHelper(fact)
         ){
         AlwaysAssert(fact.getKind() == Kind::EQUAL) << fact;
-        //GBAddition = true;
         if(!GBAddition){
-            std::stringstream ss;
-            ss.str("");
-            ss.clear();
-            NodeManager* nm = NodeManager::currentNM();
-            ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, fact[0], fact[1])));
-            if (mySingularReduce.empty()){
+            //std::cout << "Adding" << fact << "\n";
+            if (newEqualitySinceGB){
+                runGB(solver->Bounds);
+                newEqualitySinceGB = false;
+            }
+            if (reduceAgainstGB(solver->Bounds, fact)){
+                return;
+            } else {
                 newEqualitySinceGB = true;
+                mySingularReduce = "";
                 equalities.push_back(fact);
+                ALLequalities.push_back(fact);
                 return;
             }
-            std::string line = mySingularReduce;
-            line = ReplaceGBStringInput("{6}", line, ss);
-            // std::cout << "About to run Singular\n";
-            // std::cout << line << "\n";
-            // std::cout << "running Singular\n";
-
-             std::string output = "";
-            auto result = std::make_shared<std::string>("");
-            std::shared_ptr<bool> done = std::make_shared<bool>(false);
-            std::mutex resultMutex;
-            //std::cout << "Running Singular\n";
-            // Launch the function asynchronously
-            auto future = std::async(std::launch::async, [&]() {
-                auto res = runSingular(line);
-                {
-                    std::lock_guard<std::mutex> lock(resultMutex);
-                    *result = res;
-                    *done = true;
-                    //std::cout << "Function completed." << "\n";
-                }
-            });
-            auto start = std::chrono::steady_clock::now();
-            while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
-                {
-                    std::lock_guard<std::mutex> lock(resultMutex);
-                    if (*done) {
-                        output= *result;
-                        break; // Return the final result if the function completes
-                    }
-                }
-                //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
-            }
-            if (output.empty()){
-                AlwaysAssert(false);
-            }
-            // std::cout << "ran singular\n";
-            size_t pos =output.find('\n');
-            std::string myResult = output.substr(pos + 1);
-            //std::cout << line <<"\n";
-            //std::cout << output << "\n" ;
-            try{
-            if (std::stoi(myResult) == 0){
-                return;
-            }
-            } catch (const std::invalid_argument& e) { 
-                //std::cout << output << "\n";
-                newEqualitySinceGB = true;
-                equalities.push_back(fact);
-                //std::cout << "For:" << modulos << "\n";
-                return;
-            } catch (const std::out_of_range& e) { 
-                //std::cout << output << "\n"; 
-                newEqualitySinceGB = true;
-                equalities.push_back(fact);
-                //std::cout << "For2:" << modulos << "\n";
-                return;
-            };
-            //AlwaysAssert(false) << result;
-            newEqualitySinceGB = true;
-            equalities.push_back(fact);
-            //std::cout << "NEW EQUALITY" << fact << "for" << modulos << "\n";
-            ALLequalities.push_back(fact);
 
         }
-
-        //if(inField){
         newEqualitySinceGB = true;
-        //std::cout << "ADDED WITHOUT REDUCTION " << fact << "for" << modulos << "\n";
         equalities.push_back(fact);
         ALLequalities.push_back(fact);
         return;
-        //return;
     } else if (!inField) {
-    //std::cout << "BEFORE" << fact << "\n";
         NodeManager* nm = NodeManager::currentNM();
         Node LHS = modOut(fact[0]);
         Node RHS = modOut(fact[1]);
-    //std::cout << "LHS:" << LHS << "\n";
-    //std::cout << "RHS:" << RHS << "\n";
         Node result = nm->mkNode(Kind::EQUAL, LHS, RHS);
-        // if (std::find(equalities.begin(), equalities.end(), result) == equalities.end()
-        // && result.getKind() != Kind::CONST_BOOLEAN && result.getKind()!=Kind::NULL_EXPR){
         addEquality(result, true, GBAddition);
-             //std::cout << "\nNEW EQ:" << fact << "\n" << "for " << modulos;
-            //newEqualitySinceGB = true;
-
-        }
-    //std::cout << "result" << result << "\n";
-    //std::cout << rewrite(result) << "\n";
-   // std::cout << "CHECK END\n";
-   //std::cout << "After" << result << "\n";
-    
+        return;
+    }
     return;
     }
-    //std::cout << "Already existed\n";
-    //std::cout <<"Done adding equality:" << fact << "\n";
 
 bool Field::ShouldLearnLemmas(Node fact,std::map<std::string, std::pair<Integer, Integer> > Bounds ){
     if ( isVariableOrSkolem(fact[0])
@@ -3159,70 +3080,81 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         didGurobi +=1;
         //AlwaysAssert(false);
     }
-        
-    Lift(Integers, Bounds,startLearningLemmas);
+    //
+    //Lift(Integers, Bounds,startLearningLemmas);
+    if (newEqualitySinceGB){
+        runGB(Bounds);
+    }
     if (status == Result::UNSAT){
-        std::cout << "UNSAT \n";
         return false;
     }
-    
-    if (newEqualitySinceGB && (equalities.size()>1)){
-        std::cout << "STARING GB IN FIELD\n";
-        solver->totalGB+=1;
-        std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, false);
-
-        //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
-         //std::cout << "Finished GB\n";
-         //std::cout << newPoly.size() << "\n";
-        if (newPoly.size() == 0 && equalities.size()!=0){
-            //std::cout << equalities.size() << "\n";
-            std::cout << "GB FAULT \n";
+    if (inequalities.size()>0){
+    for(Node diseq: inequalities){
+        //std::cout << diseq<< "\n";
+        if (reduceAgainstGB(Bounds, diseq)){
             status = Result::UNSAT;
-            //AlwaysAssert(false);
-            return false;
-            //AlwaysAssert(false);
-        }
-       if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
-            return false;
-            std::cout << "GB TOOK TOO LONG\n";
-        }
-        //std::cout <<  "Finished GB check\n";
-        clearEqualities();
-        //std::cout << newPoly.size() << "\n";
-        bool complete = false;
-        for (Node poly: newPoly){
-            //std::cout << "New Poly F:" << poly << "\n";
-            if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
-                rewrite(poly).getConst<bool>() == false){
-                     status = Result::UNSAT;
-                     std::cout << modulos << "\n";
-                     std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
-                     //AlwaysAssert(lemmas.size()==0) << modulos;
-                    return false;
-            }
-            // Here we should check if our theorem applies 
-            if (!complete && !checkIfConstraintIsMet(rewrite(poly), modulos, Bounds)){
-                if (poly[0].getKind() == Kind::ADD){
-                    if (checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
-                         complete = true;
-                    }
-                }
+         }
+    }
+    }
 
-            }
-            addEquality(rewrite(poly), false, true);
-            //std::cout << "WHAT\n";
-        }
-        if (complete){
-            solver->completeGB+=1;
-        }
 
-        newEqualitySinceGB = false;
+    // if (newEqualitySinceGB && (equalities.size()>1)){
+    //     std::cout << "STARING GB IN FIELD\n";
+    //     solver->totalGB+=1;
+    //     std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, false);
+
+    //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
+    //      //std::cout << "Finished GB\n";
+    //      //std::cout << newPoly.size() << "\n";
+    //     if (newPoly.size() == 0 && equalities.size()!=0){
+    //         //std::cout << equalities.size() << "\n";
+    //         std::cout << "GB FAULT \n";
+    //         status = Result::UNSAT;
+    //         //AlwaysAssert(false);
+    //         return false;
+    //         //AlwaysAssert(false);
+    //     }
+    //    if (newPoly.size() != 0 && newPoly[0]== nm->mkConstInt(Integer(0))){
+    //         return false;
+    //         std::cout << "GB TOOK TOO LONG\n";
+    //     }
+    //     //std::cout <<  "Finished GB check\n";
+    //     clearEqualities();
+    //     //std::cout << newPoly.size() << "\n";
+    //     bool complete = false;
+    //     for (Node poly: newPoly){
+    //         //std::cout << "New Poly F:" << poly << "\n";
+    //         if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
+    //             rewrite(poly).getConst<bool>() == false){
+    //                  status = Result::UNSAT;
+    //                  std::cout << modulos << "\n";
+    //                  std::cout << "SOME ISSUE WE ARE NOT CATCHING\n";
+    //                  //AlwaysAssert(lemmas.size()==0) << modulos;
+    //                 return false;
+    //         }
+    //         // Here we should check if our theorem applies 
+    //         if (!complete && !checkIfConstraintIsMet(rewrite(poly), modulos, Bounds)){
+    //             if (poly[0].getKind() == Kind::ADD){
+    //                 if (checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
+    //                      complete = true;
+    //                 }
+    //             }
+
+    //         }
+    //         addEquality(rewrite(poly), false, true);
+    //         //std::cout << "WHAT\n";
+    //     }
+    //     if (complete){
+    //         solver->completeGB+=1;
+    //     }
+
+    //     newEqualitySinceGB = false;
         
-    }
+    // }
    
-    if (status == Result::UNSAT){
-        return false;
-    }
+    // if (status == Result::UNSAT){
+    //     return false;
+    // }
     //std::cout << "STARTING LIFTING GASP!\n";
     Lift(Integers, Bounds,startLearningLemmas);
     //std::cout << "finished lifting\n";

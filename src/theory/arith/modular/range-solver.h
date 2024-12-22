@@ -60,6 +60,8 @@ class IntegerField: protected EnvObj{
 
         bool checkUnsatDiseq();
 
+        bool reduceAgainstGB();
+
         void addEquality(Node equality);
 
         void clearEqualities(){equalities.clear();};
@@ -92,6 +94,8 @@ class Field:  protected EnvObj {
         bool runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds);
 
         bool checkUnsatDiseq();
+
+        bool reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, Node eq);
 
         int didGurobi = 0;
 
