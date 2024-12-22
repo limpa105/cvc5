@@ -3081,7 +3081,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         //AlwaysAssert(false);
     }
     //
-    //Lift(Integers, Bounds,startLearningLemmas);
+    Lift(Integers, Bounds,startLearningLemmas);
     if (newEqualitySinceGB){
         runGB(Bounds);
     }
@@ -3775,6 +3775,7 @@ Result RangeSolver::Solve(){
     bool movesExist = true;
     bool saturated;
     while(movesExist){
+    //printSystemState();
     count+=1;
         for (auto& fieldPair :fields){
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
