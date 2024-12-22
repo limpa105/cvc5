@@ -202,8 +202,6 @@ class RangeSolver : protected EnvObj
 
         bool learnedLemma = false;
 
-        bool startLearningLemmas = false;
-
         std::vector<Node> Lemmas;
 
         std::map<Integer, Field> fields; 
