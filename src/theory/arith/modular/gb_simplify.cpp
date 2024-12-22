@@ -13,6 +13,7 @@
 #include "smt/env_obj.h"
 #include "theory/arith/modular/int_cocoa_encoder.h"
 #include "theory/arith/modular/gb_simplify.h"
+#include "theory/arith/modular/range-solver.h"
 #include "theory/ff/multi_roots.h"
 #include "theory/ff/singular_parse.h"
 #include "util/cocoa_globals.h"

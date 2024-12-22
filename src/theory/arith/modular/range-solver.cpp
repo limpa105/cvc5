@@ -2525,18 +2525,8 @@ std::pair<Integer, Integer> IntegerField::inferBoundsRecursive(const Node& node,
 IntegerField::IntegerField(Env &env, RangeSolver* solver):EnvObj(env){this->solver = solver;};
 
 bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > &Bounds){
-    //std::cout << "STARTED INTEGERS\n";
-    //CancelConstants();
     NodeManager* nm = NodeManager::currentNM();
     tightenBounds(Bounds);
-    // std::cout << "FINISHED tightening bounds?\n";
-    // std::cout << "Bounds\n";
-    // for(auto i : Bounds){
-    //     if (i.first == ""){
-    //         AlwaysAssert(false);
-    //     }
-    //     std::cout << "(" << i.first << "," << i.second  << ")\n";
-    // }
     if (status == Result::UNSAT){
         std::cout << "INTEGER UNSAT DUE TO BOUNDS\n";
         return false;
@@ -2545,7 +2535,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
 
     // if (unlowerableIneq){
         std::cout << "COMPUTING GB IN THE INTEGERS WOOO!\n";
-        std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
+    std::vector<Node> newPoly = SimplifyViaGB(this, Bounds, nm, true);
         //     //TODO FOR LEGIBILITY THIS SHOULD BE SWAPPED 
         //      //std::cout << "Finished GB\n";
         //      //std::cout << newPoly.size() << "\n";
@@ -4198,25 +4188,21 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
 
 
 Result RangeSolver::Solve(){
-    #ifdef CVC5_USE_COCOA
-    #else 
-        noCoCoALiza();
-    #endif
     for (auto& fieldPair :fields){
+            if (fieldPair.second.LearntLemmasFrom.size()!=0){
+                AlwaysAssert(false);
+            }
             fieldPair.second.LearntLemmasFrom.clear();
-            //fieldPair.second.myNodes = myNodes;
-            //fieldPair.second.myVariables = myVariables;
         }
     start:
-    
     integerField.clearAll();
     tempSkolemMap.clear();
-    integerField.status == Result::UNKNOWN;
+    integerField.status = Result::UNKNOWN;
     for(auto &f : fields){
         f.second.clearAll();
-        f.second.status == Result::UNKNOWN;
+        f.second.status = Result::UNKNOWN;
     }
-    //CLEAN BOUNDS HEAR
+    //CLEAN BOUNDS HEARE
     for (auto &pair: Bounds){
         Bounds[pair.first]= std::make_pair(Integer(-1) *BIGINT, BIGINT);
     }
@@ -4238,14 +4224,14 @@ Result RangeSolver::Solve(){
             return Result::UNSAT;
         }
     }
-
-
     std::vector<Node> newLemmas;
     for (auto fact:Lemmas){
         if (fact.getNumChildren()>0){
             if (fact.getKind() ==Kind::OR){
                 processFact(fact[0]);
-                newLemmas.push_back(fact[1]);
+                for (int i =1; i<fact.getNumChildren(); i++){
+                    newLemmas.push_back(fact[i]);
+                }
             } else {
                 processFact(fact);
             }
@@ -4255,7 +4241,6 @@ Result RangeSolver::Solve(){
         }
     }
     Lemmas = newLemmas;
-
     int count = 0;
     bool WeightedGB = true;
     int startLearningLemmas = 0;
@@ -4266,46 +4251,12 @@ Result RangeSolver::Solve(){
             fieldPair.second.mySingularReduce = "";
         }
     bool movesExist = true;
-    //std::cout<< "START\n";
-    //printSystemState();
     bool saturated;
     while(movesExist){
-        //std::cout << "FINISHED ROUND" << count << "\n";
-        //printSystemState();
-        
-        // //std::cout << count << "\n";
-    // if (count==0){
-    //   AlwaysAssert(false);
-    //  }
-    //count+=1;
-    //std::cout << count << "\n";
-    //   if (count >=2){
-    //      AlwaysAssert(false);    
-    //     }
     count+=1;
-    
-    //   if (count >=25){
-    //        WeightedGB = false;
-    //        startLearningLemmas = 0;
-    //     }
-    // //          //startLearningLemmas = true;
-    // //     }
-    //     if (count >=20){
-    //      WeightedGB = true;
-    //       startLearningLemmas = 2;
-    //     //      //startLearningLemmas = true;
-    //      }
-    //    if (count >=30){
-    //          AlwaysAssert(false);
-    //  }
-        //printSystemState();
-        //std::cout << "FINISHED INTEGERS\n";
         for (auto& fieldPair :fields){
-            //printSystemState();
-            //std::cout << fieldPair.second.equalities.size() << "\n";
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
-                //printSystemState();
                 std::cout << "LOOP COUNT" << count << "\n";
                 return Result::UNSAT;
             }
@@ -4314,379 +4265,56 @@ Result RangeSolver::Solve(){
         integerField.Simplify(fields, Bounds);
         if (integerField.status == Result::UNSAT){
             integerField.status = Result::UNKNOWN;
-            //printSystemState();
             std::cout << "LOOP COUNT" << count << "\n";
             return Result::UNSAT;
         }
-        //std::cout << "FINISHED FIELDS\n";
     saturated = true;
         for (auto fieldPair :fields){
             if (fieldPair.second.status == Result::UNSAT){
-                // std::cout << "WE HERE\n";
-                // std::cout << Lemmas.size() << "\n";
-                d_conflict.clear();
                 if (fieldPair.second.lemmas.size()> 0){
                     Lemmas.insert(Lemmas.end(), fieldPair.second.lemmas.begin(), fieldPair.second.lemmas.end());
-                    //std::cout << "LEARNED NEW LEMMA" << Lemma << "\n";
                     fieldPair.second.lemmas.clear();
                     AlwaysAssert( fieldPair.second.lemmas.size()==0);
                     fieldPair.second.status = Result::UNKNOWN;
-                    //fieldPair.second.LearntLemmasFrom.clear();
                     goto start;
-                    //return Result::UNKNOWN;
 
                 }
                 if (Lemmas.size()> 0){
                     fieldPair.second.status = Result::UNKNOWN;
                     goto start;
                 }
-                //std::cout << "UNSAT\n";
-                //printSystemState();
                 fieldPair.second.status = Result::UNKNOWN;
-                //printSystemState();
                 std::cout << "LOOP COUNT" << count << "\n";
-                return Result::UNSAT;
                 return Result::UNSAT;
             }
             if (fieldPair.second.newEqualitySinceGB == true){
                 saturated = false;
-                //std::cout << "NOT SATURATED:" << fieldPair.second.modulos << "\n";
                 AlwaysAssert(!saturated);
             }
             if (integerField.novelBound == true){
                 saturated = false;
             }
         }
-        //std::cout << "Saturation status:" << saturated << "\n";
-        // if (saturated && startLearningLemmas == 2){
-        //     //std::cout << "GB SATURATED NOTHING TO DO\n";
-        //     startLearningLemmas = 3;
-        // }
         if (saturated && startLearningLemmas == 2){
-            //std::cout << "GB SATURATED NOTHING TO DO\n";
             startLearningLemmas = 3;
         }
         if (saturated && startLearningLemmas == 3){
-            //std::cout << "Changed starting lemmas to Gurobi\n";
             movesExist = false;
         }
-        // if (saturated && startLearningLemmas == 1.5){
-        //     std::cout << "Changed starting lemmas to RangeLiftEq\n";
-        //     startLearningLemmas  = 2;
-        // }
-        // // if (saturated && startLearningLemmas){
-        // //         //AlwaysAssert(false) << "GB SATURATED NOTHING TO DO\n";
-        // //    WeightedGB = false ;
-        // // }
         if (saturated && startLearningLemmas == 0){
-            //std::cout << "Changed starting lemmas to LearnLemmas\n";
-            ///movesExist = false;
             startLearningLemmas = 2;
         }
-        //     startLearningLemmas = true;
-        //      //AlwaysAssert(false);
-        // }
-    
-        //   if (integerField.status == Result::SAT){
-        //         //std::cout << "WE GOT SAT\n";
-        //     return Result::SAT;
-         //count +=1;
         }
-        //AlwaysAssert(false);
-
-       //Now we need to go back to the ST procedure from finite fields 
-        //printSystemState();
-        // step 0: only get the og fields 
-        //AlwaysAssert(false) << "Could not determine UNSAT :)";
         return Result::UNKNOWN;
-        //std::cout << "OG FIELD SIZE:" << og_fields.size() << "\n";
-        std::map<Integer, Field*> myFields;
-        for (auto i: og_fields){
-            auto it = fields.find(i);
-                if (it != fields.end()) {
-                myFields.insert(std::make_pair(i, &it->second));
-                } else {
-                    // Handle the case where 'i' is not in 'fields'
-                std::cerr << "Key not found in fields: " << i << std::endl;
-                }
-        }
-        // for (const auto& entry : Bounds) {
-        //         Integer i = entry.second.second;
-        //         auto it = fields.find(i);
-        //          if (it != fields.end()) {
-        //         myFields.insert(std::make_pair(i, &it->second));
-        //         } else {
-        //             // Handle the case where 'i' is not in 'fields'
-        //         }
-        // }
-        bool sat = false;
-
-        auto it = myFields.end();
-         --it;
-        while (true){
-        
-        //step 1: find the largest field in the map
-        // std::cout << "we are here" << myFields.size()<< "\n";
-        //auto it = myFields.begin(); // reverse iterator to the last element of the map
-         Field* smallestRing = it->second; 
-        std::cout << "NEW RING TM\n";
-        std::cout << smallestRing->modulos << "\n";
-        NodeManager* nm = NodeManager::currentNM();
-    //     if (!(smallestRing->modulos).isProbablePrime()){
-    //         std::cout << smallestRing->modulos << "is NOT Prime \n";
-    //         --it;
-    //         continue;
-    //    }
-         if (smallestRing->equalities.size()==0){
-         if (it == myFields.begin()) {
-            break; // We are at the first element, stop the loop
-        }
-        --it;
-         
-        continue;
-       }
-       std::map<Node, Integer> assign = getPossibleAssignment(smallestRing, Bounds, nm);
-       smallestRing->status = Result::UNKNOWN;
-
-    //     CocoaEncoder enc = CocoaEncoder(smallestRing->modulos);
-    //     std::cout << "stuck\n";
-    //     CoCoA::ideal myIdeal = getCocoaGB(smallestRing, enc,nm);
-    //     std::cout << "We got ideal\n";
-    //      if (CoCoA::IsZeroDim(myIdeal)){
-    //         std::cout << "WE HAVE ZERO DIMENSION" << smallestRing-> modulos << "\n";
-    //      } else {
-    //            std::cout << "Not zero dimension" << smallestRing-> modulos << "\n";
-    //      }
-    //     //  ++it;
-    //     //  continue;
-    //    }
-
-
-        // std::cout<< "END\n";
-        // //printSystemState();
-        // //step 2: compute an ideal for said field using CoCoA
-        // std::cout << "Why is this not working";
-        // CocoaEncoder enc = CocoaEncoder(smallestRing->modulos);
-        // CoCoA::ideal myIdeal = getCocoaGB(smallestRing, enc,nm);
-        // std::cout << "Got cocoa Ideal\n";
-
-        //  std::vector<CoCoA::RingElem> root;
-        // //AlwaysAssert(false);
-        // //step 3: run the applyZero from finite fields 
-        //  try {
-        // // Your code that might throw CoCoA::ErrorInfo
-        // // For example, calling the findZero function
-        // std::cout << "finding zero\n";
-        // root = theory::ff::findZero(myIdeal);
-        // } catch (const CoCoA::ErrorInfo& e) {
-        // std::cerr << "Caught CoCoA::ErrorInfo exception: " << e << std::endl;
-        // } catch (const std::exception& e) {
-        //  AlwaysAssert(false);
-        // std::cerr << "Caught standard exception: " << e.what() << std::endl;
-        // } catch (...) {
-        //  AlwaysAssert(false);
-        // std::cerr << "Caught unknown exception." << std::endl;
-        // }
-        // //AlwaysAssert(false)
-        // std::cout << "Zero found?\n";
-        // std::cout << root.size() << "\n";
-        // std::cout << root[0] << "\n";
-        // std::cout << "Zero found?\n";
-
-        //   if (root.empty())
-        //   {
-
-        //     std::cout << "um awkard...\n";
-        //     // UNSAT
-        //     setTrivialConflict();
-        //     return Result::UNSAT;
-        //   }
-        //   else
-        //   {
-        //     std::cout << "Wow we are here?\n";
-            std::unordered_map<Node, Integer> model;
-            // First we need to save the state of the old system just in case we need to go back to it 
-             for (auto &f: fields){
-                    f.second.old_equalities = f.second.equalities;
-                    f.second.old_inequalities = f.second.inequalities;
-                }
-                integerField.old_equalities = integerField.equalities;
-                integerField.old_inequalities = integerField.inequalities;
-            // Now we get the model and add it to the smallest field 
-             size_t index = 0;
-            // std::cout << (enc.getCurVars()) << "\n";
-            sat = true;
-            for (auto pair: assign)
-            {
-                
-                Node node = pair.first;
-                Integer literal = pair.second;
-            
-                if (!addAssignment(nm->mkNode(Kind::EQUAL, node,  nm->mkConstInt(literal)), smallestRing)){
-                    sat = false;
-                    break;
-                }
-                index+=1;
-            } 
-            // Then do the simplification for loop
-            int count = 0; 
-            std::cout << "starting simplification?\n";
-            std::optional<Field*> unsatField; 
-            for (auto &f: fields){
-                if (f.second.status == Result::UNSAT) {
-                    unsatField = &f.second;
-                }
-            }
-            //printSystemState();Theorem
-            std::cout << "Finished simplification\n"; 
-            if (unsatField.has_value()){
-                std::cout << "YIKES\n";
-                //printSystemState();
-                std::cout << unsatField.value()->modulos << "\n";
-                AlwaysAssert(false);
-
-
-
-                // Integer g;
-                // Integer u;
-                // Integer v;
-                // Integer::extendedGcd(g,u,v, smallestRing->modulos, (unsatField.value())->modulos);
-                // std::cout << g << "\n";
-                // std::vector<Node> newEqs;
-                // if (g == Integer(1)){
-                //     //printSystemState();
-                //     std::vector<Polynomial> BasisA = computeSingularGB(smallestRing, Bounds, nm);
-                //     std::vector<Polynomial> BasisB = computeSingularGB(unsatField.value(), Bounds, nm);
-                //     for (Polynomial a: BasisA){
-                //         for (Polynomial b: BasisB) {
-                //             Node LHS_coef = rewrite(nm->mkConstInt(u * smallestRing->modulos* a.lc()));
-                //             Node LHS = rewrite(nm->mkNode(Kind::MULT, monomialToNode((a.lm().lcm(b.lm()))/b.lm(), nm, smallestRing), LHS_coef, polynomialToNode(b, nm, smallestRing)));
-                //             Node RHS_coef = rewrite(nm-> mkConstInt(v * unsatField.value()->modulos * b.lc()));
-                //             Node RHS = rewrite(nm->mkNode(Kind::MULT, monomialToNode((a.lm().lcm(b.lm()))/a.lm(), nm, smallestRing), RHS_coef, polynomialToNode(a, nm, smallestRing)));
-                //             newEqs.push_back(nm->mkNode(Kind::EQUAL, nm->mkNode(Kind::ADD, LHS, RHS), nm->mkConstInt(Integer(0))));
-                //         }
-                //     }
-                     
-                // } else {
-                //     std::cout << "Something went wrong here\n";
-                //     std::cout << g << "\n";
-                //     std::cout << unsatField.value()->modulos << "\n";
-                //     std::cout << smallestRing->modulos << "\n";
-                //     AlwaysAssert(false);
-                // }
-                // std::cout << "LOOK HERE\n";
-                // std::cout << smallestRing->modulos << "\n";
-                // std::cout << unsatField.value()->modulos << "\n";
-                // std::cout << smallestRing->modulos*unsatField.value()->modulos << "\n";
-                // Field combo = Field(d_env, smallestRing->modulos*unsatField.value()->modulos, this);
-                // for (Node eq: newEqs){
-                //     std::cout << "NEWEQ:" << eq << "\n";
-                //     combo.addEquality(eq, false, true);
-                // }
-                // //std::cout << myFields.size() << "\n";
-                // myFields.erase(it);
-                // auto it2 = myFields.find(unsatField.value()->modulos);
-                //     if (it2 != myFields.end()) {
-                //         myFields.erase(it2);
-                // }
-                // fields.insert(std::make_pair(combo.modulos, combo));
-                // std::cout << "Adding" << combo.modulos << "\n";
-                // myFields.insert(std::make_pair(combo.modulos, &combo));
-                // //printSystemState();
-                // it = myFields.begin();
-            } else {
-                std::cout << "UNSAT FIELD HAD NO VALUE\n";
-                //printSystemState();
-                if (it == myFields.begin()) {
-                break; // We are at the first element, stop the loop
-                 }
-                --it;
-                //myFields.erase(myFields.begin());
-            }
-               
-
-            std::cout << "This worked!\n";
-               
-            //std::cout << "We go here?\n";  
-        }
-         NodeManager* nm = NodeManager::currentNM();
-        // We are at the point where each field has its own assignment but are all these assignments working with each other?
-        for (auto &f: myFields){
-            std::set<std::string> EqVars = getVars(f.second->equalities);
-            std::set<std::string> NeqVars = getVars(f.second->inequalities);
-            bool isSubset = std::includes(EqVars.begin(), EqVars.end(), NeqVars.begin(), NeqVars.end());
-            if (isSubset){
-                std::cout << "This field is SAT" << f.second->modulos << "\n";
-                f.second->status = Result::SAT;
-                for (Node eq: f.second->equalities){
-                    if (Bounds[eq[0].getName()].second > f.second->modulos){
-                        std::cout << eq << "We found an unliftable assignment yikes\n";
-                        SkolemManager* sm = nm->getSkolemManager();
-                        Node sk = sm->mkDummySkolem("C", nm->integerType());
-                        Node lifted = nm->mkNode(Kind::EQUAL, eq[0], nm->mkNode(Kind::ADD, eq[1],
-                        nm->mkNode(Kind::MULT, sk, nm->mkConstInt(f.second->modulos))));
-                        Bounds[sk.getName()] = std::make_pair(Integer(-1) *BIGINT, BIGINT);
-                        integerField.addEquality(lifted);
-                        //integerField.Simplify();
-                        //AlwaysAssert(false);  
-                    }
-
-                }
-                //Node addition = nm->mkNode()
-                // if the field is SAT then we have to lift all its assignments so we iterate through 
-                // the assignments and if the bounds are too big then idk what to do because then the variables
-                // can be set to different things in different fields... ugh this is confusing... 
-                
-            } else {
-                std::cout << "This field is UNKNOWN" << f.second->modulos << "\n";
-            }
-            
-        }
-        write_smt_query("test.smt2",integerField.equalities, integerField.inequalities, Bounds);
-        std::string output = runcvc5("test.smt2");
-        parse_cvc5_output(output);
-        return Result::SAT;
-        }
-
-
-
-        
-
-       
-          
-    //       {
-    //         // SAT: populate d_model from the root
-    //         Assert(d_model.empty());
-    //         NodeManager* nm = NodeManager::currentNM();
-    //         for (const auto& [idx, node] : enc.nodeIndets())
-    //         {
-    //           if (isFfLeaf(node))
-    //           {
-    //             Node value = nm->mkConst(enc.cocoaFfToFfVal(root[idx]));
-    //             Trace("ff::model")
-    //                 << " " << node << " = " << value << std::endl;
-    //             d_model.emplace(node, value);
-    //           }
-    //         }
-    //       }
-    //     }
-    //   }
-        //(not ultiamtely it will probably be something else but idk how to do that rn)
-
-
-        //count +=1;
+    }
 
 
  std::vector<Node>& RangeSolver::conflict() {
-
     d_conflict.clear();
     std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(d_conflict));
     return d_conflict;}
 
 Result RangeSolver::postCheck(Theory::Effort level){
-    //AlwaysAssert(false);
-    //std::cout << level << "\n";
-    //std::cout << level << "\n";
     return Solve();
 }
 
@@ -4732,37 +4360,6 @@ bool RangeSolver::collectModelInfo(TheoryModel* m,
     }   
   
    return true;
-}
-
-void RangeSolver::parse_cvc5_output(const std::string& cvc5_output) {
-    std::istringstream stream(cvc5_output);
-    std::string line;
-    // Read the cvc5 output line by line
-    while (std::getline(stream, line)) {
-        // Check if the line contains "define-fun"
-        if (line.find("(define-fun") != std::string::npos) {
-            std::istringstream line_stream(line);
-            std::string ignore, var_name, ignore_type;
-            std::string value_str;
-
-
-            // Extract the variable name and value from the line
-            line_stream >> ignore >> var_name >> ignore_type >> ignore >> value_str;
-
-            // Create the Node for the variable
-            Node var_node = myVariables[var_name];
-            value_str = value_str.substr(0, value_str.find(")"));
-
-            std::cout << "we get here" << value_str << "\n";
-            // Create the Integer for the value (handle large numbers)
-            Integer value = Integer(value_str);
-
-            std::cout << "we don't get here\n";
-
-            // Insert the Node and Integer into the finalModel map
-            finalModel[var_node] = value;
-        }
-    }
 }
 
 

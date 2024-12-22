@@ -56,6 +56,10 @@ class IntegerField: protected EnvObj{
 
         bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > &Bounds);
 
+        bool runGB();
+
+        bool checkUnsatDiseq();
+
         void addEquality(Node equality);
 
         void clearEqualities(){equalities.clear();};
@@ -84,6 +88,10 @@ class Field:  protected EnvObj {
     public:   
 
         std::map<std::string, std::vector<int>> collectMonomials(IntegerField z, Field f, NodeManager* nm);
+
+        bool runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds);
+
+        bool checkUnsatDiseq();
 
         int didGurobi = 0;
 
