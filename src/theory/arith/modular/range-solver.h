@@ -30,9 +30,11 @@ class IntegerField: protected EnvObj{
 
         std::string mySingularReduce = "";
 
+        bool GBTimedOut = false;
+
         bool novelBound; 
 
-        bool newEqualitySinceGB = false;
+        bool newEqualitySinceGB = true;
 
         bool ranGB = false;
 
@@ -105,6 +107,8 @@ class Field:  protected EnvObj {
 
         int didGurobi = 0;
 
+        bool GBTimedOut = false;
+
         std::string mySingularReduce;
         
         void CancelConstants();
@@ -151,7 +155,7 @@ class Field:  protected EnvObj {
 
         Node modOut(Node fact);
 
-        bool newEqualitySinceGB = false;
+        bool newEqualitySinceGB = true;
 
         bool ranGB = false;
 

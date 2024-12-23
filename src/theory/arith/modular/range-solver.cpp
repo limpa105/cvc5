@@ -2528,8 +2528,10 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
         std::cout << "INTEGER UNSAT DUE TO BOUNDS\n";
         return false;
     }
-    if (newEqualitySinceGB & !ranGB){
-        runGB();
+    if (newEqualitySinceGB & !ranGB & !GBTimedOut){
+       if(!runGB()){
+        GBTimedOut = true;
+       };
     }
     if (status == Result::UNSAT){
         return false;
@@ -2636,11 +2638,17 @@ void IntegerField::addEquality(Node fact, bool GBAddition){
         AlwaysAssert(fact.getKind() == Kind::EQUAL) << fact;
         if(!GBAddition){
             //std::cout << "Adding" << fact << "\n";
-            if (!ranGB){
-                runGB();
+            if (!ranGB &!GBTimedOut){
+                //std::cout << "We should be here?\n";
+                if (!runGB()){
+                    GBTimedOut = true;
+                };
                 ranGB = true;
             }
+            //std::cout<< "Why are we here?\n";
+            //std::cout << ranGB << GBTimedOut << "\n";
             if (reduceAgainstGB(fact)){
+                
                 return;
             } else {
                 newEqualitySinceGB = true;
@@ -2928,8 +2936,10 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
         AlwaysAssert(fact.getKind() == Kind::EQUAL) << fact;
         if(!GBAddition){
             //std::cout << "Adding" << fact << "\n";
-            if (!ranGB){
-                runGB(solver->Bounds);
+            if (!ranGB & !GBTimedOut){
+                if(!runGB(solver->Bounds)){
+                    GBTimedOut = true;
+                };
                 ranGB = true;
             }
             if (reduceAgainstGB(solver->Bounds, fact)){
@@ -3102,8 +3112,10 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         //AlwaysAssert(false);
     }
     //Lift(Integers, Bounds,startLearningLemmas);
-    if (newEqualitySinceGB & !ranGB){
-        runGB(Bounds);
+    if (newEqualitySinceGB & !ranGB & !GBTimedOut){
+        if(!runGB(Bounds)){
+            GBTimedOut = true;
+        };
     }
     if (status == Result::UNSAT){
         return false;
@@ -3711,6 +3723,7 @@ Result RangeSolver::Solve(){
         if (integerField.status == Result::UNSAT){
             integerField.status = Result::UNKNOWN;
             std::cout << "LOOP COUNT" << count << "\n";
+            //printSystemState();
             return Result::UNSAT;
         }
     saturated = true;

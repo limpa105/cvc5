@@ -48,12 +48,12 @@ namespace arith {
 namespace modular_range_solver {
 
 std::string singular_command_weighted = "ring r = (integer, {1}), ({2}), (wp({4})); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
-std::string singular_command_weighted_integers = " LIB \"general.lib\"; ring r = integer, ({2}), (Dp); option(redSB); ideal I= {5}; ideal G= timeStd(I, 35); G; quit;";
-std::string singular_command_reduce_integers = "ring r = integer, ({2}), (Dp); ideal I= {5}; reduce({6}, I); quit;";
+std::string singular_command_weighted_integers = " LIB \"general.lib\"; ring r = integer, ({2}), (dp); option(redSB); ideal I= {5}; ideal G= timeStd(I, 35); G; quit;";
+std::string singular_command_reduce_integers = "ring r = integer, ({2}), (dp); ideal I= {5}; reduce({6}, I); quit;";
 
 std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; reduce({6}, I); quit;";
-std::string singular_command_unweighted = "ring r = (integer, {1}), ({2}), (Dp); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
-std::string singular_command_reduce_uw = "ring r = (integer, {1}), ({2}), (Dp); ideal I= {5}; reduce({6}, I); quit;";
+std::string singular_command_unweighted = "ring r = (integer, {1}), ({2}), (dp); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_reduce_uw = "ring r = (integer, {1}), ({2}), (dp); ideal I= {5}; reduce({6}, I); quit;";
 
 Integer BIGINT = Integer("26697537170649044179042152467634255803129704511815242562837925141177577913409118302943186911045680008195241138225131464058766427708039764790250144472755736885526820882067462431042573357558604819957849");
 
@@ -224,8 +224,9 @@ std::string ReplaceGBStringInput(std::string old, std::string input, std::string
 
 bool IntegerField::runGB(){
     if (equalities.size() < 1) {
-        return false;
+        return true;
     }
+    //std::cout << "Computing GB in Integers\n";
     NodeManager* nm = NodeManager::currentNM();
     std::string line = singular_command_weighted_integers;
     std::stringstream ss;
@@ -386,8 +387,9 @@ bool IntegerField::reduceAgainstGB(Node eq){
 
 bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
     //std::cout << "Starting GB in Field\n";
+    //std::cout << "Computing GB in Fields\n";
     if (equalities.size() < 1){
-        return false;
+        return true;
     }
     NodeManager* nm = NodeManager::currentNM();
     std::vector<long> weights = getWeights((*solver).myVariables, Bounds, false, (*solver).myNotVars);
