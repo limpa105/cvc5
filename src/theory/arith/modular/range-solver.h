@@ -28,7 +28,13 @@ class RangeSolver;
 class IntegerField: protected EnvObj{
     public:
 
+        std::string mySingularReduce = "";
+
         bool novelBound; 
+
+        bool newEqualitySinceGB = false;
+
+        bool ranGB = false;
 
         IntegerField(Env &env, RangeSolver* solver);
 
@@ -60,9 +66,9 @@ class IntegerField: protected EnvObj{
 
         bool checkUnsatDiseq();
 
-        bool reduceAgainstGB();
+        bool reduceAgainstGB(Node eq);
 
-        void addEquality(Node equality);
+        void addEquality(Node equality, bool GBAddition);
 
         void clearEqualities(){equalities.clear();};
 
@@ -146,6 +152,8 @@ class Field:  protected EnvObj {
         Node modOut(Node fact);
 
         bool newEqualitySinceGB = false;
+
+        bool ranGB = false;
 
         bool ShouldLearnLemmas(Node fact, std::map<std::string, std::pair<Integer, Integer> > Bounds);
 

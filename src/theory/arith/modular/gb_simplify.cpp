@@ -222,6 +222,168 @@ std::string ReplaceGBStringInput(std::string old, std::string input, std::string
     return input;
 }
 
+bool IntegerField::runGB(){
+    if (equalities.size() < 1) {
+        return false;
+    }
+    NodeManager* nm = NodeManager::currentNM();
+    std::string line = singular_command_weighted_integers;
+    std::stringstream ss;
+    int bound_count = 0;
+    for (auto it =  (*solver).myVariables.begin(); it != (*solver).myVariables.end(); ++it) {
+        ss << it->first;
+        if (std::next(it) != (*solver).myVariables.end()) {
+            ss << ",";
+        }
+    }
+    line = ReplaceGBStringInput("{2}", line, ss);
+    ss.str("");
+    ss.clear();
+    for (auto it = equalities.begin(); it != equalities.end(); ++it) {
+
+        ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, (*it)[0], (*it)[1])));
+        if (std::next(it) != equalities.end()) {
+            ss << ",";
+        }
+    }
+    line = ReplaceGBStringInput("{5}", line, ss);
+    ss.str("");
+    ss.clear();
+    std::string output = "";
+    std::vector<Node> GBPolys;
+    auto result = std::make_shared<std::string>("");
+    std::shared_ptr<bool> done = std::make_shared<bool>(false);
+    std::mutex resultMutex;
+
+    auto future = std::async(std::launch::async, [&]() {
+        auto res = runSingular(line);
+        {
+            std::lock_guard<std::mutex> lock(resultMutex);
+            *result = res;
+            *done = true;
+            //std::cout << "Function completed." << "\n";
+        }
+    });
+    auto start = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(30)) {
+        {
+            std::lock_guard<std::mutex> lock(resultMutex);
+            if (*done) {
+                output= *result;
+                break; // Return the final result if the function completes
+            }
+        }
+        //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
+    }
+    std::vector<Node> EmptyPolys;
+    std::vector<Node> unsatPolys;
+    if (output.empty()){
+        return false;
+    }
+    std::vector<Polynomial> polys = parsePolynomialList(output);
+    //std::cout << "OG GB\n";
+    for (auto p: polys){
+        std::vector<Node> products;
+        for (auto m: p.monomials){
+            //std::cout << m << "\n";
+            products.push_back(monomialToNode(m, nm, this));
+        }
+        GBPolys.push_back(nm->mkNode(Kind::EQUAL, 
+        nm->mkNode(Kind::ADD, products), nm->mkConstInt(0)));
+    }
+    clearEqualities();
+    for (Node poly: GBPolys){
+                //std::cout << "New Poly F:" << poly << "\n";
+        if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
+            rewrite(poly).getConst<bool>() == false){
+                 status = Result::UNSAT;
+                    return true;
+                }
+            addEquality(rewrite(poly), true);
+        }
+    return true;
+}
+
+bool IntegerField::reduceAgainstGB(Node eq){
+    std::string line;
+    std::stringstream ss;
+    if (equalities.size() < 1){
+        return false;
+    }
+    NodeManager* nm = NodeManager::currentNM();
+    if (mySingularReduce.empty()){
+        line = singular_command_reduce_integers;
+        ss.str("");
+        ss.clear();
+        for (auto it =  (*solver).myVariables.begin(); it != (*solver).myVariables.end(); ++it) {
+                ss << it->first;
+            if (std::next(it) != (*solver).myVariables.end()) {
+                ss << ",";
+            }
+        }
+        line = ReplaceGBStringInput("{2}", line, ss);
+        ss.str("");
+        ss.clear();
+        for (auto it = equalities.begin(); it != equalities.end(); ++it) {
+            ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, (*it)[0], (*it)[1])));
+            if (std::next(it) != equalities.end()) {
+                ss << ",";
+            }
+        }
+        line = ReplaceGBStringInput("{5}", line, ss);
+
+    } else {
+        line = mySingularReduce;
+    }
+    ss.str("");
+    ss.clear();
+    ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, eq[0], eq[1])));
+    line = ReplaceGBStringInput("{6}", line, ss);
+    std::string output = "";
+    auto result = std::make_shared<std::string>("");
+    std::shared_ptr<bool> done = std::make_shared<bool>(false);
+    std::mutex resultMutex;
+    auto future = std::async(std::launch::async, [&]() {
+    auto res = runSingular(line);
+        {
+        std::lock_guard<std::mutex> lock(resultMutex);
+            *result = res;
+            *done = true;
+                    //std::cout << "Function completed." << "\n";
+        }
+    });
+    auto start = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
+        {
+            std::lock_guard<std::mutex> lock(resultMutex);
+            if (*done) {
+                output= *result;
+                break; // Return the final result if the function completes
+             }
+        }
+                //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
+        }
+        if (output.empty()){
+            // It shouldn't take longer than 60 seconds to reduce..
+            AlwaysAssert(false);
+        }
+            // std::cout << "ran singular\n";
+        size_t pos =output.find('\n');
+        std::string myResult = output.substr(pos + 1);
+            //std::cout << line <<"\n";
+            //std::cout << output << "\n" ;
+        try{
+        if (std::stoi(myResult) == 0){
+                return true;
+            }
+        } catch (const std::invalid_argument& e) { 
+            return false;
+        } catch (const std::out_of_range& e) { 
+            return false;
+        };
+        return false;
+}
+
 bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
     //std::cout << "Starting GB in Field\n";
     if (equalities.size() < 1){
@@ -422,268 +584,6 @@ Node polynomialToNode(Polynomial poly, NodeManager* nm, Field *F){
 
 }
 
-
-std::vector<Node> SimplifyViaGB(Field *F, std::map<std::string, std::pair<Integer, Integer> > Bounds, NodeManager* nm, bool inIntegers){
-    // std::cout << (*F).modulos << "\n";
-    // std::cout << (*F).equalities.size() << "\n";
-      if ((*F).equalities.size() <= 1) {
-        return (*F).equalities;
-      }
-      //std::cout << "Getting weights\n";
-     std::vector<long> weights = getWeights((*(*F).solver).myVariables, (*(*F).solver).Bounds, false, (*(*F).solver).myNotVars);
-     //std::cout << "Got Weights\n";
-    // std::ifstream inputFile("theory/arith/modular/gb_input.txt");
-
-    // // Check if the file was successfully opened
-    // if (!inputFile.is_open()) {
-    //     AlwaysAssert(false) << "Singular GB input file does not exist";
-    // }
-    // Read and print the contents of the file
-    std::string line;
-
-    line = singular_command_weighted;
-    
-   //} else {
-     //line = singular_command_unweighted;
-   //}
-
-    //}
-    //inputFile.close();
-    std::stringstream ss;
-    ss << (*F).modulos;
-    line = ReplaceGBStringInput("{1}", line, ss);
-    ss.str("");
-    ss.clear();
-    //std::cout << (*F).myNodes.size() << "\n";
-    int bound_count = 0;
-    for (auto it =  (*(*F).solver).myVariables.begin(); it != (*(*F).solver).myVariables.end(); ++it) {
-        ss << it->first;
-        if (std::next(it) != (*(*F).solver).myVariables.end()) {
-            ss << ",";
-        }
-    }
-    //std::cout << "Got Variables\n";
-    line = ReplaceGBStringInput("{2}", line, ss);
-    ss.str("");
-    ss.clear();
-    
-    //std::cout << line << "\n";
-    // ss << upperBounds.size();
-    // line = ReplaceGBStringInput("{3}", line, ss);
-    // ss.str("");
-    // ss.clear();
-    
-    for (auto it = weights.begin(); it != weights.end(); ++it) {
-        ss << *it;
-        if (std::next(it) != weights.end()) {
-            ss << ",";
-        }
-    }
-   // std::cout << "got weights\n";
-    line = ReplaceGBStringInput("{4}", line, ss);
-    ss.str("");
-    ss.clear();
-    //std::cout << (*F).equalities.size() << "\n";
-    for (auto it = (*F).equalities.begin(); it != (*F).equalities.end(); ++it) {
-        //std::cout <<(*it) << "\n";
-        ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, (*it)[0], (*it)[1])));
-        if (std::next(it) != (*F).equalities.end()) {
-            ss << ",";
-        }
-    }
-    //std::cout << "Got Equalities";
-    line = ReplaceGBStringInput("{5}", line, ss);
-    ss.str("");
-    ss.clear();
-    //std::string command = "Singular -q -t -c \" " + line + "\"";
-    //std::cout << line << "\n";
-    //int result = system(command.c_str());
-    //AlwaysAssert(false);
-    std::string output = "";
-    std::vector<Node> GBPolys;
-    auto result = std::make_shared<std::string>("");
-    std::shared_ptr<bool> done = std::make_shared<bool>(false);
-    std::mutex resultMutex;
-    //std::cout << "Running Singular\n";
-    // Launch the function asynchronously
-    auto future = std::async(std::launch::async, [&]() {
-        auto res = runSingular(line);
-        {
-            std::lock_guard<std::mutex> lock(resultMutex);
-            *result = res;
-            *done = true;
-            //std::cout << "Function completed." << "\n";
-        }
-    });
-    auto start = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
-        {
-            std::lock_guard<std::mutex> lock(resultMutex);
-            if (*done) {
-                output= *result;
-                break; // Return the final result if the function completes
-            }
-        }
-        //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
-    }
-    if (output.empty()){
-        AlwaysAssert(false);
-    }
-    std::vector<Polynomial> polys = parsePolynomialList(output);
-    if(polys.size()==1 && polys[0]== Polynomial{{Monomial{1, {}}}}){
-        return GBPolys;
-    }
-    //std::cout << "OG GB\n";
-    for (auto p: polys){
-        std::vector<Node> products;
-        for (auto m: p.monomials){
-            //std::cout << m << "\n";
-            products.push_back(monomialToNode(m, nm, F));
-        }
-        GBPolys.push_back(nm->mkNode(Kind::EQUAL, 
-        nm->mkNode(Kind::ADD, products), nm->mkConstInt(0)));
-    }
-
-    std::vector<Node> EmptyPolys;
-    /// NOW WE WILL REDUCE THE INEQUALITIES AGAINST THE COMPUTED BASIS 
-    //if (WeightedGB){
-    line = singular_command_reduce;
-   
-    //} else {
-    //l//ine = singular_command_reduce_uw;
-    //} 
-    ss.str("");
-    ss.clear();
-    ss << (*F).modulos;
-     line = ReplaceGBStringInput("{1}", line, ss);
-        ss.str("");
-        ss.clear();
-        //std::cout << (*F).myNodes.size() << "\n";
-        bound_count = 0;
-        for (auto it =  (*(*F).solver).myVariables.begin(); it != (*(*F).solver).myVariables.end(); ++it) {
-                ss << it->first;
-            if (std::next(it) != (*(*F).solver).myVariables.end()) {
-                ss << ",";
-            }
-        }
-        line = ReplaceGBStringInput("{2}", line, ss);
-        ss.str("");
-        ss.clear();
-        
-        ss.str("");
-        ss.clear();
-        
-        //std::cout << line << "\n";
-        // ss << upperBounds.size();
-        // line = ReplaceGBStringInput("{3}", line, ss);
-        // ss.str("");
-        // ss.clear();
-
-        for (auto it = weights.begin(); it != weights.end(); ++it) {
-            ss << *it;
-            if (std::next(it) != weights.end()) {
-                ss << ",";
-            }
-        }
-        line = ReplaceGBStringInput("{4}", line, ss);
-        ss.str("");
-        ss.clear();
-        //std::cout << line << "\n";
-        // ss << upperBounds.size();
-        // line = ReplaceGBStringInput("{3}", line, ss);
-        // ss.str("");
-        // ss.clear();
-        //std::cout << line << "\n";
-        for (auto it = GBPolys.begin(); it != GBPolys.end(); ++it) {
-            ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, (*it)[0], (*it)[1])));
-            if (std::next(it) != GBPolys.end()) {
-                ss << ",";
-            }
-        }
-        line = ReplaceGBStringInput("{5}", line, ss);
-        (*F).mySingularReduce = line;
-        //std::cout << "we got here\n";
-        //std::cout << (*F).inequalities.size() << "\n";
-        if ((*F).inequalities.size() > 0){
-        for(int i =0; i<(*F).inequalities.size(); i++){
-            if ((*F).inequalities[i].getKind() == Kind::CONST_BOOLEAN &&
-                    (*F).inequalities[i].getConst<bool>()==  true){
-                        //AlwaysAssert(false);
-                        (*F).status = Result::UNSAT;
-                        std::cout << "set status unsat?" << (*F).modulos << "\n";
-                        //AlwaysAssert(false);
-                        return EmptyPolys;
-                    }
-           // std::cout << (*F).inequalities[i] << "\n";
-            ss.str("");
-            ss.clear();
-            ss << replaceDots(nodeToString(nm->mkNode(Kind::SUB, (*F).inequalities[i][0], (*F).inequalities[i][1])));
-            line = ReplaceGBStringInput("{6}", line, ss);
-            auto result = std::make_shared<std::string>("");
-            std::shared_ptr<bool> done = std::make_shared<bool>(false);
-    std::mutex resultMutex;
-    //std::cout << "Running Singular2\n";
-    // Launch the function asynchronously
-    auto future = std::async(std::launch::async, [&]() {
-        auto res = runSingular(line);
-        {
-            std::lock_guard<std::mutex> lock(resultMutex);
-            *result = res;
-            *done = true;
-            //std::cout << "Function completed." << "\n";
-        }
-    });
-    auto start = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(60)) {
-        {
-            std::lock_guard<std::mutex> lock(resultMutex);
-            if (*done) {
-                output= *result;
-                break; // Return the final result if the function completes
-            }
-        }
-        //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
-    }
-
-    if (output.empty()){
-        AlwaysAssert(false);
-    }
-            //std::cout << line <<"\n";
-            //std::cout << output << "\n" ;
-            size_t pos =output.find('\n');
-            std::string result1 = output.substr(pos + 1);
-            try{
-            if (std::stoi(result1) == 0){
-                //std::cout << "OUTPUT ZERO WWOOO\n";
-                (*F).status = Result::UNSAT;
-                //std::cout << "set status unsat?" << (*F).modulos << "\n";
-                return EmptyPolys;
-            }
-            } catch (const std::invalid_argument& e) { //std::cout << output << "\n";
-            } catch (const std::out_of_range& e) { //std::cout << output << "\n"; }
-            };
-        }
-        }
-       // std::cout << "but we did not get here\n";
-
-
-    return GBPolys;
-    
-
-
-    //   SingularEncoder enc = SingularEncoder((*F).modulos.getUnsignedInt(),
-    //   (*F).myVariables,
-    //   (*F).myNodes,
-    //   weights,
-    //   nm);
-      
-    //   for (auto i: (*F).equalities){
-    //     enc.addFact(i);
-    //   }
-
-    //    std::vector<Node> newPoly = enc.computeGB();
-    //    return newPoly
-}
 
 
 std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair<Integer, Integer> > Bounds, NodeManager* nm, bool inIntegers){
