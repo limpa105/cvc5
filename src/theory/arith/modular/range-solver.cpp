@@ -2647,6 +2647,13 @@ void IntegerField::addEquality(Node fact, bool GBAddition){
             }
             //std::cout<< "Why are we here?\n";
             //std::cout << ranGB << GBTimedOut << "\n";
+            if (GBTimedOut){
+                newEqualitySinceGB = true;
+                ranGB = false;
+                mySingularReduce = "";
+                equalities.push_back(fact);
+                return;
+            }
             if (reduceAgainstGB(fact)){
                 
                 return;
@@ -2942,6 +2949,13 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
                 };
                 ranGB = true;
             }
+            if (GBTimedOut){
+                newEqualitySinceGB = true;
+                ranGB = false;
+                mySingularReduce = "";
+                equalities.push_back(fact);
+                return;
+            }
             if (reduceAgainstGB(solver->Bounds, fact)){
                 return;
             } else {
@@ -3111,7 +3125,9 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         didGurobi +=1;
         //AlwaysAssert(false);
     }
-    //Lift(Integers, Bounds,startLearningLemmas);
+
+
+    Lift(Integers, Bounds,startLearningLemmas);
     if (newEqualitySinceGB & !ranGB & !GBTimedOut){
         if(!runGB(Bounds)){
             GBTimedOut = true;
@@ -3750,6 +3766,9 @@ Result RangeSolver::Solve(){
                 AlwaysAssert(!saturated);
             }
             if (integerField.novelBound == true){
+                saturated = false;
+            }
+            if (integerField.newEqualitySinceGB == true){
                 saturated = false;
             }
         }
