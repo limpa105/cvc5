@@ -97,7 +97,9 @@ class IntegerField: protected EnvObj{
 class Field:  protected EnvObj {
     public:   
 
-        std::map<std::string, std::vector<int>> collectMonomials(IntegerField z, Field f, NodeManager* nm);
+        bool LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds);
+
+        std::map<std::string, std::vector<Rational>> collectMonomials(IntegerField z, Field f, NodeManager* nm);
 
         bool runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds);
 
