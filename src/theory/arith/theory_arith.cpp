@@ -259,7 +259,7 @@ void TheoryArith::postCheck(Effort level)
       //   AlwaysAssert(false);
       // }
     } else if(result.getStatus() == Result::UNKNOWN){
-        d_im.setModelUnsound(IncompleteId::ARITH_NL_DISABLED);
+        d_im.setModelUnsound(IncompleteId::UNKNOWN);
       // return;
       // NodeManager* nm = NodeManager::currentNM();
       // const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);

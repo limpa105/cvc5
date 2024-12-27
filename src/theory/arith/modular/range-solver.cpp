@@ -187,7 +187,7 @@ std::vector<std::vector<Rational>> findBasis(const std::vector<std::vector<Ratio
 std::vector<int> parseGlpkOutput(const std::string& output) {
     std::map<int, int> sortedVariableMap;  // Map to store variables in order of gb_x index
      std::vector<int> variableMap;
-    std::cout << output << "\n";
+    //std::cout << output << "\n";
     if (output.size()==0) {
         //std::cout << "No feasible solution found." << std::endl;
         return variableMap;
@@ -200,7 +200,7 @@ std::vector<int> parseGlpkOutput(const std::string& output) {
         //std::cout << "No feasible solution found." << std::endl;
         return variableMap;
     }
-
+    std::cout << "WE FOUND A SOLUTION OMG!\n";
 
     // Updated regex to capture all "gb_x" variables, with or without the "*"
     std::regex variableRegex(R"(\s*\d+\s+(gb_(\d+))\s*(\*?)\s+(-?\d+\.?\d*))");
@@ -976,7 +976,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
             if (constraints[j].size() == 0){
                 constraints[j] = curBasis[i][j].toString() + " " +  cur_c;
             } else {
-                 constraints[j] += " + " + curBasis[i][j].toString() + " " +  cur_c;
+                 constraints[j] += stringify_one(curBasis[i][j].toString(),"+") + " " +  cur_c;
 
             }
             }
@@ -1074,7 +1074,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
     // std::cout << "Number of OG Variables:" << varCoefMap.size() << "\n";
     // std::cout << "Number of New Variables:" << new_vars.size() << "\n";
     std::string hellp = readFileToString(filename);
-    // std::cout << hellp << "\n";
+    //std::cout << hellp << "\n";
     
     
    file.flush(); 
@@ -1625,7 +1625,7 @@ std::string runGurobi(const std::string& filename)
   std::stringstream commandStream;
   //commandStream << "g++ " << filename <<  " -o " << output1 <<  " -I/Library/gurobi1103/macos_universal2/include -L/Library/gurobi1103/macos_universal2/lib /Library/gurobi1103/macos_universal2/lib/libgurobi110.dylib -lgurobi_c++";
   //commandStream << "/barrett/scratch/aozdemir/gurobi/cluster_gurobi_cl OutputFlag=0  ResultFile=" << output1 << " " << filename;
-  commandStream << "/barrett/scratch/pertseva/glpk/bin/glpsol --tmlim 60 --lp " << filename << " -o "  << output1 << " > h 2>&1 ";
+  commandStream << "/barrett/scratch/pertseva/glpk/bin/glpsol --tmlim 60 --lp " << filename << " -o "  << output1 << "> h 2>&1";
   std::string command = commandStream.str();
   //std::cout << command << "\n";
   int exitCode = std::system(command.c_str());
@@ -2920,15 +2920,15 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
             } 
             //std::cout << currBasis.size() << "\n";
             Node newEquality = rewrite(nm->mkNode(Kind::EQUAL, nm->mkNode(Kind::ADD, sum), nm->mkConstInt(0)));
-            std::cout << "But we did not get here\n";
-            std::cout << newEquality << "\n";
+            //std::cout << "But we did not get here\n";
+            //std::cout << newEquality << "\n";
             AlwaysAssert(checkIfConstraintIsMet(newEquality, modulos, Bounds)) << "ILP produced nonliftable eq";
             //addEquality(newEquality, true, true);
             Integers.addEquality(newEquality, true);
             curBasis.push_back(getLastRow(rewrite(nm->mkNode(
                 Kind::ADD, newEquality[0], rewrite(nm->mkNode( Kind::MULT, newEquality[1], 
                 nm->mkConstInt(-1))))), monomialMap));
-             std::cout << "Here?\n";
+             //std::cout << "Here?\n";
             //AlwaysAssert(curBasis.size() == curBasis[0].size()) << "getLastRow failed \n";
             //std::cout << newEquality << "\n";
             //AlwaysAssert(false);
