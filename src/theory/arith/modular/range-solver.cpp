@@ -187,7 +187,7 @@ std::vector<std::vector<Rational>> findBasis(const std::vector<std::vector<Ratio
 std::vector<int> parseGlpkOutput(const std::string& output) {
     std::map<int, int> sortedVariableMap;  // Map to store variables in order of gb_x index
      std::vector<int> variableMap;
-    //std::cout << output << "\n";
+    std::cout << output << "\n";
     if (output.size()==0) {
         //std::cout << "No feasible solution found." << std::endl;
         return variableMap;
@@ -291,6 +291,16 @@ std::string stringify(std::map<std::string, Integer> elements, std::string op) {
     return result;
 }
 
+std::string stringify_one(std::string i, std::string op){
+    if (op == "+" && i[0] == '-') {
+            return " - " + i.substr(1);  // Use "+" instead of "-"
+        } else if (op == "-" && i[0] == '-'){
+            return  " + " + i.substr(1);;
+        }
+        else {
+           return " " + op + " " + i;  // Regular operation
+        }
+}
 
 std::string stringify_gurobi(std::vector<std::string> elements, std::string op){
     std::string result =""; 
@@ -859,15 +869,16 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
            }
         }
         //std::cout << UB.toString() << "\n";
+       
         if (upper_bound.size() == 0){
-            upper_bound = UB.toString() + "  " + pos_relu_vars[pair.first] + " - " + LB.toString() + "  " + neg_relu_vars[pair.first];
+            upper_bound = UB.toString() + "  " + pos_relu_vars[pair.first] + stringify_one(LB.toString(), "-") + "  " + neg_relu_vars[pair.first];
         } else {
-            upper_bound += " + " + UB.toString() + "  " + pos_relu_vars[pair.first] + " - " + LB.toString() + "  " + neg_relu_vars[pair.first];
+            upper_bound += stringify_one(UB.toString(), "+") + "  " + pos_relu_vars[pair.first] + stringify_one(LB.toString(),"-") + "  " + neg_relu_vars[pair.first];
         }
         if (lower_bound.size() == 0){
-            lower_bound = LB.toString() + "  " + pos_relu_vars[pair.first] + " - " + UB.toString() + "  " + neg_relu_vars[pair.first];
+            lower_bound = LB.toString() + "  " + pos_relu_vars[pair.first] + stringify_one(UB.toString(), "-") + "  " + neg_relu_vars[pair.first];
         } else {
-            lower_bound += " + " + LB.toString() + "  " + pos_relu_vars[pair.first] + " - " + UB.toString() + "  " + neg_relu_vars[pair.first];
+            lower_bound += stringify_one(LB.toString(),"+") + "  " + pos_relu_vars[pair.first] + stringify_one(UB.toString(), "-") + "  " + neg_relu_vars[pair.first];
         }
 
         // Integer maxPos = Integer(static_cast<int>(std::round(log2(modulos.getDouble() -1))));
@@ -3537,7 +3548,7 @@ Result RangeSolver::Solve(){
         for (auto& fieldPair :fields){
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
-                std::cout << "LOOP COUNT" << count << "\n";
+                //std::cout << "LOOP COUNT" << count << "\n";
                 return Result::UNSAT;
             }
 
@@ -3546,7 +3557,7 @@ Result RangeSolver::Solve(){
         integerField.Simplify(fields, Bounds);
         if (integerField.status == Result::UNSAT){
             integerField.status = Result::UNKNOWN;
-            std::cout << "LOOP COUNT" << count << "\n";
+            //std::cout << "LOOP COUNT" << count << "\n";
             //printSystemState();
             return Result::UNSAT;
         }
