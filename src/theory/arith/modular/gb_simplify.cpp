@@ -95,7 +95,7 @@ std::string readFileToString(std::filesystem::path path)
 /** Run Singular on this program and return the output. */
 std::string runSingular(std::string program)
 {
-  std::cout << program << "\n";
+  //std::cout << program << "\n";
   std::filesystem::path output = tmpPath();
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
@@ -109,7 +109,7 @@ std::string runSingular(std::string program)
                                                         << outputContents;
   std::filesystem::remove(output);
   std::filesystem::remove(input);
-  std::cout << outputContents << "\n";
+  //std::cout << outputContents << "\n";
   return outputContents;
 }
 
@@ -298,6 +298,7 @@ bool IntegerField::runGB(){
         if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
             rewrite(poly).getConst<bool>() == false){
                  status = Result::UNSAT;
+                 std::cout << "UNSAT\n";
                     return true;
                 }
             addEquality(rewrite(poly), true);
@@ -368,7 +369,9 @@ bool IntegerField::reduceAgainstGB(Node eq){
             // It shouldn't take longer than 60 seconds to reduce..
             AlwaysAssert(false);
         }
-            // std::cout << "ran singular\n";
+        if (output == "0\n"){
+            return true;
+        }   // std::cout << "ran singular\n";
         size_t pos =output.find('\n');
         std::string myResult = output.substr(pos + 1);
             //std::cout << line <<"\n";
@@ -557,7 +560,9 @@ bool Field::reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > 
             // It shouldn't take longer than 60 seconds to reduce..
             AlwaysAssert(false);
         }
-            // std::cout << "ran singular\n";
+        if (output == "0\n"){
+            return true;
+        }     // std::cout << "ran singular\n";
         size_t pos =output.find('\n');
         std::string myResult = output.substr(pos + 1);
             //std::cout << line <<"\n";
