@@ -188,11 +188,11 @@ std::vector<int> parseGlpkOutput(const std::string& output) {
     std::map<int, int> sortedVariableMap;  // Map to store variables in order of gb_x index
      std::vector<int> variableMap;
     if (output.size()==0) {
-        std::cout << "No feasible solution found." << std::endl;
+        //std::cout << "No feasible solution found." << std::endl;
         return variableMap;
     }
     if (output.find("INTEGER OPTIMAL") == std::string::npos) {
-        std::cout << "No feasible solution found." << std::endl;
+        //std::cout << "No feasible solution found." << std::endl;
         return variableMap;
     }
 
@@ -216,7 +216,7 @@ std::vector<int> parseGlpkOutput(const std::string& output) {
     for (const auto& pair : sortedVariableMap) {
         variableMap.push_back(pair.second);  // Add the values in sorted order
     }
-
+    //\n";
     return variableMap;
 }
 
@@ -1593,7 +1593,6 @@ std::string runcvc5(std::string input)
 
 std::string runGurobi(const std::string& filename)
 {
-  //std::cout << program << "\n";
   std::filesystem::path output1 = tmpPath();
   output1 = output1.concat(".sol");
   //std::string output1 = "hello.txt";
@@ -1604,7 +1603,8 @@ std::string runGurobi(const std::string& filename)
 
   std::stringstream commandStream;
   //commandStream << "g++ " << filename <<  " -o " << output1 <<  " -I/Library/gurobi1103/macos_universal2/include -L/Library/gurobi1103/macos_universal2/lib /Library/gurobi1103/macos_universal2/lib/libgurobi110.dylib -lgurobi_c++";
-  commandStream << "/barrett/scratch/aozdemir/gurobi/cluster_gurobi_cl OutputFlag=0  ResultFile=" << output1 << " " << filename;
+  //commandStream << "/barrett/scratch/aozdemir/gurobi/cluster_gurobi_cl OutputFlag=0  ResultFile=" << output1 << " " << filename;
+  commandStream << "/barrett/scratch/pertseva$ glpk/bin/glpsol --tmlim 60 --lp " << filename << " -o "  << output1 << " > h 2>&1" ;
   std::string command = commandStream.str();
   //std::cout << command << "\n";
   int exitCode = std::system(command.c_str());
@@ -2847,7 +2847,8 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
             // std::cout << output << "\n";
             // std::cout << "we got here\n";
             // //AlwaysAssert(false);
-            coefficients = parseGurobiOutput(output);
+            //std::cout << output << "\n";
+            coefficients = parseGlpkOutput(output);
             if (coefficients.size() == 0 && curBasis.size() > 0){
                 // TODO we now need to make an iteration here that case splits on the possiblec_orth being non zero 
                 int iteration = 1;
@@ -2876,7 +2877,7 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
                     }
                 //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
                      }
-                     coefficients = parseGurobiOutput(output);
+                     coefficients = parseGlpkOutput(output);
                      if (coefficients.size() != 0){
                         break;
                     }
@@ -2909,7 +2910,7 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
             //AlwaysAssert(false);
         }
 
-
+    return false;
 
 }
 
