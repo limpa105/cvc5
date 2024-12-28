@@ -508,13 +508,13 @@ std::map<std::string, std::vector<Rational>> Field::collectMonomials(IntegerFiel
                 else if (node[0].getKind() == Kind::CONST_INTEGER){
                     node = node[1];
                 }
-                if (node.getKind() == Kind::NONLINEAR_MULT ){
+                if (node.getKind() == Kind::NONLINEAR_MULT ||  node.getKind() == Kind::MULT ){
                     //std::cout << "We should be here?\n";
                     std::string name ="";
                     for (int j = 0; j < node.getNumChildren(); j ++){
                         name += node[j].getName() + "_";
                     }
-                if (monomials.find(name) != monomials.end()){
+                if (monomials.find(name) == monomials.end()){
                     broken = true;
                     break;
                 }
@@ -553,7 +553,7 @@ std::map<std::string, std::vector<Rational>> Field::collectMonomials(IntegerFiel
                 monomials[node.getName()].push_back(1); 
             }
             else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT){ 
-                if (node.getNumChildren() == 2 && node[0].getKind() == Kind::CONST_INTEGER) {
+                if (node.getNumChildren() == 2 && node[0].getKind() == Kind::CONST_INTEGER && isVariableOrSkolem(node[1])) {
                     monomials[node[1].getName()].push_back(node[0].getConst<Rational>()); 
                     continue;
                 };
@@ -563,7 +563,7 @@ std::map<std::string, std::vector<Rational>> Field::collectMonomials(IntegerFiel
                     node = node[1];
 
                 }
-                if (node.getKind() == Kind::NONLINEAR_MULT ){
+                if (node.getKind() == Kind::NONLINEAR_MULT || node.getKind() == Kind::MULT){
                     //std::cout << "We should be here?\n";
                     std::string name ="";
                     for (int j = 0; j < node.getNumChildren(); j ++){
@@ -1645,11 +1645,11 @@ std::string runGurobi(const std::string& filename)
   //commandStream << "g++ " << filename <<  " -o " << output1 <<  " -I/Library/gurobi1103/macos_universal2/include -L/Library/gurobi1103/macos_universal2/lib /Library/gurobi1103/macos_universal2/lib/libgurobi110.dylib -lgurobi_c++";
   //commandStream << "/barrett/scratch/aozdemir/gurobi/cluster_gurobi_cl OutputFlag=0  ResultFile=" << output1 << " " << filename;
   commandStream << "/barrett/scratch/pertseva/glpk/bin/glpsol --tmlim 30 --lp " << filename << " -o "  << output1 << "> h 2>&1";
-  //commandStream << "glpsol --tmlim 30 --lp " << filename << " -o "  << output1 << "> h 2>&1";
+  //commandStream << "glpsol --tmlim 30 --lp " << filename << " -o "  << output1;
   std::string command = commandStream.str();
   //std::cout << command << "\n";
   int exitCode = std::system(command.c_str());
-  AlwaysAssert(exitCode == 0) << "Gurobi errored\nCommand: " << command;
+  //AlwaysAssert(exitCode == 0) << "Gurobi errored\nCommand: " << command;
 //   std::cout << "Compilation worked\n";
 //   exitCode = std::system(( output1.string() +  " >> " + output2.string()).c_str());
 //     std::cout << "Running the command worked\n";
