@@ -200,7 +200,7 @@ std::vector<int> parseGlpkOutput(const std::string& output) {
         //std::cout << "No feasible solution found." << std::endl;
         return variableMap;
     }
-    std::cout << "WE FOUND A SOLUTION OMG!\n";
+    //std::cout << "WE FOUND A SOLUTION OMG!\n";
 
     // Updated regex to capture all "gb_x" variables, with or without the "*"
     std::regex variableRegex(R"(\s*\d+\s+(gb_(\d+))\s*(\*?)\s+(-?\d+\.?\d*))");
@@ -483,14 +483,14 @@ std::map<std::string, std::vector<Rational>> Field::collectMonomials(IntegerFiel
                   }
             //std::cout << node << "\n";
             if (node.getKind() == Kind::CONST_INTEGER){
-                if (monomials.find("constant") != monomials.end()){
+                if (monomials.find("constant") == monomials.end()){
                         broken = true;
                         break;
                     } 
                     continue;
             }
-            else if ( isVariableOrSkolem(node)){
-                if (monomials.find(node.getName()) != monomials.end()){
+            else if (isVariableOrSkolem(node)){
+                if (monomials.find(node.getName()) == monomials.end()){
                     broken = true;
                     break;
                 }
@@ -499,10 +499,13 @@ std::map<std::string, std::vector<Rational>> Field::collectMonomials(IntegerFiel
                  node = rewrite(node);
                 //std::cout << "We are here?\n";
                 if (node[0].getKind() == Kind::CONST_INTEGER && isVariableOrSkolem(node[1]) && node.getNumChildren() == 2){
-                    monomials[node[1].getName()] = std::vector<Rational>(); 
+                    if (monomials.find(node[1].getName()) == monomials.end()){
+                    broken = true;
+                    break;
+                    }
                     continue;
                 }
-                if (node[0].getKind() == Kind::CONST_INTEGER){
+                else if (node[0].getKind() == Kind::CONST_INTEGER){
                     node = node[1];
                 }
                 if (node.getKind() == Kind::NONLINEAR_MULT ){
@@ -515,7 +518,8 @@ std::map<std::string, std::vector<Rational>> Field::collectMonomials(IntegerFiel
                     broken = true;
                     break;
                 }
-            
+                } else {
+                    AlwaysAssert(false) << node << "\n";
                 }
             }
             else {
@@ -528,6 +532,7 @@ std::map<std::string, std::vector<Rational>> Field::collectMonomials(IntegerFiel
     }
     int current_len;
     for (auto i: allowedZ){
+        //std::cout << i << "\n";
         current_len = (monomials.begin()->second).size();
         Node eq = i;
        for (int h = 0; h<=eq.getNumChildren(); h++) {
@@ -552,22 +557,35 @@ std::map<std::string, std::vector<Rational>> Field::collectMonomials(IntegerFiel
                     monomials[node[1].getName()].push_back(node[0].getConst<Rational>()); 
                     continue;
                 };
-                int k = 0;
-                Rational constInt = 1;
+                Rational constInt= Rational(1);
                 if (node[0].getKind() == Kind::CONST_INTEGER){
-                    k = 1;
                     constInt = node[0].getConst<Rational>();
+                    node = node[1];
+
                 }
-                std::string name = "";
-                for (int j = k; j < node.getNumChildren(); j ++){
-                    name += node[j].getName() + "_";
-                }
+                if (node.getKind() == Kind::NONLINEAR_MULT ){
+                    //std::cout << "We should be here?\n";
+                    std::string name ="";
+                    for (int j = 0; j < node.getNumChildren(); j ++){
+                        name += node[j].getName() + "_";
+                    }
                 monomials[name].push_back(constInt); 
+                 } else {
+                 AlwaysAssert(false);
+                 }
             }
             else {
                 AlwaysAssert(false) << node << "\n";
             }
         }
+        // for (auto &pair: monomials){
+        //     std::cout << pair.first << ":";
+        //     for (auto why: pair.second){
+        //         std::cout << why << ",";
+        //     }
+        //     std::cout << "\n";
+        // }
+
         for (auto &pair: monomials){
             if (pair.second.size() == current_len +1){
                 continue;
@@ -926,7 +944,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
     if (pastSolutions.size()>0){
         std::vector<std::vector<Rational>> curBasis = findBasis(pastSolutions);
         //printBasis(curBasis);
-        AlwaysAssert(curBasis.size() == curBasis[0].size()) << curBasis.size() << " but " << curBasis[0].size();
+        //AlwaysAssert(curBasis.size() == curBasis[0].size()) << curBasis.size() << " but " << curBasis[0].size();
         for (int i =0; i<curBasis.size(); i++){
             Integer LCM = Integer(1);
             for (int j =0; j<curBasis[0].size(); j++) {
@@ -948,7 +966,8 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
             }
         }
         //printBasis(curBasis);
-        AlwaysAssert(curBasis.size() == curBasis[0].size()) << curBasis.size() << " but " << curBasis[0].size();
+        //AlwaysAssert(curBasis.size() == curBasis[0].size()) << curBasis.size() << " but " << curBasis[0].size();
+        //
         int n = pastSolutions.size();
         std::vector<std::string> constraints;
         for(int i = 0;i <curBasis.size(); i++){
@@ -981,7 +1000,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
             }
             }
         }
-        for(int i = 0; i<constraints.size(); i++){
+        for(int i = 0; i<curBasis[0].size(); i++){
             file << "const_" << i << " : " <<  constraints[i] << stringify_gurobi(varCoefMap[monomials[i]], "-") << " = 0" <<  std::endl;
         }
         // Instead we need to split case on which c_orth is non zero and also do greater than and less than 
@@ -1625,7 +1644,8 @@ std::string runGurobi(const std::string& filename)
   std::stringstream commandStream;
   //commandStream << "g++ " << filename <<  " -o " << output1 <<  " -I/Library/gurobi1103/macos_universal2/include -L/Library/gurobi1103/macos_universal2/lib /Library/gurobi1103/macos_universal2/lib/libgurobi110.dylib -lgurobi_c++";
   //commandStream << "/barrett/scratch/aozdemir/gurobi/cluster_gurobi_cl OutputFlag=0  ResultFile=" << output1 << " " << filename;
-  commandStream << "/barrett/scratch/pertseva/glpk/bin/glpsol --tmlim 60 --lp " << filename << " -o "  << output1 << "> h 2>&1";
+  commandStream << "/barrett/scratch/pertseva/glpk/bin/glpsol --tmlim 30 --lp " << filename << " -o "  << output1 << "> h 2>&1";
+  //commandStream << "glpsol --tmlim 30 --lp " << filename << " -o "  << output1 << "> h 2>&1";
   std::string command = commandStream.str();
   //std::cout << command << "\n";
   int exitCode = std::system(command.c_str());
@@ -1666,7 +1686,7 @@ std::string runGLPK(const std::string& filename)
 //   exitCode = std::system(( output1.string() +  " >> " + output2.string()).c_str());
 //     std::cout << "Running the command worked\n";
  std::string outputContents = readFileToString(output1);
- std::cout << "Result:" << outputContents << "\n";
+ //std::cout << "Result:" << outputContents << "\n";
 //   Assert(outputContents.find(" error:") == std::string::npos) << "Gurobi error:\n"
 // std::string word;
     // Read the file word by word
@@ -2910,8 +2930,8 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
                 break;
             }
             std::vector<Node> sum;
-            std::cout << coefficients.size() << "\n";
-            std::cout << procEqual.size() << "\n";
+            // std::cout << coefficients.size() << "\n";
+            // std::cout << procEqual.size() << "\n";
             for (int i=0; i<procEqual.size(); i++){
                 //std::cout << procEqual[i] << "\n";
                 //std::cout << coefficient[i] << "\n";
@@ -2925,6 +2945,7 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
             AlwaysAssert(checkIfConstraintIsMet(newEquality, modulos, Bounds)) << "ILP produced nonliftable eq";
             //addEquality(newEquality, true, true);
             Integers.addEquality(newEquality, true);
+            Integers.newEqualitySinceGB = true;
             curBasis.push_back(getLastRow(rewrite(nm->mkNode(
                 Kind::ADD, newEquality[0], rewrite(nm->mkNode( Kind::MULT, newEquality[1], 
                 nm->mkConstInt(-1))))), monomialMap));
