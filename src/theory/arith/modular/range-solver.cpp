@@ -71,6 +71,20 @@ int gcd(int a, int b) {
     return b == 0 ? a : gcd(b, a % b);
 }
 
+
+Rational logify(Rational i){
+    //return i;
+    if (i.abs() <= 2){
+        return i;
+    } else {
+        int addConst = std::round(log2(i.getNumerator().abs().getDouble()));
+        if (i<0){
+            addConst *= -1;
+        }
+        return Integer(addConst);
+    }                                                 
+}
+
 void printBasis(const std::vector<std::vector<Rational>>& basis) {
     std::cout << "The basis vectors are:\n";
     for (const auto& vec : basis) {
@@ -152,11 +166,19 @@ bool isLinearlyIndependent(const std::vector<std::vector<Rational>>& matrix, con
 }
 
 // Main function to find a full linearly independent basis
-std::vector<std::vector<Rational>> findBasis(const std::vector<std::vector<Rational>>& inputVectors) {
+std::vector<std::vector<Rational>> findBasis(std::vector<std::vector<Rational>>& inputVectors) {
     int n = inputVectors.size();
     int d = inputVectors[0].size();  // Dimension of the vectors
-    AlwaysAssert(n <= d);  // Ensure input doesn't exceed the number of dimensions
-
+    // if (n <= d){
+    //     printBasis(inputVectors);
+    //     AlwaysAssert(false);
+    // }
+    //AlwaysAssert(n <= d);  // Ensure input doesn't exceed the number of dimensions
+    //  for (int i =0; i<inputVectors.size(); i++){
+    //         for (int j =0; j<inputVectors[0].size(); j++) {
+    //                 inputVectors[i][j] = logify(inputVectors[i][j].getNumerator())/logify(inputVectors[i][j].getDenominator());   
+    //             }
+    //  }
     // Copy input vectors to the matrix
     std::vector<std::vector<Rational>> matrix = inputVectors;
 
@@ -186,7 +208,7 @@ std::vector<std::vector<Rational>> findBasis(const std::vector<std::vector<Ratio
 
 std::vector<int> parseGlpkOutput(const std::string& output) {
     std::map<int, int> sortedVariableMap;  // Map to store variables in order of gb_x index
-     std::vector<int> variableMap;
+    std::vector<int> variableMap;
     //std::cout << output << "\n";
     if (output.size()==0) {
         //std::cout << "No feasible solution found." << std::endl;
@@ -218,10 +240,11 @@ std::vector<int> parseGlpkOutput(const std::string& output) {
     }
 
     // Extract the values from the map, which will be sorted by the gb_x index
+    //std::cout << "NEW COEF\n";
     for (const auto& pair : sortedVariableMap) {
+        //std::cout << pair.second << ",";
         variableMap.push_back(pair.second);  // Add the values in sorted order
     }
-    //\n";
     return variableMap;
 }
 
@@ -321,6 +344,7 @@ std::string stringify_gurobi(std::vector<std::string> elements, std::string op){
 
 std::vector<Rational> getLastRow(Node eq, std::map<std::string, std::vector<Rational>> monomials){
     int current_len;
+    std::cout << eq << "\n";
     for (auto pair: monomials){
         //std::cout << pair.first << ":";
         // for (auto i: pair.second){
@@ -343,14 +367,14 @@ std::vector<Rational> getLastRow(Node eq, std::map<std::string, std::vector<Rati
             // std::cout << node << "\n";
             // std::cout << node << "\n";
             if (node.getKind() == Kind::CONST_INTEGER){
-                monomials["constant"].push_back(node.getConst<Rational>());
+                monomials["constant"].push_back(logify(node.getConst<Rational>()));
             }
             else if (isVariableOrSkolem(node) ){
                 monomials[node.getName()].push_back(1); 
             }
             else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT){ 
                 if (node.getNumChildren() == 2 && node[0].getKind() == Kind::CONST_INTEGER) {
-                    monomials[node[1].getName()].push_back(node[0].getConst<Rational>()); 
+                    monomials[node[1].getName()].push_back(logify(node[0].getConst<Rational>())); 
                     continue;
                 };
                 int k = 0;
@@ -392,12 +416,12 @@ std::vector<Rational> getLastRow(Node eq, std::map<std::string, std::vector<Rati
     //     std::cout << "\n";
     // }
     std::vector<Rational> temp;
-    //std::cout << "NEW VECTOR:";
+    std::cout << "NEW VECTOR:";
     for (auto pair:  monomials){
         temp.push_back(pair.second[current_len]);
-        //std::cout << pair.second[current_len] << ",";
+        std::cout << pair.second[current_len] << ",";
     }
-    //std::cout << "\n";
+    std::cout << "\n";
     return temp;
 
 }
@@ -547,19 +571,19 @@ std::map<std::string, std::vector<Rational>> Field::collectMonomials(IntegerFiel
                   }
             //std::cout << node << "\n";
             if (node.getKind() == Kind::CONST_INTEGER){
-                monomials["constant"].push_back(node.getConst<Rational>());
+                monomials["constant"].push_back(logify(node.getConst<Rational>()));
             }
             else if (isVariableOrSkolem(node) ){
                 monomials[node.getName()].push_back(1); 
             }
             else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT){ 
                 if (node.getNumChildren() == 2 && node[0].getKind() == Kind::CONST_INTEGER && isVariableOrSkolem(node[1])) {
-                    monomials[node[1].getName()].push_back(node[0].getConst<Rational>()); 
+                    monomials[node[1].getName()].push_back(logify(node[0].getConst<Rational>())); 
                     continue;
                 };
                 Rational constInt= Rational(1);
                 if (node[0].getKind() == Kind::CONST_INTEGER){
-                    constInt = node[0].getConst<Rational>();
+                    constInt = logify(node[0].getConst<Rational>());
                     node = node[1];
 
                 }
@@ -615,18 +639,6 @@ std::vector<std::vector<double>> convertToDoubleMatrix(const std::vector<std::ve
     return doubleMatrix;
 }
 
-Rational logify(Rational i){
-    return i;
-    if (i.abs() <= 2){
-        return i;
-    } else {
-        int addConst = std::round(log2(i.getNumerator().abs().getDouble()));
-        if (i<0){
-            addConst *= -1;
-        }
-        return Integer(addConst);
-    }                                                 
-}
 
 
 
@@ -694,15 +706,15 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
             //      }
             //std::cout << "tiny equalities: " << node << "\n";
             if (node.getKind() == Kind::CONST_INTEGER){
-                Integer temp = node.getConst<Rational>().getNumerator();
-                // if (temp <= 2){
-                //      addConst = static_cast<int>(temp.getSignedInt());
-                // } else {
-                //      addConst = static_cast<int>(std::round(log2(temp.getSignedInt())));
-                //     if (node.getConst<Rational>().getNumerator() <0){
-                //         addConst *= -1;
-                //     }
-                // }
+                Integer temp = node.getConst<Rational>().getNumerator().abs();
+                if (temp < 2){
+                     addConst = static_cast<int>(temp.getSignedInt());
+                } else {
+                addConst = static_cast<int>(std::round(log2(temp.getSignedInt())));
+                if (node.getConst<Rational>().getNumerator() <0){
+                        addConst *= -1;
+                }
+                }
                 //std::cout << "WHY IS THIS ZERO" << temp << "\n";
                 varCoefMap["constant"].push_back(temp.toString() + "  " + new_vars[j]);
                 //std::cout <<  equalities[j] << "\n";
@@ -722,16 +734,16 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
             }
             else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT){
                 if (node.getNumChildren() == 2 && node[0].getKind() == Kind::CONST_INTEGER) {
-                    //if (node[0].getConst<Rational>().getNumerator().abs() <= 2){
+                    if (node[0].getConst<Rational>().getNumerator().abs() <= 2){
                     addConst = node[0].getConst<Rational>().getNumerator();
                     //      std::cout << "ADDing" << addConst << "\n";
-                    //  } else {
-                    //      addConst = static_cast<int>(std::round(log2(node[0].getConst<Rational>().getNumerator().abs().getDouble())));
-                    //      if (node[0].getConst<Rational>().getNumerator() <0){
-                    //          addConst *= -1;
-                    //      }
+                    } else {
+                          addConst = static_cast<int>(std::round(log2(node[0].getConst<Rational>().getNumerator().abs().getDouble())));
+                          if (node[0].getConst<Rational>().getNumerator() <0){
+                              addConst *= -1;
+                          }
                     //      std::cout << "ADDing" << addConst << "\n";
-                    //  }
+                    }
                     if (node[1].getKind() == Kind::NONLINEAR_MULT){
                         // case when we have multiplication of variables so need to make new variable
                         std::string name = "";
@@ -774,19 +786,19 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
                     Integer LB = 1;
                     for (int i = 0; i<node.getNumChildren(); i++) {
                         if (i == 0 && node[i].getKind()== Kind::CONST_INTEGER){ 
-                        //    if (node[i].getConst<Rational>().getNumerator().abs() <= 2){
+                           if (node[i].getConst<Rational>().getNumerator().abs() <= 2){
                                     addConst = node[i].getConst<Rational>().getNumerator();
-                        //             std::cout << "ADDing" << addConst << "\n";
-                        //  } else {
-                        //         addConst = static_cast<int>(std::round(log2(node[i].getConst<Rational>().getNumerator().abs().getDouble())));
-                        //         if (node.getConst<Rational>().getNumerator() <0){
-                        //             addConst *= -1;
-                        //         }
-                        //         std::cout << "ADDing" << addConst << "\n";
-                        //         }
-                        //     if (addConst > 2000000000 || addConst < -2000000){
-                        //         AlwaysAssert(false);
-                        //     }
+                                    std::cout << "ADDing" << addConst << "\n";
+                         } else {
+                                addConst = static_cast<int>(std::round(log2(node[i].getConst<Rational>().getNumerator().abs().getDouble())));
+                                if (node.getConst<Rational>().getNumerator() <0){
+                                    addConst *= -1;
+                                }
+                                //std::cout << "ADDing" << addConst << "\n";
+                                }
+                            if (addConst > 2000000000 || addConst < -2000000){
+                                AlwaysAssert(false);
+                            }
                             continue;
                         }
                         AlwaysAssert(isVariableOrSkolem(node[i]));
@@ -852,36 +864,45 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
         if (it != bounds.end()) {
             // std::cout << it->first << "\n";
             // std::cout << (it->second.second).toString() << "\n";
-            // if ((it->second.first).abs() <= 2) {
-                LB = it->second.first;
-            // } else {
-            // LB = static_cast<int>(std::round(log2((it->second.first).getDouble())));
-            // }
-            // std::cout << it->second.first<< "turned into" <<  LB << "\n";
-            // if ( (it->second.second).abs() <= 2) {
-                UB = it->second.second;
-            // } else {
-            // UB = static_cast<int>(std::round(log2((it->second.second).getDouble())));
-            // }
+            if ((it->second.first).abs() <= 2) {
+               LB = it->second.first;
+            } else {
+            LB = static_cast<int>(std::round(log2((it->second.first).abs().getDouble())));
+                if (it->second.first < 0) {
+                    LB = LB*-1;
+                }
+            }
+            if ( (it->second.second).abs() <= 2) {
+               UB = it->second.second;
+            } else {
+            UB = static_cast<int>(std::round(log2((it->second.second).abs().getDouble())));
+            if (it->second.second < 0) {
+                    UB = UB *-1;
+                }
+            }
             //std::cout << it->second.second<< "turned into" <<  UB << "\n";
         } else {
             it = nonlinearBounds.find(pair.first);
             if (it != bounds.end()) {
             // std::cout << it->first << "\n";
             // std::cout << (it->second.second).toString() << "\n";
-            // if ((it->second.first).abs() <= 2) {
-                LB = it->second.first;
-            // } else {
-            // LB = static_cast<int>(std::round(log2((it->second.first).getDouble())));
-            // }
-            // std::cout << it->second.first<< "turned into" <<  LB << "\n";
-            // if ((it->second.second).abs() <= 2) {
-                UB = it->second.second;
-            // } else {
-            // UB = static_cast<int>(std::round(log2((it->second.second).getDouble())));
-            // }
-            // std::cout << it->second.second<< "turned into" <<  UB << "\n";
-             } else {
+            if ((it->second.first).abs() <= 2) {
+               LB = it->second.first;
+            } else {
+            LB = static_cast<int>(std::round(log2((it->second.first).abs().getDouble())));
+             if (it->second.first < 0) {
+                    LB = LB*-1;
+                }
+            }
+            if ((it->second.second).abs() <= 2) {
+               UB = it->second.second;
+            } else {
+            UB = static_cast<int>(std::round(log2((it->second.second).abs().getDouble())));
+            if (it->second.second < 0) {
+                    UB = UB *-1;
+                }
+            }
+            } else {
                  AlwaysAssert(false) << pair.first;
            
            }
@@ -899,8 +920,8 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
             lower_bound += stringify_one(LB.toString(),"+") + "  " + pos_relu_vars[pair.first] + stringify_one(UB.toString(), "-") + "  " + neg_relu_vars[pair.first];
         }
 
-        // Integer maxPos = Integer(static_cast<int>(std::round(log2(modulos.getDouble() -1))));
-        Integer maxPos = modulos - 1;
+        Integer maxPos = Integer(static_cast<int>(std::round(log2(modulos.getDouble() -1))));
+        //Integer maxPos = modulos - 1;
         /// WE THINK EVERYTHING AFTER HERE IS WRONG :( 
         //file << "    GRBVar " << neg_coefficients[pair.first] << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << neg_coefficients[pair.first] << "\");" << std::endl;
         //file << "    GRBVar " << pos_coefficients[pair.first] << " = model.addVar(-GRB_INFINITY, GRB_INFINITY, 0.0, 'I', \"" << pos_coefficients[pair.first] << "\");" << std::endl;
@@ -925,10 +946,10 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
     
     }
     //std::cout << "upper : "  << upper_bound << " <= " <<  static_cast<int>(std::round(log2(modulos.getDouble() -1)))   << std::endl;
-    //  file << "upper : "  << upper_bound << " <= " <<  static_cast<int>(std::round(log2(modulos.getDouble() -1)))   << std::endl;
-    //  file << "lower : " <<  lower_bound <<  " >= " <<  "-  " <<  static_cast<int>(std::round(log2(modulos.getDouble() -1)))  << std::endl;
-    file << "upper : "  << upper_bound << " <= " <<  (modulos-1).toString()   << std::endl;
-    file << "lower : " <<  lower_bound <<  " >= " <<  "-  " << (modulos -1).toString()  << std::endl;
+    file << "upper : "  << upper_bound << " <= " <<  static_cast<int>(std::round(log2(modulos.getDouble() -1)))   << std::endl;
+    file << "lower : " <<  lower_bound <<  " >= " <<  "-  " <<  static_cast<int>(std::round(log2(modulos.getDouble() -1)))  << std::endl;
+    //file << "upper : "  << upper_bound << " <= " <<  (modulos-1).toString()   << std::endl;
+    //file << "lower : " <<  lower_bound <<  " >= " <<  "-  " << (modulos -1).toString()  << std::endl;
     std::string nonzero="";
     for (auto&  pair: varCoefMap) {
         if (nonzero.size()==0){
@@ -952,7 +973,6 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
                 if (curBasis[i][j]!= Rational(0)){
                     // std::cout << "NUM" << curBasis[i][j].getNumerator() << "\n";
                     // std::cout << "DENOM:" << curBasis[i][j].getDenominator() << "\n";
-                    curBasis[i][j] = logify(curBasis[i][j].getNumerator())/logify(curBasis[i][j].getDenominator());
                     if (curBasis[i][j].getDenominator()!=Integer(1)){
                         LCM = LCM.lcm(curBasis[i][j].getDenominator());
                     }
@@ -966,7 +986,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
             }
         }
         //printBasis(curBasis);
-        //AlwaysAssert(curBasis.size() == curBasis[0].size()) << curBasis.size() << " but " << curBasis[0].size();
+        AlwaysAssert(curBasis.size() == curBasis[0].size()) << curBasis.size() << " but " << curBasis[0].size();
         //
         int n = pastSolutions.size();
         std::vector<std::string> constraints;
@@ -1001,7 +1021,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
             }
         }
         for(int i = 0; i<curBasis[0].size(); i++){
-            file << "const_" << i << " : " <<  constraints[i] << stringify_gurobi(varCoefMap[monomials[i]], "-") << " = 0" <<  std::endl;
+            file << "const_" << i << " : " <<  constraints[i] << stringify_one(new_vars[i], "-") << " = 0" <<  std::endl;
         }
         // Instead we need to split case on which c_orth is non zero and also do greater than and less than 
         // I should ask Alex if we actually need 
@@ -1092,7 +1112,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
     // std::cout << "Sanity Check\n";
     // std::cout << "Number of OG Variables:" << varCoefMap.size() << "\n";
     // std::cout << "Number of New Variables:" << new_vars.size() << "\n";
-    std::string hellp = readFileToString(filename);
+    //std::string hellp = readFileToString(filename);
     //std::cout << hellp << "\n";
     
     
@@ -1645,7 +1665,7 @@ std::string runGurobi(const std::string& filename)
   //commandStream << "g++ " << filename <<  " -o " << output1 <<  " -I/Library/gurobi1103/macos_universal2/include -L/Library/gurobi1103/macos_universal2/lib /Library/gurobi1103/macos_universal2/lib/libgurobi110.dylib -lgurobi_c++";
   //commandStream << "/barrett/scratch/aozdemir/gurobi/cluster_gurobi_cl OutputFlag=0  ResultFile=" << output1 << " " << filename;
   commandStream << "/barrett/scratch/pertseva/glpk/bin/glpsol --tmlim 30 --lp " << filename << " -o "  << output1 << "> h 2>&1";
-  //commandStream << "glpsol --tmlim 30 --lp " << filename << " -o "  << output1;
+  //commandStream << "glpsol --exact --tmlim 30 --lp " << filename << " -o "  << output1;
   std::string command = commandStream.str();
   //std::cout << command << "\n";
   int exitCode = std::system(command.c_str());
@@ -2305,6 +2325,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
         return false;
     }
     if (newEqualitySinceGB && !ranGB && !GBTimedOut){
+        std::cout << "WE SHOULD BE HERE TM\n";
        if(!runGB()){
         GBTimedOut = true;
        };
@@ -2847,13 +2868,13 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
     for (const auto& pair : monomialMap) {
         monomials.push_back(pair.first);
     }
-    for (int i =0; i<(monomialMap.begin()->second).size(); i++){
-        std::vector<Rational> temp;
-        for (const auto& pair : monomialMap) {
-            temp.push_back(pair.second[i]);
-            }
-        curBasis.push_back(temp);
-    }
+    // for (int i =0; i<(monomialMap.begin()->second).size(); i++){
+    //     std::vector<Rational> temp;
+    //     for (const auto& pair : monomialMap) {
+    //         temp.push_back(pair.second[i]);
+    //         }
+    //     curBasis.push_back(temp);
+    // }
         while(gurobiNew) {
             std::filesystem::path input = tmpPath();
             std::filesystem::remove(input);
@@ -2929,7 +2950,22 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
             if (coefficients.size() == 0){
                 break;
             }
+            // need to find gcd of coefficients hefre 
+            int gcdresult = 0;
+            for (int num : coefficients) {
+                if (num != 0) {
+                gcdresult = gcd(gcdresult, num);
+                if (gcdresult == 1) break; // Early exit since GCD 1 cannot simplify further
+                    }
+            }
+            if (gcdresult!=1){
+                for(int i = 0; i<coefficients.size(); i++){
+                    coefficients[i] = coefficients[i]/gcdresult;
+                }
+            }
+
             std::vector<Node> sum;
+             std::cout << "\n";
             // std::cout << coefficients.size() << "\n";
             // std::cout << procEqual.size() << "\n";
             for (int i=0; i<procEqual.size(); i++){
@@ -2945,11 +2981,24 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
             AlwaysAssert(checkIfConstraintIsMet(newEquality, modulos, Bounds)) << "ILP produced nonliftable eq";
             //addEquality(newEquality, true, true);
             Integers.addEquality(newEquality, true);
+            //std::cout << newEquality << "\n";
             Integers.newEqualitySinceGB = true;
-            curBasis.push_back(getLastRow(rewrite(nm->mkNode(
-                Kind::ADD, newEquality[0], rewrite(nm->mkNode( Kind::MULT, newEquality[1], 
-                nm->mkConstInt(-1))))), monomialMap));
-             //std::cout << "Here?\n";
+            std::vector<Rational> rational_coefficients;
+            //std::cout << "COEF:";
+            for (auto coef: coefficients){
+                rational_coefficients.push_back(Rational(coef));
+            }
+            //std::cout << "\n";
+            //curBasis.push_back(getLastRow(rewrite(nm->mkNode(
+                // Kind::ADD, newEquality[0], rewrite(nm->mkNode( Kind::MULT, newEquality[1], 
+                // nm->mkConstInt(-1))))), monomialMap));
+            curBasis.push_back(rational_coefficients);
+            //printBasis(curBasis);
+
+            //std::cout << "Here?\n";
+            if (curBasis.size()>0 && curBasis.size() == curBasis[0].size()){
+                gurobiNew = false;
+            }
             //AlwaysAssert(curBasis.size() == curBasis[0].size()) << "getLastRow failed \n";
             //std::cout << newEquality << "\n";
             //AlwaysAssert(false);
