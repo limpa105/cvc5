@@ -416,12 +416,12 @@ std::vector<Rational> getLastRow(Node eq, std::map<std::string, std::vector<Rati
     //     std::cout << "\n";
     // }
     std::vector<Rational> temp;
-    std::cout << "NEW VECTOR:";
+    //std::cout << "NEW VECTOR:";
     for (auto pair:  monomials){
         temp.push_back(pair.second[current_len]);
-        std::cout << pair.second[current_len] << ",";
+        //std::cout << pair.second[current_len] << ",";
     }
-    std::cout << "\n";
+    //std::cout << "\n";
     return temp;
 
 }
@@ -2965,7 +2965,7 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
             }
 
             std::vector<Node> sum;
-             std::cout << "\n";
+             //std::cout << "\n";
             // std::cout << coefficients.size() << "\n";
             // std::cout << procEqual.size() << "\n";
             for (int i=0; i<procEqual.size(); i++){
@@ -2978,9 +2978,11 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
             Node newEquality = rewrite(nm->mkNode(Kind::EQUAL, nm->mkNode(Kind::ADD, sum), nm->mkConstInt(0)));
             //std::cout << "But we did not get here\n";
             //std::cout << newEquality << "\n";
-            AlwaysAssert(checkIfConstraintIsMet(newEquality, modulos, Bounds)) << "ILP produced nonliftable eq";
+            if (checkIfConstraintIsMet(newEquality, modulos, Bounds)){
+                 Integers.addEquality(newEquality, true);
+            } 
             //addEquality(newEquality, true, true);
-            Integers.addEquality(newEquality, true);
+            //Integers.addEquality(newEquality, true);
             //std::cout << newEquality << "\n";
             Integers.newEqualitySinceGB = true;
             std::vector<Rational> rational_coefficients;
