@@ -853,6 +853,8 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
     std::vector<std::string> binaries;
     std::string upper_bound ="";
     std::string lower_bound ="";
+    Integer upper = 0;
+    Integer lower = 0;
     for (auto&  pair: varCoefMap) {
         pos_relu_vars[pair.first] = pair.first + "coef_pos_relu";
         neg_relu_vars[pair.first] = pair.first + "coef_neg_relu";
@@ -909,17 +911,30 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
         }
         //std::cout << UB.toString() << "\n";
        
+        // if (upper_bound.size() == 0){
+        //     upper_bound = UB.toString() + "  " + pos_relu_vars[pair.first] + stringify_one(LB.toString(), "-") + "  " + neg_relu_vars[pair.first];
+        // } else {
+        //     upper_bound += stringify_one(UB.toString(), "+") + "  " + pos_relu_vars[pair.first] + stringify_one(LB.toString(),"-") + "  " + neg_relu_vars[pair.first];
+        // }
+        // if (lower_bound.size() == 0){
+        //     lower_bound = LB.toString() + "  " + pos_relu_vars[pair.first] + stringify_one(UB.toString(), "-") + "  " + neg_relu_vars[pair.first];
+        // } else {
+        //     lower_bound += stringify_one(LB.toString(),"+") + "  " + pos_relu_vars[pair.first] + stringify_one(UB.toString(), "-") + "  " + neg_relu_vars[pair.first];
+        // }
+        
+        // okay so here is a CRAZY IDEA if reulu is not zero we add if relu
         if (upper_bound.size() == 0){
             upper_bound = UB.toString() + "  " + pos_relu_vars[pair.first] + stringify_one(LB.toString(), "-") + "  " + neg_relu_vars[pair.first];
         } else {
             upper_bound += stringify_one(UB.toString(), "+") + "  " + pos_relu_vars[pair.first] + stringify_one(LB.toString(),"-") + "  " + neg_relu_vars[pair.first];
         }
+
         if (lower_bound.size() == 0){
             lower_bound = LB.toString() + "  " + pos_relu_vars[pair.first] + stringify_one(UB.toString(), "-") + "  " + neg_relu_vars[pair.first];
         } else {
             lower_bound += stringify_one(LB.toString(),"+") + "  " + pos_relu_vars[pair.first] + stringify_one(UB.toString(), "-") + "  " + neg_relu_vars[pair.first];
         }
-
+        
         Integer maxPos = Integer(static_cast<int>(std::round(log2(modulos.getDouble() -1))));
         //Integer maxPos = modulos - 1;
         /// WE THINK EVERYTHING AFTER HERE IS WRONG :( 
@@ -1112,8 +1127,8 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
     // std::cout << "Sanity Check\n";
     // std::cout << "Number of OG Variables:" << varCoefMap.size() << "\n";
     // std::cout << "Number of New Variables:" << new_vars.size() << "\n";
-    //std::string hellp = readFileToString(filename);
-    //std::cout << hellp << "\n";
+    std::string hellp = readFileToString(filename);
+    std::cout << hellp << "\n";
     
     
    file.flush(); 
@@ -1665,7 +1680,7 @@ std::string runGurobi(const std::string& filename)
   //commandStream << "g++ " << filename <<  " -o " << output1 <<  " -I/Library/gurobi1103/macos_universal2/include -L/Library/gurobi1103/macos_universal2/lib /Library/gurobi1103/macos_universal2/lib/libgurobi110.dylib -lgurobi_c++";
   //commandStream << "/barrett/scratch/aozdemir/gurobi/cluster_gurobi_cl OutputFlag=0  ResultFile=" << output1 << " " << filename;
   commandStream << "/barrett/scratch/pertseva/glpk/bin/glpsol --tmlim 30 --lp " << filename << " -o "  << output1 << "> h 2>&1";
-  //commandStream << "glpsol --exact --tmlim 30 --lp " << filename << " -o "  << output1;
+  //commandStream << "glpsol --exact --mipgap 0.1 --fpump --tmlim 120 --lp " << filename << " -o "  << output1;
   std::string command = commandStream.str();
   //std::cout << command << "\n";
   int exitCode = std::system(command.c_str());
@@ -3013,10 +3028,10 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
 bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool WeightedGB, int startLearningLemmas){
     NodeManager* nm = NodeManager::currentNM();
     //std::cout << "LIFTING FOR: " << modulos << "\n";
-    if (equalities.size()>0 && newEqualitySinceGB){
-         LiftViaILP(Integers, Bounds);
-    }
-    //Lift(Integers, Bounds,startLearningLemmas);
+    // if (equalities.size()>0 && newEqualitySinceGB){
+    //      LiftViaILP(Integers, Bounds);
+    // }
+    Lift(Integers, Bounds,startLearningLemmas);
     if (newEqualitySinceGB && !ranGB && !GBTimedOut){
         if(!runGB(Bounds)){
             GBTimedOut = true;
@@ -3032,6 +3047,38 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
             status = Result::UNSAT;
          }
     }
+    }
+
+    // check if we should ILP according to Theorem 1
+    if (newEqualitySinceGB && equalities.size()>0 ){
+        for (auto pair: Bounds){
+            if (pair.second.first > 0 || pair.second.second < 0){
+                LiftViaILP(Integers, Bounds);
+                 newEqualitySinceGB = false;
+                 return true;
+            }
+        }
+        for (auto poly: equalities){
+            if (poly[0].getKind() == Kind::ADD && checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
+                if (!checkIfConstraintIsMet(poly, modulos, Bounds)){
+                    LiftViaILP(Integers, Bounds);
+                    newEqualitySinceGB = false;
+                    return true;
+                }
+            }
+            //if (!complete && !checkIfConstraintIsMet(rewrite(poly), modulos, Bounds)){
+    //             if (poly[0].getKind() == Kind::ADD){
+    //                 if (checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
+    //                      complete = true;
+    //                 }
+    //             }
+        }
+
+        // first check if all bounds are correct 
+
+        // then check if there exists a 
+        
+
     }
     newEqualitySinceGB = false;
     //LiftViaILP(Integers, Bounds);
