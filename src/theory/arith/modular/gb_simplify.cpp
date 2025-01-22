@@ -253,7 +253,7 @@ bool IntegerField::runGB(){
     auto result = std::make_shared<std::string>("");
     std::shared_ptr<bool> done = std::make_shared<bool>(false);
     std::mutex resultMutex;
-
+    (*solver).totalGBtry +=1;
     auto future = std::async(std::launch::async, [&]() {
         auto res = runSingular(line);
         {
@@ -277,6 +277,7 @@ bool IntegerField::runGB(){
     std::vector<Node> EmptyPolys;
     std::vector<Node> unsatPolys;
     if (output.empty()){
+        (*solver).timeoutGB +=1;
         return false;
     }
     std::vector<Polynomial> polys = parsePolynomialList(output);
@@ -433,6 +434,7 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
     auto result = std::make_shared<std::string>("");
     std::shared_ptr<bool> done = std::make_shared<bool>(false);
     std::mutex resultMutex;
+    (*solver).totalGBtry +=1;
     auto future = std::async(std::launch::async, [&]() {
         auto res = runSingular(line);
         {
@@ -454,6 +456,7 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
         //std::this_thread::sleep_for(std::chrono::seconds(1)); // Check every second
     }
     if (output.empty()){
+        (*solver).timeoutGB +=1;
         return false;
     }
     std::vector<Polynomial> polys = parsePolynomialList(output);

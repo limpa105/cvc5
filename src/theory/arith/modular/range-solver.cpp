@@ -2340,7 +2340,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
         return false;
     }
     if (newEqualitySinceGB && !ranGB && !GBTimedOut){
-        std::cout << "WE SHOULD BE HERE TM\n";
+        //std::cout << "WE SHOULD BE HERE TM\n";
        if(!runGB()){
         GBTimedOut = true;
        };
@@ -3051,6 +3051,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
 
     // check if we should ILP according to Theorem 1
     if (newEqualitySinceGB && equalities.size()>0 ){
+        (*solver).totalGBilp+=1;
         for (auto pair: Bounds){
             if (pair.second.first > 0 || pair.second.second < 0){
                 LiftViaILP(Integers, Bounds);
@@ -3077,8 +3078,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         // first check if all bounds are correct 
 
         // then check if there exists a 
-        
-
+        (*solver).completeGB+=1;
     }
     newEqualitySinceGB = false;
     //LiftViaILP(Integers, Bounds);
@@ -3319,9 +3319,11 @@ bool Field::checkUnsat(){
 RangeSolver::RangeSolver(Env& env, TheoryArith& parent)
     :EnvObj(env), 
     integerField(env, this), 
-    completeGB(statisticsRegistry().registerInt("theory::arith::modular::CompleteGBCalc", false)),
-    totalGB(statisticsRegistry().registerInt("theory::arith::modular::totalGBCalc", false)),
-    d_facts(context()) {}
+    completeGB(statisticsRegistry().registerInt("theory::arith::modular::CompleteGB", false)),
+    totalGBtry(statisticsRegistry().registerInt("theory::arith::modular::TotalGBtry", false)),
+    totalGBilp(statisticsRegistry().registerInt("theory::arith::modular::TotalGBilp", false)),
+    timeoutGB(statisticsRegistry().registerInt("theory::arith::modular::timeoutGB", false)),
+    d_facts(context()) {timeoutGB = 0;}
 
 void RangeSolver::preRegisterTerm(TNode node){ 
         //std::cout << node << "\n";

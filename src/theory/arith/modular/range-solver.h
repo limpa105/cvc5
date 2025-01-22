@@ -182,9 +182,13 @@ class RangeSolver : protected EnvObj
 {
     public:
 
-        IntStat completeGB;
+        IntStat completeGB ;
 
-        IntStat totalGB;  
+        IntStat timeoutGB ;
+
+        IntStat totalGBilp ;
+
+        IntStat totalGBtry ;  
 
         std::map<Node,Node> tempSkolemMap;
 
@@ -202,7 +206,7 @@ class RangeSolver : protected EnvObj
 
         RangeSolver(Env& env, TheoryArith& parent);
 
-       std::map<std::string, std::pair<Integer, Integer> > Bounds;
+        std::map<std::string, std::pair<Integer, Integer> > Bounds;
 
         void notifyFact(TNode fact);
 
