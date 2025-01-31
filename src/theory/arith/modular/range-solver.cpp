@@ -1128,7 +1128,7 @@ void write_gurobi_query_new(const std::string& filename, std::vector<Node> equal
     // std::cout << "Number of OG Variables:" << varCoefMap.size() << "\n";
     // std::cout << "Number of New Variables:" << new_vars.size() << "\n";
     std::string hellp = readFileToString(filename);
-    std::cout << hellp << "\n";
+    //std::cout << hellp << "\n";
     
     
    file.flush(); 
@@ -3050,35 +3050,37 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     }
 
     // check if we should ILP according to Theorem 1
+   // bool notComplete = false
     if (newEqualitySinceGB && equalities.size()>0 ){
         (*solver).totalGBilp+=1;
         for (auto pair: Bounds){
             if (pair.second.first > 0 || pair.second.second < 0){
-                LiftViaILP(Integers, Bounds);
+		//notComplete = true;
+                //LiftViaILP(Integers, Bounds);
                  newEqualitySinceGB = false;
                  return true;
             }
-        }
+       }
         for (auto poly: equalities){
             if (poly[0].getKind() == Kind::ADD && checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
-                if (!checkIfConstraintIsMet(poly, modulos, Bounds)){
-                    LiftViaILP(Integers, Bounds);
+               if (!checkIfConstraintIsMet(poly, modulos, Bounds)){
+                    //LiftViaILP(Integers, Bounds);
                     newEqualitySinceGB = false;
                     return true;
-                }
-            }
-            //if (!complete && !checkIfConstraintIsMet(rewrite(poly), modulos, Bounds)){
-    //             if (poly[0].getKind() == Kind::ADD){
-    //                 if (checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
-    //                      complete = true;
-    //                 }
-    //             }
-        }
+               }
+           }
+           // if (!complete && !checkIfConstraintIsMet(rewrite(poly), modulos, Bounds)){
+                // if (poly[0].getKind() == Kind::ADD){
+                    // if (checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
+                       //  complete = true;
+                    // }
+                // }
+      }
 
         // first check if all bounds are correct 
-
+      
         // then check if there exists a 
-        (*solver).completeGB+=1;
+      (*solver).completeGB+=1;
     }
     newEqualitySinceGB = false;
     //LiftViaILP(Integers, Bounds);
