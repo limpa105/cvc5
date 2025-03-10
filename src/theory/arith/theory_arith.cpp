@@ -49,7 +49,7 @@ TheoryArith::TheoryArith(Env& env, OutputChannel& out, Valuation valuation)
       d_eqSolver(nullptr),
       d_internal(new linear::TheoryArithPrivate(*this, env, d_bab)),
       d_nonlinearExtension(nullptr),
-      d_modularExtension(nullptr),
+      //d_modularExtension(nullptr),
       d_opElim(d_env),
       d_arithPreproc(env, d_im, d_pnm, d_opElim),
       d_rewriter(d_opElim),
@@ -99,11 +99,11 @@ void TheoryArith::finishInit()
   {
     d_nonlinearExtension.reset(new nl::NonlinearExtension(d_env, *this));
   }
-  if (options().arith.modularRangeSolver)
-  {
-    d_modularExtension.reset(new modular_range_solver::RangeSolver(d_env, *this));
-    return;
-  }
+  // if (options().arith.modularRangeSolver)
+  // {
+  //   d_modularExtension.reset(new modular_range_solver::RangeSolver(d_env, *this));
+  //   return;
+  // }
   d_eqSolver->finishInit();
   // finish initialize in the old linear solver
   d_internal->finishInit();
@@ -119,11 +119,11 @@ void TheoryArith::finishInit()
 void TheoryArith::preRegisterTerm(TNode n)
 {
  // std::cout << n << "\n";
-  if (d_modularExtension != nullptr)
-  {
-    d_modularExtension->preRegisterTerm(n);
-    return;
-  }
+  // if (d_modularExtension != nullptr)
+  // {
+  //   d_modularExtension->preRegisterTerm(n);
+  //   return;
+  // }
   // handle logic exceptions
   Kind k = n.getKind();
   if (k == Kind::POW)
@@ -235,53 +235,48 @@ void TheoryArith::ppStaticLearn(TNode n, NodeBuilder& learned)
 
 bool TheoryArith::preCheck(Effort level)
 {
-  if (d_modularExtension != nullptr)
-  {
-    return false;
-  }
+  // if (d_modularExtension != nullptr)
+  // {
+  //   return false;
+  // }
   Trace("arith-check") << "TheoryArith::preCheck " << level << std::endl;
   return d_internal->preCheck(level);
 }
 
 void TheoryArith::postCheck(Effort level)
 {
-  if (d_modularExtension != nullptr)
-  {
-    if (Theory::fullEffort(level)){
-    auto result = d_modularExtension->postCheck(level);
-    if (result.getStatus() == Result::UNSAT){
-      NodeManager* nm = NodeManager::currentNM();
-      const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
-      d_im.conflict(conflict, InferenceId::FF_LEMMA);
-      conflictCount +=1;
-      std::cout << "CONFLICT COUNT" << conflictCount << "\n";
-      // if (conflictCount == 1){
-      //   AlwaysAssert(false);
-      // }
-    } else if(result.getStatus() == Result::UNKNOWN){
-        d_im.setModelUnsound(IncompleteId::UNKNOWN);
-      // return;
-      // NodeManager* nm = NodeManager::currentNM();
-      // const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
-      // std::cout << lemma << "\n";
-      // d_im.lemma(lemma, InferenceId::FF_LEMMA);
-    } else {
-      std::cout << "WOOO EXTERNAL HERE\n";
-      return;
-      }
-    }else {
-      return;
-    }
-  }
+  // if (d_modularExtension != nullptr)
+  // {
+  //   if (Theory::fullEffort(level)){
+  //   auto result = d_modularExtension->postCheck(level);
+  //   if (result.getStatus() == Result::UNSAT){
+  //     NodeManager* nm = NodeManager::currentNM();
+  //     const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
+  //     d_im.conflict(conflict, InferenceId::FF_LEMMA);
+  //     conflictCount +=1;
+  //     std::cout << "CONFLICT COUNT" << conflictCount << "\n";
+  //     // if (conflictCount == 1){
+  //     //   AlwaysAssert(false);
+  //     // }
+  //   } else if(result.getStatus() == Result::UNKNOWN){
+  //       d_im.setModelUnsound(IncompleteId::UNKNOWN);
+  //     // return;
+  //     // NodeManager* nm = NodeManager::currentNM();
+  //     // const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
+  //     // std::cout << lemma << "\n";
+  //     // d_im.lemma(lemma, InferenceId::FF_LEMMA);
+  //   } else {
+  //     std::cout << "WOOO EXTERNAL HERE\n";
+  //     return;
+  //     }
+  //   }else {
+  //     return;
+  //   }
+  // }
   d_im.reset();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
   {
-    // Make sure we don't have old lemmas floating around. This can happen if we
-    // didn't actually reach a last call effort check, but backtracked for some
-    // other reason. In such a case, these lemmas are likely to be irrelevant
-    // and possibly even harmful. If we produce proofs, their proofs have most
-    // likely been deallocated already as well.
     d_im.clearPending();
     d_im.clearWaitingLemmas();
   }
@@ -350,11 +345,11 @@ void TheoryArith::postCheck(Effort level)
 bool TheoryArith::preNotifyFact(
     TNode atom, bool pol, TNode fact, bool isPrereg, bool isInternal)
 {
-  if (d_modularExtension != nullptr)
-  {
-    d_modularExtension->notifyFact(fact);
-    return true;
-    }
+  // if (d_modularExtension != nullptr)
+  // {
+  //   d_modularExtension->notifyFact(fact);
+  //   return true;
+  //   }
 
   Trace("arith-check") << "TheoryArith::preNotifyFact: " << fact
                        << ", isPrereg=" << isPrereg
@@ -394,10 +389,10 @@ TrustNode TheoryArith::explain(TNode n)
 }
 
 void TheoryArith::propagate(Effort e) {
-  if (d_modularExtension != nullptr)
-  {
-    return;
-  }
+  // if (d_modularExtension != nullptr)
+  // {
+  //   return;
+  // }
   d_internal->propagate(e);
 }
 
@@ -405,10 +400,10 @@ bool TheoryArith::collectModelInfo(TheoryModel* m,
                                    const std::set<Node>& termSet)
 {
 
-  if ( d_modularExtension != nullptr)
-  {
-    return  d_modularExtension->collectModelInfo(m, termSet);
-    }
+  // if ( d_modularExtension != nullptr)
+  // {
+  //   return  d_modularExtension->collectModelInfo(m, termSet);
+  //   }
     //AlwaysAssert(false);
   // If we have a buffered lemma (from the non-linear extension), then we
   // do not assert model values, since those values are likely incorrect.
@@ -484,10 +479,10 @@ void TheoryArith::notifyRestart(){
 }
 
 void TheoryArith::presolve(){
-  if (d_modularExtension != nullptr)
-  {
-      return;
-    }
+  // if (d_modularExtension != nullptr)
+  // {
+  //     return;
+  //   }
   d_internal->presolve();
 }
 

@@ -23,6 +23,7 @@
 #include "expr/node.h"
 #include "smt/env_obj.h"
 #include "theory/arith/nl/coverings_solver.h"
+#include "theory/arith/modular/range-solver.h"
 #include "theory/arith/nl/ext/ext_state.h"
 #include "theory/arith/nl/ext/factoring_check.h"
 #include "theory/arith/nl/ext/monomial_bounds_check.h"
@@ -255,6 +256,8 @@ class NonlinearExtension : EnvObj
    * constraints involving powers of 2.
    */
   Pow2Solver d_pow2Slv;
+
+  modular_range_solver::RangeSolver d_rangeSlv;
 
   /** The strategy for the nonlinear extension. */
   Strategy d_strategy;

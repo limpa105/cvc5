@@ -8,6 +8,7 @@
 #include "theory/arith/theory_arith.h"
 #include "theory/theory_model.h"
 #include "util/statistics_stats.h"
+#include "theory/arith/inference_manager.h"
 
 
 #ifndef RANGE_SOLVER_H
@@ -204,7 +205,7 @@ class RangeSolver : protected EnvObj
 
         std::set<std::string> myNotVars;
 
-        RangeSolver(Env& env, TheoryArith& parent);
+        RangeSolver(Env& env, InferenceManager& im);
 
         std::map<std::string, std::pair<Integer, Integer> > Bounds;
 
@@ -239,12 +240,18 @@ class RangeSolver : protected EnvObj
 
         void printSystemState();
 
+         Result Solve(const std::vector<Node>& assertions,
+                                     const std::vector<Node>& false_asserts,
+                                     const std::vector<Node>& xts);
+
 
     private:
 
         context::CDList<Node> d_facts;
 
-        Result Solve();
+        InferenceManager& d_im;
+
+       
 
         
 

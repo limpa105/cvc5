@@ -68,6 +68,8 @@ libcvc5_add_sources(
   preprocessing/passes/bv_gauss.h
   preprocessing/passes/bv_intro_pow2.cpp
   preprocessing/passes/bv_intro_pow2.h
+  preprocessing/passes/nia_intro_mm_mod.cpp
+  preprocessing/passes/nia_intro_mm_mod.h
   preprocessing/passes/bv_to_bool.cpp
   preprocessing/passes/bv_to_bool.h
   preprocessing/passes/bv_to_int.cpp

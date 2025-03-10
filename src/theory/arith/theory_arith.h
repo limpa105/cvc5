@@ -199,7 +199,7 @@ class TheoryArith : public Theory {
   /** The above model cache, in substitution form. */
   ArithSubs d_arithModelCacheSubs;
 
-  std::unique_ptr<modular_range_solver::RangeSolver> d_modularExtension;
+  //std::unique_ptr<modular_range_solver::RangeSolver> d_modularExtension;
 
   /** Is the above map computed? */
   bool d_arithModelCacheSet;

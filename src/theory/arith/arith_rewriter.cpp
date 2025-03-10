@@ -258,6 +258,7 @@ RewriteResponse ArithRewriter::preRewriteTerm(TNode t){
       case Kind::TO_REAL:
       case Kind::POW:
       case Kind::PI: return RewriteResponse(REWRITE_DONE, t);
+      case Kind::MM_MOD: return RewriteResponse(REWRITE_DONE, t);
       default: Unhandled() << k;
     }
   }
@@ -299,12 +300,12 @@ RewriteResponse ArithRewriter::postRewriteTerm(TNode t){
       case Kind::SQRT: return postRewriteTranscendental(t);
       case Kind::INTS_DIVISION:
       case Kind::INTS_MODULUS: {
-          //std::cout << "INTS_MOD_RESULT_FALSE" << rewriteIntsDivMod(t, false).d_node << "\n";
+
          return rewriteIntsDivMod(t, false);
       }
       case Kind::INTS_DIVISION_TOTAL:
       case Kind::INTS_MODULUS_TOTAL: {
-        //std::cout << "INTS_MOD_TOTAL_FALSE" << rewriteIntsDivModTotal(t, false).d_node << "\n";
+      
         return rewriteIntsDivModTotal(t, false);
       }
       case Kind::ABS: return rewriteAbs(t);
@@ -361,6 +362,7 @@ RewriteResponse ArithRewriter::postRewriteTerm(TNode t){
         return RewriteResponse(REWRITE_DONE, t);
       }
       case Kind::PI: return RewriteResponse(REWRITE_DONE, t);
+      case Kind::MM_MOD: return RewriteResponse(REWRITE_DONE, t);
       default: Unreachable();
     }
   }

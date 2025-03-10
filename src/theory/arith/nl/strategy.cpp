@@ -128,6 +128,7 @@ void Strategy::initializeStrategy(const Options& options)
     }
     one << InferStep::TRANS_INITIAL << InferStep::BREAK;
   }
+
   one << InferStep::IAND_INIT;
   one << InferStep::IAND_INITIAL << InferStep::BREAK;
   one << InferStep::POW2_INIT;
@@ -172,6 +173,15 @@ void Strategy::initializeStrategy(const Options& options)
   }
   one << InferStep::IAND_FULL << InferStep::BREAK;
   one << InferStep::POW2_FULL << InferStep::BREAK;
+   if (options.arith.modularRangeSolver){
+    std::cout << "Why is this not happening?\n";
+    one << InferStep::MM_MOD_FULL << InferStep::BREAK;
+   }
+  // {
+  //   d_modularExtension.reset(new modular_range_solver::RangeSolver(d_env, *this));
+  //   return;
+  // })
+  // ADD INFERSTP FOR MM_MOD HERE
   if (options.arith.nlCov)
   {
     one << InferStep::COVERINGS_INIT << InferStep::BREAK;

@@ -614,3 +614,11 @@ name   = "Arithmetic Theory"
   type       = "bool"
   default    = "false"
   help       = "solve modular arithmetic using range solver"
+
+  [[option]]
+  name       = "niaIntroMmMod"
+  category   = "regular"
+  long       = "nia-intro-mm-mod"
+  type       = "bool"
+  default    = "false"
+  help       = "run the MmMod preprocessing pass"

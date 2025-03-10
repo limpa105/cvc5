@@ -12,6 +12,7 @@
 #include "options/ff_options.h"
 #include "smt/env_obj.h"
 #include "theory/arith/modular/int_cocoa_encoder.h"
+#include "theory/arith/inference_manager.h"
 #include "theory/arith/modular/util.h"
 #include "theory/arith/modular/gb_simplify.h"
 #include "theory/arith/modular/range-solver.h"
@@ -20,6 +21,7 @@
 #include "util/cocoa_globals.h"
 #include "util/finite_field_value.h"
 #include "theory/decision_manager.h"
+#include "theory/inference_id.h"
 #include <typeinfo>
 #include <utility>
 #include <algorithm>
@@ -3318,8 +3320,9 @@ bool Field::checkUnsat(){
 
 /////////////////////////////////////////////////// RangeSolver ////////////////////////////////////////////////////////////////////
 
-RangeSolver::RangeSolver(Env& env, TheoryArith& parent)
-    :EnvObj(env), 
+RangeSolver::RangeSolver(Env& env, InferenceManager& im)
+    :EnvObj(env),
+    d_im(im),
     integerField(env, this), 
     completeGB(statisticsRegistry().registerInt("theory::arith::modular::CompleteGB", false)),
     totalGBtry(statisticsRegistry().registerInt("theory::arith::modular::TotalGBtry", false)),
@@ -3600,7 +3603,13 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
 }
 
 
-Result RangeSolver::Solve(){
+Result RangeSolver::Solve(const std::vector<Node>& assertions,
+                          const std::vector<Node>& false_asserts,
+                          const std::vector<Node>& xts){
+    NodeManager* nm = NodeManager::currentNM();                       
+    d_im.lemma(nm->mkNode(Kind::NOT, nm->mkNode(Kind::AND, assertions)), InferenceId::ARITH_BLACK_BOX);
+    return Result::UNSAT;
+
     for (auto& fieldPair :fields){
             if (fieldPair.second.LearntLemmasFrom.size()!=0){
                 AlwaysAssert(false);
@@ -3619,7 +3628,7 @@ Result RangeSolver::Solve(){
     for (auto &pair: Bounds){
         Bounds[pair.first]= std::make_pair(Integer(-1) *BIGINT, BIGINT);
     }
-    for (auto fact:d_facts){
+    for (auto fact:assertions){
         processFact(fact);
         if (Bounds.find("") != Bounds.end()) {
             std::cout << fact << "\n";
@@ -3738,7 +3747,8 @@ Result RangeSolver::Solve(){
     return d_conflict;}
 
 Result RangeSolver::postCheck(Theory::Effort level){
-    return Solve();
+    return Result::UNKNOWN;
+    //return Solve();
 }
 
 void RangeSolver::printSystemState(){

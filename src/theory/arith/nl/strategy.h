@@ -56,6 +56,7 @@ enum class InferStep
   /** An initial POW2 check */
   POW2_INITIAL,
 
+  MM_MOD_FULL,
   /** An ICP check */
 
   ICP,

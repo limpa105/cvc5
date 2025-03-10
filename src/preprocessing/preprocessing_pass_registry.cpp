@@ -30,6 +30,7 @@
 #include "preprocessing/passes/bv_eager_atoms.h"
 #include "preprocessing/passes/bv_gauss.h"
 #include "preprocessing/passes/bv_intro_pow2.h"
+#include "preprocessing/passes/nia_intro_mm_mod.h"
 #include "preprocessing/passes/bv_to_bool.h"
 #include "preprocessing/passes/bv_to_int.h"
 #include "preprocessing/passes/extended_rewriter_pass.h"
@@ -127,6 +128,7 @@ PreprocessingPassRegistry::PreprocessingPassRegistry()
   registerPassInfo("bv-gauss", callCtor<BVGauss>);
   registerPassInfo("static-learning", callCtor<StaticLearning>);
   registerPassInfo("ite-simp", callCtor<ITESimp>);
+  registerPassInfo("nia-intro-mm-mod", callCtor<NIAIntroMmMod>);
   registerPassInfo("global-negate", callCtor<GlobalNegate>);
   registerPassInfo("int-to-bv", callCtor<IntToBV>);
   registerPassInfo("bv-to-int", callCtor<BVToInt>);
