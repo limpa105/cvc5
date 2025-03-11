@@ -47,11 +47,11 @@ namespace theory {
 namespace arith {
 namespace modular_range_solver {
 
-std::string singular_command_weighted = "ring r = (integer, {1}), ({2}), (wp({4})); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
+std::string singular_command_weighted = "ring r = (integer, {1}), ({2}), (a({4}), dp); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
 std::string singular_command_weighted_integers = " LIB \"general.lib\"; ring r = integer, ({2}), (dp); option(redSB); ideal I= {5}; ideal G= timeStd(I, 35); G; quit;";
 std::string singular_command_reduce_integers = "ring r = integer, ({2}), (dp); ideal I= {5}; reduce({6}, I); quit;";
 
-std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; reduce({6}, I); quit;";
+std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (a({4}), dp); ideal I= {5}; reduce({6}, I); quit;";
 std::string singular_command_unweighted = "ring r = (integer, {1}), ({2}), (dp); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
 std::string singular_command_reduce_uw = "ring r = (integer, {1}), ({2}), (dp); ideal I= {5}; reduce({6}, I); quit;";
 
@@ -96,6 +96,7 @@ std::string readFileToString(std::filesystem::path path)
 std::string runSingular(std::string program)
 {
   std::filesystem::path output = tmpPath();
+  //std::cout << program << "\n";
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
   //commandStream << "Singular -q -t " << input << " > " << output;
@@ -104,6 +105,7 @@ std::string runSingular(std::string program)
   int exitCode = std::system(command.c_str());
   Assert(exitCode == 0) << "Singular errored\nCommand: " << command;
   std::string outputContents = readFileToString(output);
+  //std::cout << outputContents << "\n";
   AlwaysAssert(outputContents.find("?") == std::string::npos) << "Singular error:\n"
                                                         << outputContents;
   std::filesystem::remove(output);
