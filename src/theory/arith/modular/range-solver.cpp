@@ -2475,6 +2475,7 @@ void IntegerField::addEquality(Node fact, bool GBAddition){
                 newEqualitySinceGB = true;
                 ranGB = false;
                 mySingularReduce = "";
+                (*solver).polyLearned +=1;
                 equalities.push_back(fact);
                 return;
             }
@@ -2488,6 +2489,7 @@ void IntegerField::addEquality(Node fact, bool GBAddition){
 void IntegerField::addInequality(Node inequality){
     if (std::find(inequalities.begin(), inequalities.end(), inequality) == inequalities.end()){
         inequalities.push_back(inequality);
+        (*solver).polyLearned +=1;
     }
 
 };
@@ -2773,6 +2775,7 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
                 ranGB = false;
                 mySingularReduce = "";
                 equalities.push_back(fact);
+                (*solver).polyLearned +=1;
                 //std::cout << "Existing equalities:" << "\n";
                 // for (auto i: equalities){
                 //     std::cout << i << "\n";
@@ -2788,6 +2791,7 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
                 ranGB = false;
                 mySingularReduce = "";
                 equalities.push_back(fact);
+                (*solver).polyLearned +=1;
                 ALLequalities.push_back(fact);
                 //  std::cout << "Existing equalities:" << "\n";
                 // for (auto i: equalities){
@@ -2862,6 +2866,7 @@ void Field::addInequality(Node fact){
     Node result = rewrite(nm->mkNode(Kind::EQUAL, LHS, RHS));
     if (std::find(inequalities.begin(), inequalities.end(), result) == inequalities.end()){
     inequalities.push_back(result);
+    (*solver).polyLearned +=1;
     }
 };
 
@@ -3324,8 +3329,13 @@ RangeSolver::RangeSolver(Env& env, TheoryArith& parent)
     completeGB(statisticsRegistry().registerInt("theory::arith::modular::CompleteGB", false)),
     totalGBtry(statisticsRegistry().registerInt("theory::arith::modular::TotalGBtry", false)),
     totalGBilp(statisticsRegistry().registerInt("theory::arith::modular::TotalGBilp", false)),
-    timeoutGB(statisticsRegistry().registerInt("theory::arith::modular::timeoutGB", false)),
-    d_facts(context()) {timeoutGB = 0;}
+    timeoutGB(statisticsRegistry().registerInt("theory::arith::modular::TimeoutGB", false)),
+    numPartitions(statisticsRegistry().registerInt("theory::arith::modular::NumPartitions", false)),
+    literalsAssigned(statisticsRegistry().registerInt("theory::arith::modular::LiteralsAssigned", false)),
+    polyLearned(statisticsRegistry().registerInt("theory::arith::modular::PolyLearned", false)),
+    polyInGB(statisticsRegistry().registerInt("theory::arith::modular::PolyInGB", false)),
+    numSolve(statisticsRegistry().registerInt("theory::arith::modular::NumSolve", false)),
+    d_facts(context()) {timeoutGB = 0; numPartitions = 0; literalsAssigned = 0; polyLearned = 0; polyInGB = 0; numSolve =0; }
 
 void RangeSolver::preRegisterTerm(TNode node){ 
         //std::cout << node << "\n";
@@ -3601,6 +3611,7 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
 
 
 Result RangeSolver::Solve(){
+    
     for (auto& fieldPair :fields){
             if (fieldPair.second.LearntLemmasFrom.size()!=0){
                 AlwaysAssert(false);
@@ -3608,6 +3619,8 @@ Result RangeSolver::Solve(){
             fieldPair.second.LearntLemmasFrom.clear();
         }
     start:
+    numSolve +=1;
+    numPartitions += fields.size()+1;
     integerField.clearAll();
     tempSkolemMap.clear();
     integerField.status = Result::UNKNOWN;
@@ -3653,6 +3666,13 @@ Result RangeSolver::Solve(){
             processFact(fact);
         }
     }
+    for (auto& fieldPair :fields){
+        literalsAssigned += fieldPair.second.equalities.size();
+        literalsAssigned += fieldPair.second.inequalities.size();
+    }
+    literalsAssigned += integerField.equalities.size();
+    literalsAssigned += integerField.inequalities.size();
+    //printSystemState();
     Lemmas = newLemmas;
     int count = 0;
     bool WeightedGB = true;
@@ -3673,6 +3693,7 @@ Result RangeSolver::Solve(){
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
                 //std::cout << "LOOP COUNT" << count << "\n";
                 return Result::UNSAT;
+                //printSystemState();
             }
 
         }
@@ -3683,6 +3704,7 @@ Result RangeSolver::Solve(){
             //std::cout << "LOOP COUNT" << count << "\n";
             //printSystemState();
             return Result::UNSAT;
+            //printSystemState();
         }
         //printSystemState();
     saturated = true;
@@ -3703,6 +3725,7 @@ Result RangeSolver::Solve(){
                 fieldPair.second.status = Result::UNKNOWN;
                 std::cout << "LOOP COUNT" << count << "\n";
                 return Result::UNSAT;
+                //printSystemState();
             }
             if (fieldPair.second.newEqualitySinceGB == true){
                 //std::cout << "not saturated b/c of GB\n";
@@ -3738,7 +3761,9 @@ Result RangeSolver::Solve(){
     return d_conflict;}
 
 Result RangeSolver::postCheck(Theory::Effort level){
-    return Solve();
+    Result temp = Solve();
+    //printSystemState();
+    return temp;
 }
 
 void RangeSolver::printSystemState(){

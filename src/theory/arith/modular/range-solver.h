@@ -182,6 +182,16 @@ class RangeSolver : protected EnvObj
 {
     public:
 
+        IntStat numSolve; 
+
+        IntStat numPartitions; 
+
+        IntStat literalsAssigned;
+
+        IntStat polyLearned;
+
+        IntStat polyInGB;
+
         IntStat completeGB ;
 
         IntStat timeoutGB ;
