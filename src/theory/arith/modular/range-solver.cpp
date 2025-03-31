@@ -2134,6 +2134,7 @@ std::pair<Node, Node> IntegerField::separateTerms(const Node& node, std::string 
 
 
 
+
 bool IntegerField::tightenBounds(std::map<std::string, std::pair<Integer, Integer> > &Bounds){
 this->novelBound = false;
 bool newBound = true;
@@ -2321,7 +2322,7 @@ std::pair<Integer, Integer> IntegerField::inferBoundsRecursive(const Node& node,
             leftBounds.second - rightBounds.first    // Max difference
         };
     } else {
-        AlwaysAssert(false);
+        AlwaysAssert(false) << "unhadled operator << \n";
     }
 
     // Handle other operations similarly if needed
@@ -3327,22 +3328,11 @@ RangeSolver::RangeSolver(Env& env, InferenceManager& im)
     completeGB(statisticsRegistry().registerInt("theory::arith::modular::CompleteGB", false)),
     totalGBtry(statisticsRegistry().registerInt("theory::arith::modular::TotalGBtry", false)),
     totalGBilp(statisticsRegistry().registerInt("theory::arith::modular::TotalGBilp", false)),
-    timeoutGB(statisticsRegistry().registerInt("theory::arith::modular::timeoutGB", false)),
-    d_facts(context()) {timeoutGB = 0;}
+    timeoutGB(statisticsRegistry().registerInt("theory::arith::modular::timeoutGB", false))
+     {timeoutGB = 0;}
 
 void RangeSolver::preRegisterTerm(TNode node){ 
-        //std::cout << node << "\n";
-      /// Check Field  ONLY WHEN OPERATION IS EQUAL OR NOT EQUAL
-    //   if (node.getKind() == Kind::VARIABLE) {
-    //     TypeNode ty = node[0].getType();
-    //     std::cout << ty << "\n";
-    //     if (upperBounds.find(node.getName()) == upperBounds.end()){
-    //         upperBounds[node.getName()] = ty.getFfSize();
-    //     }
-    //     else {
-    //         upperBounds[node.getName()] = std::min(ty.getFfSize(), upperBounds[node.getName()]);
-    //     }
-    //   }
+
     if ( isVariableOrSkolem(node) ){
             // if (upperBounds.count(node.getName())==0){
             std::string singularName = replaceDots(node.getName());
@@ -3366,7 +3356,7 @@ void RangeSolver::preRegisterTerm(TNode node){
       } 
       } else {
         if (node.getKind() == Kind::EQUAL) {
-            if (node[0].getKind() == Kind::INTS_MODULUS || node[0].getKind() == Kind::INTS_MODULUS_TOTAL){
+            if (node[0].getKind() == Kind::MM_MOD){
                 Integer new_size = node[0][1].getConst<Rational>().getNumerator();
                  og_fields.insert(new_size);
                  if (fields.count(new_size) == 0) {
@@ -3381,10 +3371,25 @@ void RangeSolver::preRegisterTerm(TNode node){
 
 
 void RangeSolver::notifyFact(TNode fact){
-    d_facts.emplace_back(fact); 
+    //d_facts.emplace_back(fact); 
 }
 
-void RangeSolver::processFact(TNode fact){
+bool checkMMMod(Node fact){
+    if (fact.getNumChildren() == 0){
+        return false;
+    }
+    if (fact.getKind() == Kind::MM_MOD){
+        return true;
+    }
+    for (int i = 0; i<fact.getNumChildren(); i++){
+        if (checkMMMod(fact[i])){
+            return true;
+        }
+    }
+    return false;
+}
+
+bool RangeSolver::processFact(TNode fact){
     NodeManager* nm = NodeManager::currentNM();
     if(fact.getKind() == Kind::GEQ && fact[0].getNumChildren()<=1){
         AlwaysAssert(fact[1].getKind()==Kind::CONST_INTEGER) << fact;
@@ -3413,6 +3418,11 @@ void RangeSolver::processFact(TNode fact){
                     Node sk = tempSkolemMap[fact[0]];
                     Bounds[sk.getName()].first = std::max(Bound,Bounds[sk.getName()].first );
                 } else {
+                    std::cout << fact << "\n";
+                    if (checkMMMod(fact[0])){
+                        // this is an unecessary fact created by simplex we should skip it
+                        return false;
+                    }
                 SkolemManager* sm = nm->getSkolemManager();
 
                 Node sk = sm->mkDummySkolem("Var", nm->integerType());
@@ -3460,6 +3470,10 @@ void RangeSolver::processFact(TNode fact){
                         Node sk = tempSkolemMap[fact[0][0]];
                         Bounds[sk.getName()].second = std::min(Bound,Bounds[sk.getName()].second );
                     } else {
+                    if (checkMMMod(fact[0])){
+                        // this is an unecessary fact created by simplex we should skip it
+                        return false;
+                    }
                      SkolemManager* sm = nm->getSkolemManager();
                      Node sk = sm->mkDummySkolem("Var", nm->integerType());
                      Bounds[sk.getName()].second = Bound;
@@ -3496,7 +3510,8 @@ void RangeSolver::processFact(TNode fact){
             }
         }
     else if (fact.getKind() == Kind::EQUAL) {
-        if (fact[0].getKind() == Kind::INTS_MODULUS || fact[0].getKind() == Kind::INTS_MODULUS_TOTAL){
+        if (fact[0].getKind() == Kind::MM_MOD){
+            AlwaysAssert(fact[1].getKind() == Kind::CONST_INTEGER && fact[1].getConst<Rational>().getNumerator() == 0 ) << fact;
             Integer size = fact[0][1].getConst<Rational>().getNumerator();
             auto it = fields.find(size);
             if (it != fields.end()) {
@@ -3516,7 +3531,8 @@ void RangeSolver::processFact(TNode fact){
         std::set<std::string> newNotVars = getVarsHelper(fact[0]);
         //std::cout << "got here\n";
         myNotVars.insert(newNotVars.begin(), newNotVars.end());
-        if (fact[0][0].getKind() == Kind::INTS_MODULUS || fact[0][0].getKind() == Kind::INTS_MODULUS_TOTAL){
+        if (fact[0][0].getKind() == Kind::MM_MOD){
+            AlwaysAssert(fact[0][1].getKind() == Kind::CONST_INTEGER && fact[0][1].getConst<Rational>().getNumerator() == 0 ) << fact;
             Integer size = fact[0][0][1].getConst<Rational>().getNumerator();
             auto it = fields.find(size);
             if (it != fields.end()) {
@@ -3536,7 +3552,7 @@ void RangeSolver::processFact(TNode fact){
         AlwaysAssert(false);
     }
     //std::cout << "Done with fact\n";
-
+    return true;
 }
 
 void RangeSolver::setTrivialConflict()
@@ -3606,10 +3622,13 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
 Result RangeSolver::Solve(const std::vector<Node>& assertions,
                           const std::vector<Node>& false_asserts,
                           const std::vector<Node>& xts){
-    NodeManager* nm = NodeManager::currentNM();                       
-    d_im.lemma(nm->mkNode(Kind::NOT, nm->mkNode(Kind::AND, assertions)), InferenceId::ARITH_BLACK_BOX);
-    return Result::UNSAT;
+    std::cout << "NEW ASSERTIONS\n";
+    for (auto& as: assertions){
+        std::cout << as << "\n";
+    }
 
+    NodeManager* nm = NodeManager::currentNM();                       
+    d_facts.clear();
     for (auto& fieldPair :fields){
             if (fieldPair.second.LearntLemmasFrom.size()!=0){
                 AlwaysAssert(false);
@@ -3628,13 +3647,19 @@ Result RangeSolver::Solve(const std::vector<Node>& assertions,
     for (auto &pair: Bounds){
         Bounds[pair.first]= std::make_pair(Integer(-1) *BIGINT, BIGINT);
     }
+    printSystemState();
     for (auto fact:assertions){
-        processFact(fact);
+        std::cout << "processing:" << fact << "\n";
+        if (processFact(fact)){
+            std::cout << "yes!\n";
+            d_facts.push_back(fact);
+        };
         if (Bounds.find("") != Bounds.end()) {
             std::cout << fact << "\n";
             AlwaysAssert(false);
         }
     }
+    printSystemState();
     // Check Bounds for incosinstency 
     for (auto &pair: Bounds){
         if (pair.first == ""){
@@ -3643,6 +3668,7 @@ Result RangeSolver::Solve(const std::vector<Node>& assertions,
         if (pair.second.first > pair.second.second){
             std::cout << "INITIAL BOUNDS WRONG\n";
             // std::cout << pair.first << "\n";
+            d_im.lemma(nm->mkNode(Kind::NOT, nm->mkNode(Kind::AND, d_facts)), InferenceId::ARITH_BLACK_BOX);
             return Result::UNSAT;
         }
     }
@@ -3674,6 +3700,7 @@ Result RangeSolver::Solve(const std::vector<Node>& assertions,
         }
     bool movesExist = true;
     bool saturated;
+    printSystemState();
     while(movesExist){
     //printSystemState();
     count+=1;
@@ -3681,7 +3708,8 @@ Result RangeSolver::Solve(const std::vector<Node>& assertions,
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
                 //std::cout << "LOOP COUNT" << count << "\n";
-                return Result::UNSAT;
+               d_im.lemma(nm->mkNode(Kind::NOT, nm->mkNode(Kind::AND, d_facts)), InferenceId::ARITH_BLACK_BOX);
+               return Result::UNSAT;
             }
 
         }
@@ -3691,6 +3719,7 @@ Result RangeSolver::Solve(const std::vector<Node>& assertions,
             integerField.status = Result::UNKNOWN;
             //std::cout << "LOOP COUNT" << count << "\n";
             //printSystemState();
+            d_im.lemma(nm->mkNode(Kind::NOT, nm->mkNode(Kind::AND, d_facts)), InferenceId::ARITH_BLACK_BOX);
             return Result::UNSAT;
         }
         //printSystemState();
@@ -3711,6 +3740,7 @@ Result RangeSolver::Solve(const std::vector<Node>& assertions,
                 }
                 fieldPair.second.status = Result::UNKNOWN;
                 std::cout << "LOOP COUNT" << count << "\n";
+                d_im.lemma(nm->mkNode(Kind::NOT, nm->mkNode(Kind::AND, d_facts)), InferenceId::ARITH_BLACK_BOX);
                 return Result::UNSAT;
             }
             if (fieldPair.second.newEqualitySinceGB == true){
@@ -3736,6 +3766,12 @@ Result RangeSolver::Solve(const std::vector<Node>& assertions,
         if (saturated && startLearningLemmas == 0){
             startLearningLemmas = 2;
         }
+        }
+        for (auto& as: false_asserts){
+            std::cout << as << "\n";
+            // I want to write another converter here
+            
+
         }
         return Result::UNKNOWN;
     }

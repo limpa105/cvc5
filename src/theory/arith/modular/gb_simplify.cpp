@@ -98,8 +98,8 @@ std::string runSingular(std::string program)
   std::filesystem::path output = tmpPath();
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
-  //commandStream << "Singular -q -t " << input << " > " << output;
-  commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
+  commandStream << "Singular -q -t " << input << " > " << output;
+  //commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
   std::string command = commandStream.str();
   int exitCode = std::system(command.c_str());
   Assert(exitCode == 0) << "Singular errored\nCommand: " << command;
@@ -126,6 +126,21 @@ std::string replaceDots(std::string name) {
         str.replace(start_pos, 1, "x");
         start_pos += 1; // Move past the replaced part
     }
+    start_pos = 0;
+     while((start_pos = str.find('|', start_pos)) != std::string::npos) {
+         str.replace(start_pos, 1, "");
+         start_pos += 1; // Move past the replaced part
+     }
+     start_pos = 0;
+     while((start_pos = str.find('~', start_pos)) != std::string::npos) {
+         str.replace(start_pos, 1, "gg");
+         start_pos += 1; // Move past the replaced part
+     }
+     start_pos = 0;
+     while((start_pos = str.find('#', start_pos)) != std::string::npos) {
+         str.replace(start_pos, 1, "hh");
+         start_pos += 1; // Move past the replaced part
+     }
     return str;
 }
 

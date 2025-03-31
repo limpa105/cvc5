@@ -217,7 +217,7 @@ class RangeSolver : protected EnvObj
 
         void preRegisterTerm(TNode node);
 
-        void processFact(TNode node);
+        bool processFact(TNode node);
 
        std::vector<Node>& conflict() ;
 
@@ -247,7 +247,7 @@ class RangeSolver : protected EnvObj
 
     private:
 
-        context::CDList<Node> d_facts;
+        std::vector<Node> d_facts;
 
         InferenceManager& d_im;
 

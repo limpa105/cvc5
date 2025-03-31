@@ -75,10 +75,15 @@ NonlinearExtension::~NonlinearExtension() {}
 
 void NonlinearExtension::preRegisterTerm(TNode n)
 {
+  // TODO:THIS IS A HACK RIGHT NOW MIGHT BE DOING SOMETHING ELSE!
+  if (options().arith.modularRangeSolver){
+      d_rangeSlv.preRegisterTerm(n);
+  }
   // register terms with extended theory, to find extended terms that can be
   // eliminated by context-depedendent simplification.
   if (d_extTheory.hasFunctionKind(n.getKind()))
   {
+    std::cout << n <<"\n";
     d_hasNlTerms = true;
     d_extTheory.registerTerm(n);
   }
@@ -465,7 +470,6 @@ void NonlinearExtension::runStrategy(Theory::Effort effort,
         break;
       case InferStep::POW2_FULL: d_pow2Slv.checkFullRefine(); break;
       case InferStep::MM_MOD_FULL: 
-      std::cout << "WOW WE ARE HERE!\n";
       d_rangeSlv.Solve(assertions, false_asserts, xts); break;
       case InferStep::POW2_INITIAL: d_pow2Slv.checkInitialRefine(); break;
       case InferStep::ICP:
