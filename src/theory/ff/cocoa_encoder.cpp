@@ -13,7 +13,7 @@
  * encoding Nodes as cocoa ring elements.
  */
 
-
+#ifdef CVC5_USE_COCOA
 
 #include "theory/ff/cocoa_encoder.h"
 
@@ -535,3 +535,4 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
 }  // namespace cvc5::internal
 
  /* CVC5_USE_COCOA */
+#endif /* CVC5_USE_COCOA */

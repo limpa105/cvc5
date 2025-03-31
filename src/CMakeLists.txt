@@ -557,10 +557,6 @@ libcvc5_add_sources(
   theory/arrays/type_enumerator.cpp
   theory/arith/modular/range-solver.h
   theory/arith/modular/range-solver.cpp
-  theory/arith/modular/int_cocoa_encoder.h
-  theory/arith/modular/int_cocoa_encoder.cpp
-  theory/arith/modular/cocoa_util.h
-  theory/arith/modular/cocoa_util.cpp
   theory/arith/modular/util.h
   theory/arith/modular/util.cpp
   theory/arith/modular/gb_simplify.h

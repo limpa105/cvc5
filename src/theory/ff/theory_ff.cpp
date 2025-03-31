@@ -59,9 +59,8 @@ TheoryFiniteFields::TheoryFiniteFields(Env& env,
       d_im(env, *this, d_state, getStatsPrefix(THEORY_FF)),
       d_eqNotify(d_im),
       d_stats(
-          std::make_unique<FfStatistics>(statisticsRegistry(), "theory::ff::")),
-      d_rangeSolver(nullptr)
-{
+          std::make_unique<FfStatistics>(statisticsRegistry(), "theory::ff::"))
+          {
   d_theoryState = &d_state;
   d_inferManager = &d_im;
 
@@ -92,36 +91,36 @@ void TheoryFiniteFields::finishInit()
 void TheoryFiniteFields::postCheck(Effort level)
 {
 std::cout << "Post Checking" << level << "\n";
-if (options().ff.ffRangeSolver){
-  if (level != Theory::EFFORT_FULL){
-    return;
-  }
-  std::cout << "We are here\n";
-  fullCheckCount +=1;
-  Result r = d_rangeSolver->postCheck(level);
-  std::cout << "Got status\n";
-  if (r.getStatus() == Result::UNSAT){
-    NodeManager* nm = NodeManager::currentNM();
-    const Node conflict = nm->mkAnd(d_rangeSolver->conflict());
-    d_im.conflict(conflict, InferenceId::FF_LEMMA);
-    std::cout << "CONFLICT" << conflict << "\n";
-    std::cout << "One UNSAT returned\n";
-  } else if (r.getStatus() == Result::UNKNOWN){
-    NodeManager* nm = NodeManager::currentNM();
-    SkolemManager* sm = nm->getSkolemManager();
-    d_im.lemma(d_rangeSolver->Lemma, InferenceId::FF_LEMMA);
-    Node restartVar = sm->mkDummySkolem(
-            "restartVar",
-            nm->booleanType(),
-            "A boolean variable asserted to be true to force a restart");
-        d_im.lemma(restartVar, InferenceId::ARITH_DEMAND_RESTART, LemmaProperty(0));
-  } else if (r.getStatus() == Result::SAT){
-    std::cout << "SAT\n";
-    return;
-  }
-  return;
-}
 #ifdef CVC5_USE_COCOA
+// if (options().ff.ffRangeSolver){
+//   if (level != Theory::EFFORT_FULL){
+//     return;
+//   }
+//   std::cout << "We are here\n";
+//   fullCheckCount +=1;
+//   Result r = d_rangeSolver->postCheck(level);
+//   std::cout << "Got status\n";
+//   if (r.getStatus() == Result::UNSAT){
+//     NodeManager* nm = NodeManager::currentNM();
+//     const Node conflict = nm->mkAnd(d_rangeSolver->conflict());
+//     d_im.conflict(conflict, InferenceId::FF_LEMMA);
+//     std::cout << "CONFLICT" << conflict << "\n";
+//     std::cout << "One UNSAT returned\n";
+//   } else if (r.getStatus() == Result::UNKNOWN){
+//     NodeManager* nm = NodeManager::currentNM();
+//     SkolemManager* sm = nm->getSkolemManager();
+//     d_im.lemma(d_rangeSolver->Lemma, InferenceId::FF_LEMMA);
+//     Node restartVar = sm->mkDummySkolem(
+//             "restartVar",
+//             nm->booleanType(),
+//             "A boolean variable asserted to be true to force a restart");
+//         d_im.lemma(restartVar, InferenceId::ARITH_DEMAND_RESTART, LemmaProperty(0));
+//   } else if (r.getStatus() == Result::SAT){
+//     std::cout << "SAT\n";
+//     return;
+//   }
+//   return;
+// }
   Trace("ff::check") << "ff::check : " << level << " @ level "
                      << context()->getLevel() << std::endl;
   NodeManager* nm = NodeManager::currentNM();
@@ -151,10 +150,10 @@ void TheoryFiniteFields::notifyFact(TNode atom,
                                     bool isInternal)
 {
   std::cout << "Notifying Facts :) \n";
-  if (options().ff.ffRangeSolver){
-     d_rangeSolver ->notifyFact(fact);
-    return;
-  }
+  // if (options().ff.ffRangeSolver){
+  //    d_rangeSolver ->notifyFact(fact);
+  //   return;
+  // }
 #ifdef CVC5_USE_COCOA
   Trace("ff::check") << "ff::notifyFact : " << fact << " @ level "
                      << context()->getLevel() << std::endl;
@@ -203,15 +202,15 @@ void TheoryFiniteFields::preRegisterWithEe(TNode node)
 
 void TheoryFiniteFields::preRegisterTerm(TNode node)
 {
-  if (options().ff.ffRangeSolver){
-    if (d_rangeSolver == nullptr) {
-    d_rangeSolver.reset(new ff::RangeSolver(d_env));
-    }
-    std::cout << "Preregistering term?" << node << "\n";
-    d_rangeSolver -> preRegisterTerm(node);
-    std::cout << "Done" << "\n";
-    return;
-    }
+  // if (options().ff.ffRangeSolver){
+  //   if (d_rangeSolver == nullptr) {
+  //   d_rangeSolver.reset(new ff::RangeSolver(d_env));
+  //   }
+  //   std::cout << "Preregistering term?" << node << "\n";
+  //   d_rangeSolver -> preRegisterTerm(node);
+  //   std::cout << "Done" << "\n";
+  //   return;
+  //   }
   preRegisterWithEe(node);
 #ifdef CVC5_USE_COCOA
   Trace("ff::register") << "ff::preRegisterTerm : " << node << std::endl;

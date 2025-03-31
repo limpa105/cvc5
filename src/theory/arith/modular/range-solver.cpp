@@ -11,7 +11,6 @@
 #include "expr/skolem_manager.h"
 #include "options/ff_options.h"
 #include "smt/env_obj.h"
-#include "theory/arith/modular/int_cocoa_encoder.h"
 #include "theory/arith/modular/util.h"
 #include "theory/arith/modular/gb_simplify.h"
 #include "theory/arith/modular/range-solver.h"
@@ -39,17 +38,7 @@
 #include <chrono>
 #include <cmath>
 //#include "theory/ff/multi_roots.h"
-// #include <CoCoA/BigInt.H>
-// #include <CoCoA/QuotientRing.H>
-// #include <CoCoA/RingZZ.H>
-// #include <CoCoA/RingQQ.H>
-// #include <CoCoA/TmpGReductor.H>
- // #include <CoCoA/GBEnv.H>
- // #include <CoCoA/SparsePolyOps-ideal.H>
-// #include <CoCoA/ring.H>
-// #include <CoCoA/SparsePolyRing.H>
-// #include <CoCoA/PolyRing.H>
- #include <CoCoA/library.H>
+
 
 
 
@@ -1823,55 +1812,57 @@ void noCoCoALiza()
     AlwaysAssert(false);
 }
 
-CoCoA::ideal getCocoaGB(Field *F, CocoaEncoder &enc, NodeManager* nm){
-      if ((*F).equalities.size() <= 1) { 
-        //return;
-        //AlwaysAssert(false) << "NEED TO THINK ABOUT THIS\n";
-      }
-    //   if (!((*F).modulos).isProbablePrime()){
-    //     AlwaysAssert(false) << "have not thought about how to do this with non primes\n";
-    //   }
-      //CocoaEncoder enc = CocoaEncoder((*F).modulos);
-      std::vector<Node> negativeFacts;
-      for (const Node& node : (*F).inequalities)
-       {
-        negativeFacts.push_back(nm->mkNode(Kind::NOT, node));
-    }
-      for (const Node& node : (*F).equalities)
-      {
-        enc.addFact(node);
-      }
-    for (const Node& node : negativeFacts)
-       {
-        enc.addFact(node);
-    }
-      enc.endScan();
-      for (const Node& node :(*F).equalities)
-      {
-        enc.addFact(node);
-      }
-     for (const Node& node : negativeFacts)
-        {
-         enc.addFact(node);
-     }
-      std::cout << "Getting ideal?\n";
+// #ifdef CVC5_USE_COCOA
+// CoCoA::ideal getCocoaGB(Field *F, CocoaEncoder &enc, NodeManager* nm){
+//       if ((*F).equalities.size() <= 1) { 
+//         //return;
+//         //AlwaysAssert(false) << "NEED TO THINK ABOUT THIS\n";
+//       }
+//     //   if (!((*F).modulos).isProbablePrime()){
+//     //     AlwaysAssert(false) << "have not thought about how to do this with non primes\n";
+//     //   }
+//       //CocoaEncoder enc = CocoaEncoder((*F).modulos);
+//       std::vector<Node> negativeFacts;
+//       for (const Node& node : (*F).inequalities)
+//        {
+//         negativeFacts.push_back(nm->mkNode(Kind::NOT, node));
+//     }
+//       for (const Node& node : (*F).equalities)
+//       {
+//         enc.addFact(node);
+//       }
+//     for (const Node& node : negativeFacts)
+//        {
+//         enc.addFact(node);
+//     }
+//       enc.endScan();
+//       for (const Node& node :(*F).equalities)
+//       {
+//         enc.addFact(node);
+//       }
+//      for (const Node& node : negativeFacts)
+//         {
+//          enc.addFact(node);
+//      }
+//       std::cout << "Getting ideal?\n";
 
-      std::vector<CoCoA::RingElem> generators;
-      generators.insert(
-          generators.end(), enc.polys().begin(), enc.polys().end());
-      std::vector<Node> newPoly;
-      std::cout << "Getting ideal?\n";
-      try {
-      CoCoA::ideal ideal = CoCoA::ideal(generators);
-      }  catch (const CoCoA::ErrorInfo& e) {
-        std::cerr << "Caught CoCoA::ErrorInfo exception: " << e << std::endl;
-        AlwaysAssert(false);
-      }
+//       std::vector<CoCoA::RingElem> generators;
+//       generators.insert(
+//           generators.end(), enc.polys().begin(), enc.polys().end());
+//       std::vector<Node> newPoly;
+//       std::cout << "Getting ideal?\n";
+//       try {
+//       CoCoA::ideal ideal = CoCoA::ideal(generators);
+//       }  catch (const CoCoA::ErrorInfo& e) {
+//         std::cerr << "Caught CoCoA::ErrorInfo exception: " << e << std::endl;
+//         AlwaysAssert(false);
+//       }
 
-      return CoCoA::ideal(generators);
-      //auto basis = CoCoA::GBasis(ideal);
-      //return basis;
-}
+//       return CoCoA::ideal(generators);
+//       //auto basis = CoCoA::GBasis(ideal);
+//       //return basis;
+// }
+// #endif
 
 
 
@@ -2011,13 +2002,6 @@ bool checkIfConstraintIsMet(Node equality, Integer modulos, std::map<std::string
                 return false;
             }
             
-            //std::cout << "RHS" << LHS.value() << "\n";
-            // if ((LHS.value().first + RHS.value().second) >= modulos){
-            //     return false;
-            // }
-            // if ((RHS.value().first + LHS.value().second) >= modulos){
-            //     return false;
-            // }
 
         } else {
             return false;
@@ -3494,6 +3478,7 @@ void RangeSolver::processFact(TNode fact){
         }
     else if (fact.getKind() == Kind::EQUAL) {
         if (fact[0].getKind() == Kind::INTS_MODULUS || fact[0].getKind() == Kind::INTS_MODULUS_TOTAL){
+            AlwaysAssert(fact[1].getKind() == Kind::CONST_INTEGER && fact[1].getConst<Rational>().getNumerator() == 0 ) << fact;
             Integer size = fact[0][1].getConst<Rational>().getNumerator();
             auto it = fields.find(size);
             if (it != fields.end()) {
@@ -3514,6 +3499,7 @@ void RangeSolver::processFact(TNode fact){
         //std::cout << "got here\n";
         myNotVars.insert(newNotVars.begin(), newNotVars.end());
         if (fact[0][0].getKind() == Kind::INTS_MODULUS || fact[0][0].getKind() == Kind::INTS_MODULUS_TOTAL){
+            AlwaysAssert(fact[0][1].getKind() == Kind::CONST_INTEGER && fact[0][1].getConst<Rational>().getNumerator() == 0 ) << fact;
             Integer size = fact[0][0][1].getConst<Rational>().getNumerator();
             auto it = fields.find(size);
             if (it != fields.end()) {

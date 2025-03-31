@@ -110,7 +110,7 @@ class TheoryFiniteFields : public Theory
 
   std::unique_ptr<FfStatistics> d_stats;
 
-   std::unique_ptr<ff::RangeSolver> d_rangeSolver;
+   //std::unique_ptr<ff::RangeSolver> d_rangeSolver;
 }; /* class TheoryFiniteFields */
 
 }  // namespace ff

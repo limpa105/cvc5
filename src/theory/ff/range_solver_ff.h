@@ -1,3 +1,5 @@
+#ifdef CVC5_USE_COCOA
+
 #include "expr/node.h"
 #include "smt/env_obj.h"
 #include "theory/ff/stats.h"
@@ -128,3 +130,4 @@ class RangeSolver : protected EnvObj
 }
 }
 }
+#endif /* CVC5_USE_COCOA */

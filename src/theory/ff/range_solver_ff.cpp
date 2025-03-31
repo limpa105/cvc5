@@ -1,5 +1,5 @@
 
-
+#ifdef CVC5_USE_COCOA
 
 #include "theory/ff/range_solver_ff.h"
 #include <cerrno>
@@ -40,6 +40,7 @@
 #include <CoCoA/library.H>
 
 using namespace cvc5::internal::kind;
+
 
 namespace cvc5::internal {
 namespace theory {
@@ -1004,3 +1005,4 @@ void RangeSolver::printSystemState(){
 }
 }
 }
+#endif /* CVC5_USE_COCOA */
