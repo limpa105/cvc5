@@ -96,16 +96,16 @@ std::string readFileToString(std::filesystem::path path)
 std::string runSingular(std::string program)
 {
   std::filesystem::path output = tmpPath();
-  //std::cout << program << "\n";
+  std::cout << program << "\n";
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
-  //commandStream << "Singular -q -t " << input << " > " << output;
-  commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
+  commandStream << "Singular -q -t " << input << " > " << output;
+  //commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
   std::string command = commandStream.str();
   int exitCode = std::system(command.c_str());
   Assert(exitCode == 0) << "Singular errored\nCommand: " << command;
   std::string outputContents = readFileToString(output);
-  //std::cout << outputContents << "\n";
+  std::cout << outputContents << "\n";
   AlwaysAssert(outputContents.find("?") == std::string::npos) << "Singular error:\n"
                                                         << outputContents;
   std::filesystem::remove(output);
@@ -126,6 +126,21 @@ std::string replaceDots(std::string name) {
     start_pos = 0;
     while((start_pos = str.find('_', start_pos)) != std::string::npos) {
         str.replace(start_pos, 1, "x");
+        start_pos += 1; // Move past the replaced part
+    }
+    start_pos = 0;
+    while((start_pos = str.find('|', start_pos)) != std::string::npos) {
+        str.replace(start_pos, 1, "");
+        start_pos += 1; // Move past the replaced part
+    }
+    start_pos = 0;
+    while((start_pos = str.find('~', start_pos)) != std::string::npos) {
+        str.replace(start_pos, 1, "gg");
+        start_pos += 1; // Move past the replaced part
+    }
+    start_pos = 0;
+    while((start_pos = str.find('#', start_pos)) != std::string::npos) {
+        str.replace(start_pos, 1, "hh");
         start_pos += 1; // Move past the replaced part
     }
     return str;
@@ -226,7 +241,7 @@ bool IntegerField::runGB(){
     if (equalities.size() <= 1) {
         return true;
     }
-    //std::cout << "Computing GB in Integers\n";
+    std::cout << "Computing GB in Integers\n";
     NodeManager* nm = NodeManager::currentNM();
     std::string line = singular_command_weighted_integers;
     std::stringstream ss;
@@ -392,11 +407,11 @@ bool IntegerField::reduceAgainstGB(Node eq){
 }
 
 bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
-    //std::cout << "Starting GB in Field\n";
     //std::cout << "Computing GB in Fields\n";
     if (equalities.size() <= 1){
         return true;
     }
+    std::cout << "Starting GB in Field\n";
     NodeManager* nm = NodeManager::currentNM();
     std::vector<long> weights = getWeights((*solver).myVariables, Bounds, false, (*solver).myNotVars);
     std::string line;
@@ -438,6 +453,7 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
     auto result = std::make_shared<std::string>("");
     std::shared_ptr<bool> done = std::make_shared<bool>(false);
     std::mutex resultMutex;
+    std::cout << "we get here?\n";
     (*solver).totalGBtry +=1;
     (*solver).polyInGB += equalities.size();
     AlwaysAssert(equalities.size()>1);

@@ -2271,7 +2271,9 @@ for (int i = 0; i < equalities.size(); i++) {
 
 // Recursive helper function that returns both lower and upper inferred bounds
 std::pair<Integer, Integer> IntegerField::inferBoundsRecursive(const Node& node, std::map<std::string,  std::pair<Integer, Integer>>& Bounds) {
-    //std::cout << node << "\n";
+    if (node.getKind() == Kind::INTS_MODULUS_TOTAL || node.getKind() == Kind::INTS_MODULUS){
+        AlwaysAssert(false) << "unsupported modulus\n";
+    }
     if (node.getKind() == Kind::CONST_INTEGER) {
         Integer constValue = node.getConst<Rational>().getNumerator();
         //std::cout << constValue << "\n";
@@ -2319,7 +2321,7 @@ std::pair<Integer, Integer> IntegerField::inferBoundsRecursive(const Node& node,
             leftBounds.second - rightBounds.first    // Max difference
         };
     } else {
-        AlwaysAssert(false);
+        AlwaysAssert(false) << node << "\n";
     }
 
     // Handle other operations similarly if needed
@@ -2632,7 +2634,8 @@ void Field::CancelConstants(){
 }
 
 Node Field::modOut(Node fact){
-    //s//td::cout << fact << "\n";
+
+    //std::cout << fact.getKind() << "\n";
      NodeManager* nm = NodeManager::currentNM();
      std::vector<Node> left;
      if (fact.getKind()== Kind::ADD){
@@ -2705,7 +2708,7 @@ Node Field::modOut(Node fact){
         AlwaysAssert(new_value.abs() < modulos.abs()) << new_value  << "," << modulos;
         return nm->mkConstInt(new_value);
     }
-    AlwaysAssert(false) << "Unsupported kind type in modout" << fact.getKind();
+    AlwaysAssert(false) << "Unsupported kind type in modout" << fact;
 
        
 
@@ -3338,6 +3341,12 @@ RangeSolver::RangeSolver(Env& env, TheoryArith& parent)
     d_facts(context()) {timeoutGB = 0; numPartitions = 0; literalsAssigned = 0; polyLearned = 0; polyInGB = 0; numSolve =0; }
 
 void RangeSolver::preRegisterTerm(TNode node){ 
+    //std::cout << node << "\n";
+    //std::cout << node.getKind() << "\n";
+    if (node.getKind() == Kind::ABS || node.getKind() == Kind::INTS_DIVISION_TOTAL || node.getKind() == Kind::INTS_DIVISION  ){
+            AlwaysAssert(false) << "unsupported kind abs" << "\n";
+         }
+          
         //std::cout << node << "\n";
       /// Check Field  ONLY WHEN OPERATION IS EQUAL OR NOT EQUAL
     //   if (node.getKind() == Kind::VARIABLE) {
@@ -3351,7 +3360,7 @@ void RangeSolver::preRegisterTerm(TNode node){
     //     }
     //   }
     if ( isVariableOrSkolem(node) ){
-            // if (upperBounds.count(node.getName())==0){
+           // if (upperBounds.count(node.getName())==0){
             std::string singularName = replaceDots(node.getName());
             myVariables[singularName] = node;
             myNodes.insert(node);
@@ -3504,6 +3513,9 @@ void RangeSolver::processFact(TNode fact){
         }
     else if (fact.getKind() == Kind::EQUAL) {
         if (fact[0].getKind() == Kind::INTS_MODULUS || fact[0].getKind() == Kind::INTS_MODULUS_TOTAL){
+            //std::cout << fact << "\n";
+            AlwaysAssert(fact[1].getKind() == Kind::CONST_INTEGER && fact[1].getConst<Rational>().getNumerator() == 0 ) << fact;
+
             Integer size = fact[0][1].getConst<Rational>().getNumerator();
             auto it = fields.find(size);
             if (it != fields.end()) {
@@ -3520,10 +3532,14 @@ void RangeSolver::processFact(TNode fact){
     }
     else if (fact.getKind() == Kind::NOT){
         AlwaysAssert(fact[0].getKind()== Kind::EQUAL) << fact;
+        
         std::set<std::string> newNotVars = getVarsHelper(fact[0]);
         //std::cout << "got here\n";
         myNotVars.insert(newNotVars.begin(), newNotVars.end());
         if (fact[0][0].getKind() == Kind::INTS_MODULUS || fact[0][0].getKind() == Kind::INTS_MODULUS_TOTAL){
+            //std::cout << fact << "\n";
+            AlwaysAssert(fact[0][1].getKind() == Kind::CONST_INTEGER && fact[0][1].getConst<Rational>().getNumerator() == 0 ) << fact;
+            
             Integer size = fact[0][0][1].getConst<Rational>().getNumerator();
             auto it = fields.find(size);
             if (it != fields.end()) {
@@ -3685,6 +3701,7 @@ Result RangeSolver::Solve(){
         }
     bool movesExist = true;
     bool saturated;
+    //return Result::UNKNOWN;
     while(movesExist){
     //printSystemState();
     count+=1;
