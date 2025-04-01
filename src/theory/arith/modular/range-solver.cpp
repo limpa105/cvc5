@@ -10,6 +10,7 @@
 #include "expr/node_traversal.h"
 #include "expr/skolem_manager.h"
 #include "options/ff_options.h"
+#include "options/arith_options.h"
 #include "smt/env_obj.h"
 #include "theory/arith/modular/util.h"
 #include "theory/arith/modular/gb_simplify.h"
@@ -53,7 +54,7 @@ namespace theory {
 namespace arith {
 namespace modular_range_solver {
 
-
+long BIGINTLOG2 = 6625;
 /////////////////////////////////////////////////// UTILS ////////////////////////////////////////////////////////////////////
 
 int gcd(int a, int b) {
@@ -1867,6 +1868,91 @@ void noCoCoALiza()
 
 
 
+
+
+
+std::vector<long> Field::getWeights2(std::map<std::string, Node> variables, 
+                             std::map<std::string, std::pair<Integer, Integer>> Bounds, 
+                             bool weightedGB, 
+                             std::set<std::string> notVars) {
+    std::vector<long> answer;
+
+    // Load the partial variable order from the file if it exists.
+    std::set<std::string> partialOrder;
+    if (options().arith.variableOrder != "") {
+        std::ifstream file(options().arith.variableOrder);
+        if (file.is_open()) {
+            std::string line;
+            while (std::getline(file, line)) {
+                // Remove any extra spaces, and split by commas.
+                std::stringstream ss(line);
+                std::string variable;
+                while (std::getline(ss, variable, ',')) {
+                    // Trim leading/trailing spaces.
+                    variable.erase(0, variable.find_first_not_of(" \t"));
+                    variable.erase(variable.find_last_not_of(" \t") + 1);
+                    if (!variable.empty()) {
+                        partialOrder.insert(variable);
+                    }
+                }
+            }
+        } else {
+            std::cerr << "Error opening file: " << options().arith.variableOrder << std::endl;
+        }
+    }
+
+    // Now create the full order, starting with variables in the partial order, followed by the rest in Bounds.
+    std::vector<std::string> processingOrder;
+
+    //std::cout << "Partial order size:" << partialOrder.size() << "\n";
+    // Add variables from partialOrder first.
+    // for (auto &i : variables) {
+    //     std::string symbol = i.second.getName();
+    //     if (partialOrder.find(symbol) != partialOrder.end()) {
+    //         processingOrder.push_back(symbol);
+    //     }
+    // }
+
+    // // Add remaining variables (those not in partialOrder).
+    // for (auto &i : variables) {
+    //     std::string symbol = i.second.getName();
+    //     if (partialOrder.find(symbol) == partialOrder.end()) {
+    //         processingOrder.push_back(symbol);
+    //     }
+    // }
+
+    // Now process the variables in the determined order.
+    long maxValue = BIGINTLOG2 + partialOrder.size();
+    for (auto &i : variables) {
+         std::string symbol= i.second.getName();
+        if (partialOrder.find(symbol) != partialOrder.end()) {
+            // For variables in the partial order, assign BIGINTLOG weight
+            answer.push_back(maxValue);
+            maxValue -= 1;
+        } else {
+            // For variables not in the partial order, calculate based on bounds
+            if (Bounds.find(symbol) != Bounds.end()) {
+                if (Bounds[symbol].second.getDouble() == 0) {
+                    answer.push_back(0);
+                } else {
+                    long result = 10 * log2(std::abs(Bounds[symbol].second.getDouble()));
+                    answer.push_back(long(result));
+                }
+            } else {
+                if (symbol.find("Q_HOLDER") != std::string::npos) {
+                    answer.push_back(2);
+                    Bounds[symbol] = std::make_pair(0, 2);
+                } else {
+                    AlwaysAssert(false) << symbol << " has no bound??";
+                    float result = BIGINTLOG2;
+                    answer.push_back(long(result));
+                }
+            }
+        }
+    }
+
+    return answer;
+}
 // Function to parse and convert S-expression style equations
 
 
@@ -3366,6 +3452,7 @@ void RangeSolver::notifyFact(TNode fact){
 }
 
 void RangeSolver::processFact(TNode fact){
+    //std::cout << fact << "\n";
     NodeManager* nm = NodeManager::currentNM();
     if(fact.getKind() == Kind::GEQ && fact[0].getNumChildren()<=1){
         AlwaysAssert(fact[1].getKind()==Kind::CONST_INTEGER) << fact;
@@ -3648,12 +3735,14 @@ Result RangeSolver::Solve(){
             fieldPair.second.myNodes = myNodes;
             fieldPair.second.myVariables = myVariables;
             fieldPair.second.mySingularReduce = "";
+            fieldPair.second.GBTimedOut = false;
         }
     bool movesExist = true;
     bool saturated;
     while(movesExist){
     //printSystemState();
     count+=1;
+    //std::cout << count << "\n";
         for (auto& fieldPair :fields){
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){

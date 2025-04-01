@@ -97,6 +97,8 @@ class IntegerField: protected EnvObj{
 class Field:  protected EnvObj {
     public:   
 
+        std::vector<long> getWeights2(std::map<std::string, Node> variables, std::map<std::string, std::pair<Integer, Integer>> Bounds, bool weightedGB, std::set<std::string> notVars);
+
         bool LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds);
 
         std::map<std::string, std::vector<Rational>> collectMonomials(IntegerField z, Field f, NodeManager* nm);

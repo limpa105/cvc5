@@ -614,3 +614,23 @@ name   = "Arithmetic Theory"
   type       = "bool"
   default    = "false"
   help       = "solve modular arithmetic using range solver"
+
+
+[[option]]
+  name       = "variableOrder"
+  category   = "expert"
+  long       = "variable-order=order"
+  type       = "std::string"
+  default    = '{}' 
+  includes   = ["<iostream>", "options/managed_streams.h"]
+  help       = "file path containing variable order for Singular to try"
+
+
+[[option]]
+  name       = "singularPath"
+  category   = "expert"
+  long       = "singular-path=path"
+  type       = "std::string"
+  default    = '{}' 
+  includes   = ["<iostream>", "options/managed_streams.h"]
+  help       = "file path for Singular"

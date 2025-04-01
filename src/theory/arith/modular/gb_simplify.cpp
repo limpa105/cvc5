@@ -10,6 +10,7 @@
 #include "expr/node_traversal.h"
 #include "expr/skolem_manager.h"
 #include "options/ff_options.h"
+#include "options/arith_options.h"
 #include "smt/env_obj.h"
 #include "theory/arith/modular/gb_simplify.h"
 #include "theory/arith/modular/range-solver.h"
@@ -35,6 +36,12 @@
 #include <thread>
 #include <future>
 #include <chrono>
+#include <fstream>
+#include <sstream>
+#include <set>
+#include <vector>
+#include <string>
+#include <cmath>
 
 
 using namespace cvc5::internal::kind;
@@ -95,6 +102,7 @@ std::string readFileToString(std::filesystem::path path)
 std::string runSingular(std::string program)
 {
   std::filesystem::path output = tmpPath();
+  //std::cout << program << "\n";
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
   commandStream << "Singular -q -t " << input << " > " << output;
@@ -142,6 +150,10 @@ std::string replaceDots(std::string name) {
      }
     return str;
 }
+
+
+
+
 
 
 // TODO: Need to find max by iterating through equations.
@@ -408,7 +420,7 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
         return true;
     }
     NodeManager* nm = NodeManager::currentNM();
-    std::vector<long> weights = getWeights((*solver).myVariables, Bounds, false, (*solver).myNotVars);
+    std::vector<long> weights = getWeights2((*solver).myVariables, Bounds, false, (*solver).myNotVars);
     std::string line;
     line = singular_command_weighted;
     std::stringstream ss;
@@ -507,7 +519,8 @@ bool Field::reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > 
     NodeManager* nm = NodeManager::currentNM();
     if (mySingularReduce.empty()){
         line = singular_command_reduce;
-        std::vector<long> weights = getWeights((*solver).myVariables, Bounds, false, (*solver).myNotVars);
+        //std::vector<long> weights = getWeights((*solver).myVariables, Bounds, false, (*solver).myNotVars);
+        std::vector<long> weights = getWeights2((*solver).myVariables, Bounds, false, (*solver).myNotVars);
         ss.str("");
         ss.clear();
         ss << modulos;

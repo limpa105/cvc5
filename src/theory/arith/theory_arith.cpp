@@ -255,6 +255,8 @@ void TheoryArith::postCheck(Effort level)
       d_im.conflict(conflict, InferenceId::FF_LEMMA);
       conflictCount +=1;
       std::cout << "CONFLICT COUNT" << conflictCount << "\n";
+      //std::cout << "Why am I not unsat?\n";
+      //std::cout << conflict << "\n";
       // if (conflictCount == 1){
       //   AlwaysAssert(false);
       // }
