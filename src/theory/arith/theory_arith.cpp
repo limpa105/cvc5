@@ -30,6 +30,10 @@
 #include "theory/rewriter.h"
 #include "theory/theory_model.h"
 #include "util/cocoa_globals.h"
+#include <future>
+#include <chrono>
+
+using namespace std::chrono_literals;
 
 using namespace std;
 using namespace cvc5::internal::kind;
@@ -280,15 +284,17 @@ void TheoryArith::postCheck(Effort level)
     if (result.getStatus() == Result::UNSAT){
       NodeManager* nm = NodeManager::currentNM();
       std::vector<Node> conflicts = d_modularExtension->conflict();
-      const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
+       Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
       d_im.conflict(conflict, InferenceId::FF_LEMMA);
       conflictCount +=1;
       std::cout << "CONFLICT COUNT" << conflictCount << "\n";
       std::cout << "Why am I not unsat?\n";
       int originalSize = conflicts.size();
-std::vector<Node> currentConflict = conflicts;
+    std::vector<Node> currentConflict = conflicts;
 
 bool changed = true;
+std::cout << conflicts.size() << "\n";
+//return;
 while (changed && currentConflict.size() > 1) {
     changed = false;
     int N = currentConflict.size();
@@ -301,9 +307,12 @@ while (changed && currentConflict.size() > 1) {
         std::cout << "trying conflict of size "<< k << "\n";
         bool foundUnsat = false;
         bool first = true;
-        while (first || std::prev_permutation(mask.begin(), mask.end())) {
+        int count = 0;
+        while ((first || std::prev_permutation(mask.begin(), mask.end())) & (count < 7)) {
+            std::cout << "I am here\n";
             first = false;
-
+            count +=1;
+            std::cout << count << "\n";
             d_modularExtension->min_conflicts.clear();
             //std::cout << d_modularExtension->min_conflicts.size() << "\n";
             for (int i = 0; i < N; ++i) {
@@ -311,25 +320,45 @@ while (changed && currentConflict.size() > 1) {
                     d_modularExtension->min_conflicts.push_back(currentConflict[i]);
                 }
             }
-            //std::cout << d_modularExtension->min_conflicts.size() << "\n";
-            auto result2 = d_modularExtension->postCheck(level, true);
-            std::cout << result2 << "\n";
-            if (result2.getStatus() == Result::UNSAT) {
-                std::cout << "Conflict reduced to size " << k << "\n";
-                currentConflict = d_modularExtension->min_conflicts;
-                changed = true;
-                foundUnsat = true;
-                break; // break out of combination loop, try smaller again
-            }
+            // auto future = std::async(std::launch::async, [&]() {
+            //       std::cout << d_modularExtension->min_conflicts.size() << "\n";
+            //       auto result2 = d_modularExtension->postCheck(level, true);
+            //       return result2.getStatus();
+            // });
+         auto result2 = d_modularExtension->postCheck(level, true);
+      
+              if (result2.getStatus() == Result::UNSAT) {
+                  std::cout << "Conflict reduced to size " << k << "\n";
+                  currentConflict = d_modularExtension->min_conflicts;
+                  conflict = nm->mkNode(Kind::AND,currentConflict);
+                  d_modularExtension->conflictGB.set(conflict.toString());
+                  //d_modularExtension->conflictGB.set(currentConflict);
+                  changed = true;
+                  foundUnsat = true;
+                  break;
+              } else {
+                  std::cout << "Status was not UNSAT (likely UNKNOWN)\n";
+                  goto break_point;
+              }
+        //}
         }
-
         if (!foundUnsat) {
             std::cout << "failed to find a smaller conflict\n";
             break; // break out of size loop and restart from new conflict
         }
+        // if (d_modularExtension->min_conflicts.size() == 586 || (conflictCount > 2 && d_modularExtension->min_conflicts.size() == 606 ||
+        // conflictCount> 7 && )){
+        //   std::cout << "we should break free!!\n";
+        //   //const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->min_conflicts);
+        //  //d_im.conflict(conflict, InferenceId::FF_LEMMA);
+        //  goto break_point;
+        // }
     }
     }
-
+     break_point:
+     const Node conflict2 = nm->mkNode(Kind::AND,currentConflict);
+     d_im.conflict(conflict2, InferenceId::FF_LEMMA);
+         //goto break_point;
 
     } else if(result.getStatus() == Result::UNKNOWN){
         d_im.setModelUnsound(IncompleteId::UNKNOWN);

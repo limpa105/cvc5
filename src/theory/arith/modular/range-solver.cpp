@@ -3397,6 +3397,7 @@ RangeSolver::RangeSolver(Env& env, TheoryArith& parent)
     totalGBtry(statisticsRegistry().registerInt("theory::arith::modular::TotalGBtry", false)),
     totalGBilp(statisticsRegistry().registerInt("theory::arith::modular::TotalGBilp", false)),
     timeoutGB(statisticsRegistry().registerInt("theory::arith::modular::timeoutGB", false)),
+    conflictGB(statisticsRegistry().registerValue<std::string>("theory::arith::modular::conflictGB", false)),
     d_facts(context()) {timeoutGB = 0;}
 
 void RangeSolver::preRegisterTerm(TNode node){ 
@@ -3698,6 +3699,7 @@ Result RangeSolver::Solve(bool minCore){
     }
     //CLEAN BOUNDS HEARE
     for (auto &pair: Bounds){
+        //std::cout << pair.first << "\n";
         Bounds[pair.first]= std::make_pair(Integer(-1) *BIGINT, BIGINT);
     }
     if (!minCore){
@@ -3760,13 +3762,10 @@ Result RangeSolver::Solve(bool minCore){
     while(movesExist){
     //printSystemState();
     count+=1;
-    //std::cout << count << "\n";
+    std::cout << count << "\n";
         for (auto& fieldPair :fields){
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
-                //printSystemState();
-                //std::cout << "WHY??\n";
-                //std::cout << "LOOP COUNT" << count << "\n";
                 return Result::UNSAT;
             }
 
@@ -3775,8 +3774,6 @@ Result RangeSolver::Solve(bool minCore){
         integerField.Simplify(fields, Bounds);
         if (integerField.status == Result::UNSAT){
             integerField.status = Result::UNKNOWN;
-            //std::cout << "LOOP COUNT" << count << "\n";
-            //printSystemState();
             return Result::UNSAT;
         }
         //printSystemState();

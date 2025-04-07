@@ -192,6 +192,8 @@ class RangeSolver : protected EnvObj
 
         IntStat totalGBtry ;  
 
+        ValueStat<std::string> conflictGB;
+
         std::map<Node,Node> tempSkolemMap;
 
         bool addAssignment(Node asgn, Field* f);
