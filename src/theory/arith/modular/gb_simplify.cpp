@@ -115,6 +115,7 @@ std::string runSingular(std::string program)
                                                         << outputContents;
   std::filesystem::remove(output);
   std::filesystem::remove(input);
+  //std::cout << outputContents << "\n";
   return outputContents;
 }
 
@@ -332,6 +333,7 @@ bool IntegerField::runGB(){
 }
 
 bool IntegerField::reduceAgainstGB(Node eq){
+    return true;
     std::string line;
     std::stringstream ss;
     if (equalities.size() < 1){

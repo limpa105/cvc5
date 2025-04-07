@@ -243,23 +243,94 @@ bool TheoryArith::preCheck(Effort level)
   return d_internal->preCheck(level);
 }
 
+
+
+std::vector<std::vector<Node>> getCombinations(const std::vector<Node>& input, int k) {
+    std::vector<std::vector<Node>> result;
+    int n = input.size();
+    std::vector<bool> mask(n, false);
+    std::fill(mask.begin(), mask.begin() + k, true);  // first k are true
+
+    // sort mask into lexicographically first permutation
+    std::sort(mask.begin(), mask.end(), std::greater<>());
+
+    bool first = true;
+    while (first || std::prev_permutation(mask.begin(), mask.end())) {
+        first = false;
+        std::vector<Node> combo;
+        for (int i = 0; i < n; ++i) {
+            if (mask[i]) {
+                combo.push_back(input[i]);
+            }
+        }
+        result.push_back(std::move(combo)); // avoid copy
+    }
+
+    return result;
+}
+
+
+
 void TheoryArith::postCheck(Effort level)
 {
   if (d_modularExtension != nullptr)
   {
     if (Theory::fullEffort(level)){
-    auto result = d_modularExtension->postCheck(level);
+    auto result = d_modularExtension->postCheck(level, false);
     if (result.getStatus() == Result::UNSAT){
       NodeManager* nm = NodeManager::currentNM();
+      std::vector<Node> conflicts = d_modularExtension->conflict();
       const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
       d_im.conflict(conflict, InferenceId::FF_LEMMA);
       conflictCount +=1;
       std::cout << "CONFLICT COUNT" << conflictCount << "\n";
-      //std::cout << "Why am I not unsat?\n";
-      //std::cout << conflict << "\n";
-      // if (conflictCount == 1){
-      //   AlwaysAssert(false);
-      // }
+      std::cout << "Why am I not unsat?\n";
+      int originalSize = conflicts.size();
+std::vector<Node> currentConflict = conflicts;
+
+bool changed = true;
+while (changed && currentConflict.size() > 1) {
+    changed = false;
+    int N = currentConflict.size();
+
+    // Try shrinking to all smaller sizes
+    for (int k = N - 1; k >= 1; --k) {
+        std::vector<bool> mask(N, false);
+        std::fill(mask.begin(), mask.begin() + k, true);
+        std::sort(mask.begin(), mask.end(), std::greater<>());
+        std::cout << "trying conflict of size "<< k << "\n";
+        bool foundUnsat = false;
+        bool first = true;
+        while (first || std::prev_permutation(mask.begin(), mask.end())) {
+            first = false;
+
+            d_modularExtension->min_conflicts.clear();
+            //std::cout << d_modularExtension->min_conflicts.size() << "\n";
+            for (int i = 0; i < N; ++i) {
+                if (mask[i]) {
+                    d_modularExtension->min_conflicts.push_back(currentConflict[i]);
+                }
+            }
+            //std::cout << d_modularExtension->min_conflicts.size() << "\n";
+            auto result2 = d_modularExtension->postCheck(level, true);
+            std::cout << result2 << "\n";
+            if (result2.getStatus() == Result::UNSAT) {
+                std::cout << "Conflict reduced to size " << k << "\n";
+                currentConflict = d_modularExtension->min_conflicts;
+                changed = true;
+                foundUnsat = true;
+                break; // break out of combination loop, try smaller again
+            }
+        }
+
+        if (!foundUnsat) {
+            std::cout << "failed to find a smaller conflict\n";
+            break; // break out of size loop and restart from new conflict
+        }
+    }
+    }
+
+
     } else if(result.getStatus() == Result::UNKNOWN){
         d_im.setModelUnsound(IncompleteId::UNKNOWN);
       // return;

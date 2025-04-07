@@ -3111,11 +3111,13 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         return false;
     }
     if (newEqualitySinceGB && (inequalities.size()>0)){
-    for(Node diseq: inequalities){
-        //std::cout << diseq<< "\n";
-        if (reduceAgainstGB(Bounds, diseq)){
-            status = Result::UNSAT;
-         }
+    if (equalities.size()> 0){
+        for(Node diseq: inequalities){
+
+            if (reduceAgainstGB(Bounds, diseq)){
+                status = Result::UNSAT;
+            }
+        }
     }
     }
 
@@ -3615,6 +3617,12 @@ void RangeSolver::setTrivialConflict()
   std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(d_conflict));
 }
 
+// void RangeSolver::getMinimalConflict()
+// {
+//   d_conflict.clear();
+//   std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(d_conflict));
+// }
+
 std::string findSmallestUpperBound(const std::map<std::string, std::pair<Integer, Integer>>& Bounds) {
     std::string result;
     Integer smallestUpperBound = std::numeric_limits<Integer>::max();
@@ -3673,7 +3681,7 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
 }
 
 
-Result RangeSolver::Solve(){
+Result RangeSolver::Solve(bool minCore){
     for (auto& fieldPair :fields){
             if (fieldPair.second.LearntLemmasFrom.size()!=0){
                 AlwaysAssert(false);
@@ -3692,11 +3700,21 @@ Result RangeSolver::Solve(){
     for (auto &pair: Bounds){
         Bounds[pair.first]= std::make_pair(Integer(-1) *BIGINT, BIGINT);
     }
-    for (auto fact:d_facts){
-        processFact(fact);
-        if (Bounds.find("") != Bounds.end()) {
-            std::cout << fact << "\n";
-            AlwaysAssert(false);
+    if (!minCore){
+        for (auto fact:d_facts){
+            processFact(fact);
+            if (Bounds.find("") != Bounds.end()) {
+                std::cout << fact << "\n";
+                AlwaysAssert(false);
+            }
+        }
+    } else {
+        for (auto fact:min_conflicts){
+            processFact(fact);
+            if (Bounds.find("") != Bounds.end()) {
+                std::cout << fact << "\n";
+                AlwaysAssert(false);
+            }
         }
     }
     // Check Bounds for incosinstency 
@@ -3746,6 +3764,8 @@ Result RangeSolver::Solve(){
         for (auto& fieldPair :fields){
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
+                //printSystemState();
+                //std::cout << "WHY??\n";
                 //std::cout << "LOOP COUNT" << count << "\n";
                 return Result::UNSAT;
             }
@@ -3803,6 +3823,8 @@ Result RangeSolver::Solve(){
             startLearningLemmas = 2;
         }
         }
+        //std::cout << "we gave up..?\n";
+        //printSystemState();
         return Result::UNKNOWN;
     }
 
@@ -3812,8 +3834,8 @@ Result RangeSolver::Solve(){
     std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(d_conflict));
     return d_conflict;}
 
-Result RangeSolver::postCheck(Theory::Effort level){
-    return Solve();
+Result RangeSolver::postCheck(Theory::Effort level, bool minCore){
+    return Solve(minCore);
 }
 
 void RangeSolver::printSystemState(){

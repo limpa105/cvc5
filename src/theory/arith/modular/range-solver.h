@@ -212,7 +212,7 @@ class RangeSolver : protected EnvObj
 
         void notifyFact(TNode fact);
 
-        Result postCheck(Theory::Effort);
+        Result postCheck(Theory::Effort, bool minCore);
 
         IntegerField integerField;
 
@@ -241,12 +241,16 @@ class RangeSolver : protected EnvObj
 
         void printSystemState();
 
+        std::vector <Node> min_conflicts;
+
+        
+
 
     private:
 
         context::CDList<Node> d_facts;
 
-        Result Solve();
+        Result Solve(bool minCore);
 
         
 
