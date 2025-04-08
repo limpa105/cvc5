@@ -290,7 +290,7 @@ void TheoryArith::postCheck(Effort level)
       std::cout << "CONFLICT COUNT" << conflictCount << "\n";
       std::cout << "Why am I not unsat?\n";
       int originalSize = conflicts.size();
-    std::vector<Node> currentConflict = conflicts;
+      std::vector<Node> currentConflict = conflicts;
 
 bool changed = true;
 std::cout << conflicts.size() << "\n";
@@ -349,11 +349,12 @@ while (changed && currentConflict.size() > 1) {
         }
         if (!foundUnsat) {
             std::cout << "failed to find a smaller conflict\n";
+            goto break_point;
             break; // break out of size loop and restart from new conflict
         }
-        if (d_modularExtension->min_conflicts.size() == 585){
-          goto break_point;
-        }
+        // if (d_modularExtension->min_conflicts.size() == 585){
+        //   goto break_point;
+        // }
         // || (conflictCount > 2 && d_modularExtension->min_conflicts.size() == 606 ||
         // // conflictCount> 7 && )){
         // //   std::cout << "we should break free!!\n";
@@ -369,6 +370,7 @@ while (changed && currentConflict.size() > 1) {
          //goto break_point;
 
     } else if(result.getStatus() == Result::UNKNOWN){
+        std::cout << "OUR METHOD FAILED\n";
         d_im.setModelUnsound(IncompleteId::UNKNOWN);
       // return;
       // NodeManager* nm = NodeManager::currentNM();

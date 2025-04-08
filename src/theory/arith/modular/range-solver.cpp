@@ -2520,35 +2520,35 @@ void IntegerField::addEquality(Node fact, bool GBAddition){
         ){
         
         AlwaysAssert(fact.getKind() == Kind::EQUAL) << fact;
-        if(!GBAddition){
-            //std::cout << "Adding" << fact << "\n";
-            if (!ranGB &!GBTimedOut){
-                //std::cout << "We should be here?\n";
-                if (!runGB()){
-                    GBTimedOut = true;
-                };
-                ranGB = true;
-            }
-            //std::cout<< "Why are we here?\n";
-            //std::cout << ranGB << GBTimedOut << "\n";
-            if (GBTimedOut){
-                newEqualitySinceGB = true;
-                ranGB = false;
-                mySingularReduce = "";
-                equalities.push_back(fact);
-                return;
-            }
-            if (reduceAgainstGB(fact)){
+        // if(!GBAddition){
+        //     //std::cout << "Adding" << fact << "\n";
+        //     if (!ranGB &!GBTimedOut){
+        //         //std::cout << "We should be here?\n";
+        //         if (!runGB()){
+        //             GBTimedOut = true;
+        //         };
+        //         ranGB = true;
+        //     }
+        //     //std::cout<< "Why are we here?\n";
+        //     //std::cout << ranGB << GBTimedOut << "\n";
+        //     if (GBTimedOut){
+        //         newEqualitySinceGB = true;
+        //         ranGB = false;
+        //         mySingularReduce = "";
+        //         equalities.push_back(fact);
+        //         return;
+        //     }
+        //     if (reduceAgainstGB(fact)){
                 
-                return;
-            } else {
-                newEqualitySinceGB = true;
-                ranGB = false;
-                mySingularReduce = "";
-                equalities.push_back(fact);
-                return;
-            }
-        }
+        //         return;
+        //     } else {
+        //         newEqualitySinceGB = true;
+        //         ranGB = false;
+        //         mySingularReduce = "";
+        //         equalities.push_back(fact);
+        //         return;
+        //     }
+        // }
         equalities.push_back(fact);
         return;
     };
@@ -2829,49 +2829,49 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition){
         ){
         //std::cout << "Why are we here?\n";
         AlwaysAssert(fact.getKind() == Kind::EQUAL) << fact;
-        if(!GBAddition){
-            //std::cout << "Then we should be here\n";
-            if (!ranGB & !GBTimedOut){
-                if(!runGB(solver->Bounds)){
-                    GBTimedOut = true;
-                };
-                ranGB = true;
-            }
-            if (GBTimedOut){
-               // std::cout << "We added TimeOUT" << fact << "\n";
-                newEqualitySinceGB = true;
-                ranGB = false;
-                mySingularReduce = "";
-                equalities.push_back(fact);
-                //std::cout << "Existing equalities:" << "\n";
-                // for (auto i: equalities){
-                //     std::cout << i << "\n";
+        // if(!GBAddition){
+        //     //std::cout << "Then we should be here\n";
+        //     if (!ranGB & !GBTimedOut){
+        //         if(!runGB(solver->Bounds)){
+        //             GBTimedOut = true;
+        //         };
+        //         ranGB = true;
+        //     }
+        //     if (GBTimedOut){
+        //        // std::cout << "We added TimeOUT" << fact << "\n";
+        //         newEqualitySinceGB = true;
+        //         ranGB = false;
+        //         mySingularReduce = "";
+        //         equalities.push_back(fact);
+        //         //std::cout << "Existing equalities:" << "\n";
+        //         // for (auto i: equalities){
+        //         //     std::cout << i << "\n";
                     
-                // }
-                return;
-            }
-            if (reduceAgainstGB(solver->Bounds, fact)){
-                return;
-            } else {
-                //std::cout << "We added Reduce" << fact << "\n";
-                newEqualitySinceGB = true;
-                ranGB = false;
-                mySingularReduce = "";
-                equalities.push_back(fact);
-                ALLequalities.push_back(fact);
-                //  std::cout << "Existing equalities:" << "\n";
-                // for (auto i: equalities){
-                //     std::cout << i << "\n";
+        //         // }
+        //         return;
+        //     }
+        //     if (reduceAgainstGB(solver->Bounds, fact)){
+        //         return;
+        //     } else {
+        //         //std::cout << "We added Reduce" << fact << "\n";
+        //         newEqualitySinceGB = true;
+        //         ranGB = false;
+        //         mySingularReduce = "";
+        //         equalities.push_back(fact);
+        //         ALLequalities.push_back(fact);
+        //         //  std::cout << "Existing equalities:" << "\n";
+        //         // for (auto i: equalities){
+        //         //     std::cout << i << "\n";
                     
-                // }
-                return;
-            }
+        //         // }
+        //         return;
+        //     }
 
-        } else {
+        // } else {
         equalities.push_back(fact);     
         ALLequalities.push_back(fact);
         return;
-        }
+        //}
     } else if (!inField) {
         NodeManager* nm = NodeManager::currentNM();
         Node LHS = modOut(fact[0]);
@@ -3684,6 +3684,7 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
 
 
 Result RangeSolver::Solve(bool minCore){
+    int count = 0;
     for (auto& fieldPair :fields){
             if (fieldPair.second.LearntLemmasFrom.size()!=0){
                 AlwaysAssert(false);
@@ -3748,7 +3749,6 @@ Result RangeSolver::Solve(bool minCore){
         }
     }
     Lemmas = newLemmas;
-    int count = 0;
     bool WeightedGB = true;
     int startLearningLemmas = 0;
     for (auto& fieldPair :fields){
@@ -3763,6 +3763,9 @@ Result RangeSolver::Solve(bool minCore){
     while(movesExist){
     //printSystemState();
     count+=1;
+    if (count == 2 & minCore){
+        return Result::UNKNOWN;
+    }
     std::cout << count << "\n";
         for (auto& fieldPair :fields){
             fieldPair.second.Simplify(integerField, Bounds, WeightedGB, startLearningLemmas);
