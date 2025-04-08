@@ -3398,7 +3398,8 @@ RangeSolver::RangeSolver(Env& env, TheoryArith& parent)
     totalGBilp(statisticsRegistry().registerInt("theory::arith::modular::TotalGBilp", false)),
     timeoutGB(statisticsRegistry().registerInt("theory::arith::modular::timeoutGB", false)),
     conflictGB(statisticsRegistry().registerValue<std::string>("theory::arith::modular::conflictGB", false)),
-    d_facts(context()) {timeoutGB = 0;}
+    minConflicts(statisticsRegistry().registerInt("theory::arith::modular::minConflicts", false)),
+    d_facts(context()) {timeoutGB = 0; minConflicts = 0;}
 
 void RangeSolver::preRegisterTerm(TNode node){ 
         //std::cout << node << "\n";

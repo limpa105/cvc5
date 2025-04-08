@@ -332,6 +332,11 @@ while (changed && currentConflict.size() > 1) {
                   currentConflict = d_modularExtension->min_conflicts;
                   conflict = nm->mkNode(Kind::AND,currentConflict);
                   d_modularExtension->conflictGB.set(conflict.toString());
+                  if ( d_modularExtension->minConflicts.get()  == 0){
+                      d_modularExtension->minConflicts = currentConflict.size();
+                  } else {
+                  d_modularExtension->minConflicts = std::min( static_cast<long long>(currentConflict.size()),d_modularExtension->minConflicts.get());
+                  }
                   //d_modularExtension->conflictGB.set(currentConflict);
                   changed = true;
                   foundUnsat = true;
@@ -346,13 +351,16 @@ while (changed && currentConflict.size() > 1) {
             std::cout << "failed to find a smaller conflict\n";
             break; // break out of size loop and restart from new conflict
         }
-        // if (d_modularExtension->min_conflicts.size() == 586 || (conflictCount > 2 && d_modularExtension->min_conflicts.size() == 606 ||
-        // conflictCount> 7 && )){
-        //   std::cout << "we should break free!!\n";
-        //   //const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->min_conflicts);
-        //  //d_im.conflict(conflict, InferenceId::FF_LEMMA);
-        //  goto break_point;
-        // }
+        if (d_modularExtension->min_conflicts.size() == 585){
+          goto break_point;
+        }
+        // || (conflictCount > 2 && d_modularExtension->min_conflicts.size() == 606 ||
+        // // conflictCount> 7 && )){
+        // //   std::cout << "we should break free!!\n";
+        // //   //const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->min_conflicts);
+        // //  //d_im.conflict(conflict, InferenceId::FF_LEMMA);
+        // //  goto break_point;
+        // // }
     }
     }
      break_point:

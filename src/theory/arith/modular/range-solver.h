@@ -190,7 +190,9 @@ class RangeSolver : protected EnvObj
 
         IntStat totalGBilp ;
 
-        IntStat totalGBtry ;  
+        IntStat totalGBtry ;
+
+        IntStat minConflicts;  
 
         ValueStat<std::string> conflictGB;
 
