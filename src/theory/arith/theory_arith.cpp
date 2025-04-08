@@ -335,7 +335,7 @@ while (changed && currentConflict.size() > 1) {
                   if ( d_modularExtension->minConflicts.get()  == 0){
                       d_modularExtension->minConflicts = currentConflict.size();
                   } else {
-                  d_modularExtension->minConflicts = std::min( static_cast<long long>(currentConflict.size()),d_modularExtension->minConflicts.get());
+                  d_modularExtension->minConflicts = std::min( static_cast<long>(currentConflict.size()),d_modularExtension->minConflicts.get());
                   }
                   //d_modularExtension->conflictGB.set(currentConflict);
                   changed = true;
