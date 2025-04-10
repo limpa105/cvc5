@@ -3389,7 +3389,25 @@ bool checkMMMod(Node fact){
     return false;
 }
 
+bool checkMod(Node fact){
+    if (fact.getNumChildren() == 0){
+        return false;
+    }
+    if ((fact.getKind() == Kind::INTS_MODULUS) || (fact.getKind() == Kind::INTS_MODULUS_TOTAL) ){
+        return true;
+    }
+    for (int i = 0; i<fact.getNumChildren(); i++){
+        if (checkMod(fact[i])){
+            return true;
+        }
+    }
+    return false;
+}
+
 bool RangeSolver::processFact(TNode fact){
+    if (checkMod(fact)){
+        return false;
+    }
     NodeManager* nm = NodeManager::currentNM();
     if(fact.getKind() == Kind::GEQ && fact[0].getNumChildren()<=1){
         AlwaysAssert(fact[1].getKind()==Kind::CONST_INTEGER) << fact;
@@ -3618,6 +3636,20 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
 
 }
 
+Node replaceMMMod(Node exp, NodeManager* nm){
+    if (exp.getKind() == Kind::MM_MOD){
+        return nm->mkNode(Kind::INTS_MODULUS, exp[0], exp[1]);
+    }
+    if (exp.getNumChildren() == 0) {
+        return exp;
+    }
+    std::vector<Node> exps;
+    for (int i=0; i<exp.getNumChildren(); i ++){
+        exps.push_back(replaceMMMod(exp[i], nm));
+    }
+    return nm->mkNode(exp.getKind(), exps);
+}
+
 
 Result RangeSolver::Solve(const std::vector<Node>& assertions,
                           const std::vector<Node>& false_asserts,
@@ -3768,10 +3800,11 @@ Result RangeSolver::Solve(const std::vector<Node>& assertions,
         }
         }
         for (auto& as: false_asserts){
-            std::cout << as << "\n";
-            // I want to write another converter here
-            
-
+             //as = replaceMMMod(as, nm);
+             //std::cout << as << "\n";
+             d_im.lemma(nm->mkNode(Kind::EQUAL, replaceMMMod(as, nm), as), InferenceId::ARITH_BLACK_BOX);
+             //d_iqm.lemma(replaceMMMod(as, nm), InferenceId::ARITH_BLACK_BOX);
+            //replaceMMMod
         }
         return Result::UNKNOWN;
     }
