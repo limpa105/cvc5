@@ -47,7 +47,7 @@ namespace arith {
 namespace modular_range_solver {
 
 std::string singular_command_weighted = "ring r = (integer, {1}), ({2}), (wp({4})); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
-std::string singular_command_weighted_integers = " LIB \"general.lib\"; ring r = integer, ({2}), (dp); option(redSB); ideal I= {5}; ideal G= timeStd(I, 35); G; quit;";
+std::string singular_command_weighted_integers = " LIB \"general.lib\"; ring r = integer, ({2}), (dp); option(redSB); ideal I= {5}; ideal G= std(I, 35); G; quit;";
 std::string singular_command_reduce_integers = "ring r = integer, ({2}), (dp); ideal I= {5}; reduce({6}, I); quit;";
 
 std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; reduce({6}, I); quit;";
@@ -94,6 +94,7 @@ std::string readFileToString(std::filesystem::path path)
 /** Run Singular on this program and return the output. */
 std::string runSingular(std::string program)
 {
+  //std::cout << program << "\n";
   std::filesystem::path output = tmpPath();
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
@@ -107,6 +108,7 @@ std::string runSingular(std::string program)
                                                         << outputContents;
   std::filesystem::remove(output);
   std::filesystem::remove(input);
+  //std::cout << outputContents << "\n";
   return outputContents;
 }
 
