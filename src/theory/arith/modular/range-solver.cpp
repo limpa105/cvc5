@@ -3012,10 +3012,10 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
 bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool WeightedGB, int startLearningLemmas){
     NodeManager* nm = NodeManager::currentNM();
     //std::cout << "LIFTING FOR: " << modulos << "\n";
-    if (equalities.size()>0 && newEqualitySinceGB){
-         LiftViaILP(Integers, Bounds);
-    }
-    //Lift(Integers, Bounds,startLearningLemmas);
+    // if (equalities.size()>0 && newEqualitySinceGB){
+    //      LiftViaILP(Integers, Bounds);
+    // }
+    Lift(Integers, Bounds,startLearningLemmas);
     if (newEqualitySinceGB && !ranGB && !GBTimedOut){
         if(!runGB(Bounds)){
             GBTimedOut = true;
