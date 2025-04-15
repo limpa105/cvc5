@@ -3040,7 +3040,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         for (auto pair: Bounds){
             if (pair.second.first > 0 || pair.second.second < 0){
 		//notComplete = true;
-                //LiftViaILP(Integers, Bounds);
+                LiftViaILP(Integers, Bounds);
                  newEqualitySinceGB = false;
                  return true;
             }
@@ -3048,7 +3048,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         for (auto poly: equalities){
             if (poly[0].getKind() == Kind::ADD && checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
                if (!checkIfConstraintIsMet(poly, modulos, Bounds)){
-                    //LiftViaILP(Integers, Bounds);
+                    LiftViaILP(Integers, Bounds);
                     newEqualitySinceGB = false;
                     return true;
                }
