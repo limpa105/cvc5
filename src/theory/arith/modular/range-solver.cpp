@@ -3012,10 +3012,10 @@ bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<I
 bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds, bool WeightedGB, int startLearningLemmas){
     NodeManager* nm = NodeManager::currentNM();
     //std::cout << "LIFTING FOR: " << modulos << "\n";
-    // if (equalities.size()>0 && newEqualitySinceGB){
-    //      LiftViaILP(Integers, Bounds);
-    // }
-    Lift(Integers, Bounds,startLearningLemmas);
+    if (equalities.size()>0 && newEqualitySinceGB){
+         LiftViaILP(Integers, Bounds);
+    }
+    //Lift(Integers, Bounds,startLearningLemmas);
     if (newEqualitySinceGB && !ranGB && !GBTimedOut){
         if(!runGB(Bounds)){
             GBTimedOut = true;
@@ -3040,7 +3040,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         for (auto pair: Bounds){
             if (pair.second.first > 0 || pair.second.second < 0){
 		//notComplete = true;
-                LiftViaILP(Integers, Bounds);
+                //LiftViaILP(Integers, Bounds);
                  newEqualitySinceGB = false;
                  return true;
             }
@@ -3048,7 +3048,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         for (auto poly: equalities){
             if (poly[0].getKind() == Kind::ADD && checkIfConstraintIsMet(poly[0][0], modulos, Bounds)){
                if (!checkIfConstraintIsMet(poly, modulos, Bounds)){
-                    LiftViaILP(Integers, Bounds);
+                    //LiftViaILP(Integers, Bounds);
                     newEqualitySinceGB = false;
                     return true;
                }
