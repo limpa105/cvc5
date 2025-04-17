@@ -3638,7 +3638,7 @@ bool RangeSolver::addAssignment(Node asgn, Field *f){
 
 Node replaceMMMod(Node exp, NodeManager* nm){
     if (exp.getKind() == Kind::MM_MOD){
-        return nm->mkNode(Kind::INTS_MODULUS, exp[0], exp[1]);
+        return nm->mkNode(Kind::INTS_MODULUS_TOTAL, exp[0], exp[1]);
     }
     if (exp.getNumChildren() == 0) {
         return exp;
@@ -3802,7 +3802,7 @@ Result RangeSolver::Solve(const std::vector<Node>& assertions,
         for (auto& as: false_asserts){
              //as = replaceMMMod(as, nm);
              //std::cout << as << "\n";
-             d_im.lemma(nm->mkNode(Kind::EQUAL, replaceMMMod(as, nm), as), InferenceId::ARITH_BLACK_BOX);
+             d_im.lemma(nm->mkNode(Kind::EQUAL, replaceMMMod(as, nm)[0], as[0]), InferenceId::ARITH_BLACK_BOX);
              //d_iqm.lemma(replaceMMMod(as, nm), InferenceId::ARITH_BLACK_BOX);
             //replaceMMMod
         }

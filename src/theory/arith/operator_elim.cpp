@@ -78,6 +78,8 @@ Node OperatorElim::eliminateOperators(Node node,
                                       TConvProofGenerator* tg,
                                       bool partialOnly)
 {
+  Trace("elimnator") << "Eliminating:" << node <<  ", and kind" << node.getKind() << "and the value of partial"
+                         << partialOnly << std::endl;
   NodeManager* nm = NodeManager::currentNM();
   SkolemManager* sm = nm->getSkolemManager();
   Kind k = node.getKind();
@@ -126,11 +128,10 @@ Node OperatorElim::eliminateOperators(Node node,
         // not eliminating total operators
         return node;
       }
+       Trace("elimnator") << "we got to INST_MODULUS_TOTAL" << std::endl;
        Node den = rewrite(node[1]);
        Node num = rewrite(node[0]);
        Node rw = nm->mkNode(k, num, den);
-       return rw;
-       break;
     //}
       // we use the purification skolem for div
       Node pterm = nm->mkNode(Kind::INTS_DIVISION_TOTAL, node[0], node[1]);
