@@ -1917,6 +1917,7 @@
 (define-fun tmp26 () Bool (= (mod (- y6 x6) 2013265921) 0))
 (define-fun tmp27 () Bool (not tmp26))
 (assert tmp27)
+; below help with conflicts
 (assert (or (=  _n96 0) (= _n96 1)))
 (assert (or (= _n98 0) (= _n98 1)))
 

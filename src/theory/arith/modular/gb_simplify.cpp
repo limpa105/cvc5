@@ -105,8 +105,8 @@ std::string runSingular(std::string program)
   //std::cout << program << "\n";
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
-  //commandStream << "Singular -q -t " << input << " > " << output;
-  commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
+  commandStream << "Singular -q -t " << input << " > " << output;
+  //commandStream << "/barrett/scratch/aozdemir/singular/bin/Singular -q -t " << input << " > " << output;
   std::string command = commandStream.str();
   int exitCode = std::system(command.c_str());
   Assert(exitCode == 0) << "Singular errored\nCommand: " << command;

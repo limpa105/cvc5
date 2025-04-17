@@ -291,6 +291,7 @@ void TheoryArith::postCheck(Effort level)
       std::cout << "Why am I not unsat?\n";
       int originalSize = conflicts.size();
       std::vector<Node> currentConflict = conflicts;
+      return;
 
 bool changed = true;
 std::cout << conflicts.size() << "\n";
@@ -335,7 +336,7 @@ while (changed && currentConflict.size() > 1) {
                   if ( d_modularExtension->minConflicts.get()  == 0){
                       d_modularExtension->minConflicts = currentConflict.size();
                   } else {
-                  d_modularExtension->minConflicts = std::min( static_cast<long>(currentConflict.size()),d_modularExtension->minConflicts.get());
+                  d_modularExtension->minConflicts = std::min( static_cast<long long>(currentConflict.size()),d_modularExtension->minConflicts.get());
                   }
                   //d_modularExtension->conflictGB.set(currentConflict);
                   changed = true;
