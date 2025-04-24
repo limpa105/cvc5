@@ -56,6 +56,8 @@ enum class InferStep
   /** An initial POW2 check */
   POW2_INITIAL,
 
+  /** Running the Range Mod Solver */
+  MM_MOD_FULL, 
   /** An ICP check */
 
   ICP,

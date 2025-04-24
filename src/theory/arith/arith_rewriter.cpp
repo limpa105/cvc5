@@ -489,6 +489,7 @@ RewriteResponse ArithRewriter::preRewriteTerm(TNode t){
       case Kind::TO_INTEGER:
       case Kind::TO_REAL:
       case Kind::POW:
+      case Kind::MM_MOD:
       case Kind::PI: return RewriteResponse(REWRITE_DONE, t);
       default: Unhandled() << k;
     }
@@ -518,7 +519,8 @@ RewriteResponse ArithRewriter::postRewriteTerm(TNode t){
       case Kind::INTS_DIVISION:
       case Kind::INTS_MODULUS: return rewriteIntsDivMod(t, false);
       case Kind::INTS_DIVISION_TOTAL:
-      case Kind::INTS_MODULUS_TOTAL: return rewriteIntsDivModTotal(t, false);
+      case Kind::INTS_MODULUS_TOTAL:
+      case Kind::MM_MOD: return rewriteIntsDivModTotal(t, false);
       case Kind::ABS: return rewriteAbs(t);
       case Kind::TO_REAL: return rewriteToReal(t);
       case Kind::TO_INTEGER: return rewriteExtIntegerOp(t);
@@ -549,6 +551,7 @@ RewriteResponse ArithRewriter::postRewriteTerm(TNode t){
       case Kind::SQRT:
       case Kind::IAND:
       case Kind::POW2: return postRewriteExpert(t);
+
       default: Unreachable();
     }
   }
@@ -961,19 +964,20 @@ RewriteResponse ArithRewriter::rewriteIntsDivModTotal(TNode t, bool pre)
   }
   NodeManager* nm = nodeManager();
   Kind k = t.getKind();
-  Assert(k == Kind::INTS_MODULUS_TOTAL || k == Kind::INTS_DIVISION_TOTAL);
+  bool isMod = (k == Kind::INTS_MODULUS_TOTAL || k == Kind::MM_MOD);
+  Assert(isMod || k == Kind::INTS_DIVISION_TOTAL);
   TNode n = t[0];
   TNode d = t[1];
   bool dIsConstant = d.isConst();
   if (dIsConstant && d.getConst<Rational>().isZero())
   {
     // (div_total x 0) ---> 0 or (mod_total x 0) ---> x
-    Node ret = k == Kind::INTS_MODULUS_TOTAL ? Node(t[0]) : nm->mkConstInt(0);
+    Node ret = isMod ? Node(t[0]) : nm->mkConstInt(0);
     return returnRewrite(t, ret, Rewrite::DIV_MOD_BY_ZERO);
   }
   else if (dIsConstant && d.getConst<Rational>().isOne())
   {
-    if (k == Kind::INTS_MODULUS_TOTAL)
+    if (isMod)
     {
       // (mod_total x 1) --> 0
       return returnRewrite(t, nm->mkConstInt(0), Rewrite::MOD_BY_ONE);
@@ -1011,12 +1015,12 @@ RewriteResponse ArithRewriter::rewriteIntsDivModTotal(TNode t, bool pre)
     Node resultNode = nm->mkConstInt(Rational(result));
     return returnRewrite(t, resultNode, Rewrite::CONST_EVAL);
   }
-  if (k == Kind::INTS_MODULUS_TOTAL)
+  if (isMod)
   {
     // Note these rewrites do not need to account for modulus by zero as being
     // a UF, which is handled by the reduction of INTS_MODULUS.
     Kind k0 = t[0].getKind();
-    if (k0 == Kind::INTS_MODULUS_TOTAL && t[0][1] == t[1])
+    if ((k0 == Kind::INTS_MODULUS_TOTAL || k0 ==Kind::MM_MOD) && t[0][1] == t[1])
     {
       // (mod_total (mod_total x c) c) --> (mod x c)
       return returnRewrite(t, t[0], Rewrite::MOD_OVER_MOD);
@@ -1028,7 +1032,7 @@ RewriteResponse ArithRewriter::rewriteIntsDivModTotal(TNode t, bool pre)
       bool childChanged = false;
       for (const Node& tc : t[0])
       {
-        if (tc.getKind() == Kind::INTS_MODULUS_TOTAL && tc[1] == t[1])
+        if ((tc.getKind() == Kind::INTS_MODULUS_TOTAL || tc.getKind() == Kind::MM_MOD) && tc[1] == t[1])
         {
           newChildren.push_back(tc[0]);
           childChanged = true;
@@ -1052,7 +1056,7 @@ RewriteResponse ArithRewriter::rewriteIntsDivModTotal(TNode t, bool pre)
     Assert(k == Kind::INTS_DIVISION_TOTAL);
     // Note these rewrites do not need to account for division by zero as being
     // a UF, which is handled by the reduction of INTS_DIVISION.
-    if (t[0].getKind() == Kind::INTS_MODULUS_TOTAL && t[0][1] == t[1])
+    if ((t[0].getKind() == Kind::INTS_MODULUS_TOTAL || t[0].getKind()==Kind::MM_MOD) && t[0][1] == t[1])
     {
       // (div_total (mod_total x c) c) --> 0
       Node ret = nm->mkConstInt(0);

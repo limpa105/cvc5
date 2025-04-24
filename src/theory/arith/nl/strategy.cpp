@@ -132,6 +132,9 @@ void Strategy::initializeStrategy(const Options& options)
   one << InferStep::IAND_INITIAL << InferStep::BREAK;
   one << InferStep::POW2_INIT;
   one << InferStep::POW2_INITIAL << InferStep::BREAK;
+  if (options.arith.modularRangeSolver){
+    one << InferStep::MM_MOD_FULL << InferStep::BREAK;
+  }
   if (options.arith.nlExt == options::NlExtMode::FULL
       || options.arith.nlExt == options::NlExtMode::LIGHT)
   {
@@ -172,6 +175,7 @@ void Strategy::initializeStrategy(const Options& options)
   }
   one << InferStep::IAND_FULL << InferStep::BREAK;
   one << InferStep::POW2_FULL << InferStep::BREAK;
+  //
   if (options.arith.nlCov)
   {
     one << InferStep::COVERINGS_INIT << InferStep::BREAK;

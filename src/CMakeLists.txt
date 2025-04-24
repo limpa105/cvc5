@@ -128,6 +128,10 @@ libcvc5_add_sources(
   preprocessing/passes/theory_preprocess.h
   preprocessing/passes/unconstrained_simplifier.cpp
   preprocessing/passes/unconstrained_simplifier.h
+  preprocessing/passes/nia_intro_mm_mod.cpp
+  preprocessing/passes/nia_intro_mm_mod.h
+  preprocessing/passes/int_range_or.cpp
+  preprocessing/passes/int_range_or.h
   preprocessing/preprocessing_pass.cpp
   preprocessing/preprocessing_pass.h
   preprocessing/preprocessing_pass_context.cpp
@@ -525,6 +529,20 @@ libcvc5_add_sources(
   theory/arith/nl/poly_conversion.h
   theory/arith/nl/pow2_solver.cpp
   theory/arith/nl/pow2_solver.h
+  theory/arith/nl/modular_ext/mod_range_solver.cpp
+  theory/arith/nl/modular_ext/mod_range_solver.h
+  theory/arith/nl/modular_ext/ring.cpp
+  theory/arith/nl/modular_ext/ring.h
+  theory/arith/nl/modular_ext/integer_ring.cpp
+  theory/arith/nl/modular_ext/integer_ring.h
+  theory/arith/nl/modular_ext/modular_ring.cpp
+  theory/arith/nl/modular_ext/modular_ring.h
+  theory/arith/nl/modular_ext/bounds.cpp
+  theory/arith/nl/modular_ext/bounds.h
+  theory/arith/nl/modular_ext/utils.cpp
+  theory/arith/nl/modular_ext/utils.h
+  theory/arith/nl/modular_ext/int_cocoa_encoder.h
+  theory/arith/nl/modular_ext/int_cocoa_encoder.cpp
   theory/arith/nl/stats.cpp
   theory/arith/nl/stats.h
   theory/arith/nl/strategy.cpp

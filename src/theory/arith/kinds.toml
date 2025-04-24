@@ -116,6 +116,13 @@ typerule = "::cvc5::internal::theory::arith::ArithOperatorTypeRule"
 
 [[kinds]]
 type     = "operator"
+name     = "MM_MOD"
+children = 2
+comment  = "arithmetic ring mod"
+typerule = "SimpleTypeRule<RInteger, AInteger, AInteger>"
+
+[[kinds]]
+type     = "operator"
 name     = "POW2"
 children = 1
 comment  = "arithmetic power of 2"

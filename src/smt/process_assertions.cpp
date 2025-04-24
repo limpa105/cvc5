@@ -198,6 +198,16 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   {
     applyPass("foreign-theory-rewrite", ap);
   }
+    if (options().arith.modularRangeSolver && options().arith.intRangeOr)
+  {
+    applyPass("int-range-or", ap);
+  }
+
+  if (options().arith.modularRangeSolver && options().arith.niaIntroMmMod)
+  {
+    applyPass("nia-intro-mm-mod", ap);
+  }
+
 
   // Assertions MUST BE guaranteed to be rewritten by this point
   applyPass("rewrite", ap);

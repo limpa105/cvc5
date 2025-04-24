@@ -528,6 +528,7 @@ EvalResult Evaluator::evalInternal(
         case Kind::INTS_DIVISION:
         case Kind::INTS_DIVISION_TOTAL:
         case Kind::INTS_MODULUS:
+        case Kind::MM_MOD:
         case Kind::INTS_MODULUS_TOTAL:
         {
           Rational res = results[currNode[0]].d_rat;
@@ -535,7 +536,7 @@ EvalResult Evaluator::evalInternal(
           Kind k = currNodeVal.getKind();
           bool isReal = (k == Kind::DIVISION || k == Kind::DIVISION_TOTAL);
           bool isMod =
-              (k == Kind::INTS_MODULUS || k == Kind::INTS_MODULUS_TOTAL);
+              (k == Kind::INTS_MODULUS || k == Kind::INTS_MODULUS_TOTAL || k == Kind::MM_MOD);
           for (size_t i = 1, end = currNode.getNumChildren(); i < end; i++)
           {
             if (results[currNode[i]].d_rat.isZero())

@@ -242,6 +242,7 @@ public:
      case Kind::IAND:
      case Kind::POW2:
      case Kind::POW:
+     case Kind::MM_MOD:
      case Kind::EXPONENTIAL:
      case Kind::SINE:
      case Kind::COSINE:
