@@ -23,12 +23,30 @@ namespace modular_range_solver {
 class Field;
 class RangeSolver;
 
+enum unsatReason {
+    DISEQ, 
+    GB, 
+    BD,
+};
 
 
 class IntegerField: protected EnvObj{
     public:
 
+
+        std::pair<unsatReason, std::string> causeOfUnsat;
+
+        std::vector<int> minimalUnsat; 
+
+        std::set<std::string> MyVars; 
+
         std::string mySingularReduce = "";
+
+        std::vector<std::string> origin;
+
+        std::vector<std::string> origin_diseq;
+
+        std::map<std::string, std::string> oldGBs;
 
         bool GBTimedOut = false;
 
@@ -64,13 +82,13 @@ class IntegerField: protected EnvObj{
 
         bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > &Bounds);
 
-        bool runGB();
+        bool runGB(std::vector<int> indexes = std::vector<int>());
 
         bool checkUnsatDiseq();
 
-        bool reduceAgainstGB(Node eq);
+        bool reduceAgainstGB(Node eq, bool cores = false);
 
-        void addEquality(Node equality, bool GBAddition);
+        void addEquality(Node equality, bool GBAddition, std::string loc = "");
 
         void clearEqualities(){equalities.clear();};
 
@@ -88,7 +106,7 @@ class IntegerField: protected EnvObj{
 
         Result status = Result::UNKNOWN;
 
-        void clearAll(){inequalities.clear(); equalities.clear(); status=Result::UNKNOWN;};
+        void clearAll(){inequalities.clear(); equalities.clear(); origin.clear(), origin_diseq.clear(), status=Result::UNKNOWN;};
 
 
 
@@ -97,17 +115,23 @@ class IntegerField: protected EnvObj{
 class Field:  protected EnvObj {
     public:   
 
+        std::pair<unsatReason, std::string> causeOfUnsat;
+
+        std::vector<int> minimalUnsat; 
+
+        std::set<std::string> MyVars; 
+
         std::vector<long> getWeights2(std::map<std::string, Node> variables, std::map<std::string, std::pair<Integer, Integer>> Bounds, bool weightedGB, std::set<std::string> notVars);
 
         bool LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds);
 
         std::map<std::string, std::vector<Rational>> collectMonomials(IntegerField z, Field f, NodeManager* nm);
 
-        bool runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds);
+        bool runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, std::vector<int> indexes = std::vector<int>());
 
         bool checkUnsatDiseq();
 
-        bool reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, Node eq);
+        bool reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, Node eq, bool cores = false);
 
         int didGurobi = 0;
 
@@ -137,6 +161,12 @@ class Field:  protected EnvObj {
  
         std::vector<Node> equalities;
 
+        std::vector<std::string> origin;
+
+        std::vector<std::string> origin_diseq;
+
+        std::map<std::string, std::string> oldGBs;
+
         std::vector<Node> ALLequalities;
 
         std::vector<Node> inequalities;
@@ -145,7 +175,7 @@ class Field:  protected EnvObj {
 
         std::vector<Node> old_inequalities;
 
-        void addEquality(Node equality, bool inField,  bool GBAddition=false);
+        void addEquality(Node equality, bool inField,  bool GBAddition=false, std::string loc="" );
 
         void clearEqualities(){equalities.clear();};
 
@@ -167,7 +197,7 @@ class Field:  protected EnvObj {
 
         std::vector<Node> lemmas;
 
-        void clearAll(){inequalities.clear(); equalities.clear(); lemmas.clear(); status=Result::UNKNOWN;};
+        void clearAll(){inequalities.clear(); equalities.clear(); lemmas.clear();  origin.clear(); origin_diseq.clear(); status=Result::UNKNOWN;};
 
         void Lift(IntegerField& integerField, std::map<std::string, std::pair<Integer, Integer> > Bounds, int LearnLemmas);
 
@@ -183,6 +213,21 @@ class Field:  protected EnvObj {
 class RangeSolver : protected EnvObj
 {
     public:
+
+           // === Explanation + Unsat Core ===
+        std::vector<std::pair<int,Node>>  explainExp(Integer modulus, std::string GB, Node exp);
+        std::vector<std::pair<int,Node>>  explainGen(Integer modulus, std::string GB, int loc);
+        void getUnsatCore(Integer modulus);
+
+    // === GB Fact Unfolding ===
+        std::vector<std::pair<int,Node>>  processOldGBs(const std::map<std::string, std::string>& oldGBs, const std::string& key);
+
+    // === Fact Collection Utilities ===
+        std::vector<std::pair<int,Node>> collectCores(const std::vector<std::string>& input, Integer modulus);
+        std::vector<std::pair<int,Node>>  processOldGBs(std::map<std::string, std::string>& oldGBs,std::string& key);
+
+        Node fakeProcessFact(Node fact);
+
 
         IntStat completeGB ;
 
@@ -210,6 +255,8 @@ class RangeSolver : protected EnvObj
 
         std::map<std::string, std::pair<Integer, Integer> > Bounds;
 
+        std::map<std::string, std::string> BoundsTracker;
+
         void notifyFact(TNode fact);
 
         Result postCheck(Theory::Effort);
@@ -218,7 +265,7 @@ class RangeSolver : protected EnvObj
 
         void preRegisterTerm(TNode node);
 
-        void processFact(TNode node);
+        void processFact(TNode node, int loc);
 
        std::vector<Node>& conflict() ;
 

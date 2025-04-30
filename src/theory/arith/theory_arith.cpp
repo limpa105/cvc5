@@ -250,11 +250,15 @@ void TheoryArith::postCheck(Effort level)
     if (Theory::fullEffort(level)){
     auto result = d_modularExtension->postCheck(level);
     if (result.getStatus() == Result::UNSAT){
+      std::cout << "we got here :)\n";
       NodeManager* nm = NodeManager::currentNM();
-      const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->conflict());
+      AlwaysAssert(d_modularExtension->d_conflict.size()>0);
+      const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->d_conflict);
+      for (auto i: d_modularExtension->d_conflict){
+        std::cout << i << "\n";
+      }
       d_im.conflict(conflict, InferenceId::FF_LEMMA);
-      conflictCount +=1;
-      std::cout << "CONFLICT COUNT" << conflictCount << "\n";
+      std::cout << "CONFLICT" << conflict << "\n";
       //std::cout << "Why am I not unsat?\n";
       //std::cout << conflict << "\n";
       // if (conflictCount == 1){

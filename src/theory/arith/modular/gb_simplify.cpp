@@ -58,6 +58,9 @@ std::string singular_command_weighted_integers = " LIB \"general.lib\"; ring r =
 std::string singular_command_reduce_integers = "ring r = integer, ({2}), (dp); ideal I= {5}; reduce({6}, I); quit;";
 
 std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; reduce({6}, I); quit;";
+std::string singular_command_liftstd = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; lift(std(I), {6}); quit;";
+std::string singular_command_liftstd_gb = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; matrix T; liftstd(I, T);";
+
 std::string singular_command_unweighted = "ring r = (integer, {1}), ({2}), (dp); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
 std::string singular_command_reduce_uw = "ring r = (integer, {1}), ({2}), (dp); ideal I= {5}; reduce({6}, I); quit;";
 
@@ -98,6 +101,60 @@ std::string readFileToString(std::filesystem::path path)
   return buffer.str();
 }
 
+
+std::vector<int> parseGenNumbers(const std::string& singularOutput) {
+    std::vector<int> gens;
+    size_t pos = 0;
+
+    while ((pos = singularOutput.find("gen(", pos)) != std::string::npos) {
+        size_t start = pos + 4; // after 'gen('
+        size_t end = singularOutput.find(')', start);
+        if (end != std::string::npos) {
+            std::string numberStr = singularOutput.substr(start, end - start);
+            gens.push_back(std::stoi(numberStr));
+            pos = end + 1; // continue search after ')'
+        } else {
+            break; // if no closing ')', stop
+        }
+    }
+    return gens;
+}
+
+std::vector<int> parseNonzeroIndices(const std::string& singularOutput) {
+    std::vector<int> indices;
+    std::stringstream ss(singularOutput);
+    std::string line;
+
+    while (std::getline(ss, line)) {
+        if (line.empty()) continue;
+
+        size_t underscore = line.find('_');
+        size_t comma = line.find(',', underscore);
+        size_t endBracket = line.find(']', comma);
+
+        if (underscore == std::string::npos || comma == std::string::npos || endBracket == std::string::npos) {
+            continue; // malformed line, skip
+        }
+
+        std::string indexStr = line.substr(underscore + 2, comma - underscore - 2);
+        int index = std::stoi(indexStr);
+
+        size_t equalSign = line.find('=', endBracket);
+        if (equalSign == std::string::npos) continue;
+
+        std::string valueStr = line.substr(equalSign + 1);
+        int value = std::stoi(valueStr);
+
+        if (value != 0) {
+            indices.push_back(index);
+        }
+    }
+    return indices;
+}
+
+
+
+
 /** Run Singular on this program and return the output. */
 std::string runSingular(std::string program)
 {
@@ -115,6 +172,7 @@ std::string runSingular(std::string program)
                                                         << outputContents;
   std::filesystem::remove(output);
   std::filesystem::remove(input);
+  std::cout << outputContents << "\n";
   return outputContents;
 }
 
@@ -246,7 +304,7 @@ std::string ReplaceGBStringInput(std::string old, std::string input, std::string
     return input;
 }
 
-bool IntegerField::runGB(){
+bool IntegerField::runGB(std::vector<int> indexes){
     if (equalities.size() < 1) {
         return true;
     }
@@ -280,6 +338,7 @@ bool IntegerField::runGB(){
     std::shared_ptr<bool> done = std::make_shared<bool>(false);
     std::mutex resultMutex;
     (*solver).totalGBtry +=1;
+    std::cout << "RUNNING SINGULAR" << oldGBs.size() << "\n";
     auto future = std::async(std::launch::async, [&]() {
         auto res = runSingular(line);
         {
@@ -317,8 +376,33 @@ bool IntegerField::runGB(){
         GBPolys.push_back(nm->mkNode(Kind::EQUAL, 
         nm->mkNode(Kind::ADD, products), nm->mkConstInt(0)));
     }
-    clearEqualities();
+    //clearEqualities();
+    //bool dif = false;
+
+    // clearEqualities();
+    // std::string inGB = "";
+    // for(auto i: origin){
+    //     inGB += "," + i;
+    // }
+    // oldGBs["GB"+std::to_string(oldGBs.size())] = inGB;
+    // origin.clear();
+    // int locCounter = 0;
     for (Node poly: GBPolys){
+                //std::cout << "New Poly F:" << poly << "\n";
+        // if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
+        //     rewrite(poly).getConst<bool>() == false){
+        //          status = Result::UNSAT;
+        //          std::cout << "UNSAT\n";
+        //             return true;
+        //         }
+//            if (std::find(equalities.begin(), equalities.end(), rewrite(poly)) != equalities.end())
+// {
+//                 dif = true;
+//             }
+            //addEquality(rewrite(poly), true);
+        //}
+    //if (dif){
+        //for (Node poly: GBPolys){
                 //std::cout << "New Poly F:" << poly << "\n";
         if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
             rewrite(poly).getConst<bool>() == false){
@@ -326,12 +410,15 @@ bool IntegerField::runGB(){
                  std::cout << "UNSAT\n";
                     return true;
                 }
-            addEquality(rewrite(poly), true);
+            // addEquality(rewrite(poly), true);
+            // origin.push_back("GB"+std::to_string(oldGBs.size()-1) + "_" + std::to_string(locCounter));
+            // locCounter+=1;
         }
+    //}
     return true;
 }
 
-bool IntegerField::reduceAgainstGB(Node eq){
+bool IntegerField::reduceAgainstGB(Node eq, bool cores){
     std::string line;
     std::stringstream ss;
     if (equalities.size() < 1){
@@ -413,7 +500,7 @@ bool IntegerField::reduceAgainstGB(Node eq){
         return false;
 }
 
-bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
+bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, std::vector<int> indexes){
     //std::cout << "Starting GB in Field\n";
     //std::cout << "Computing GB in Fields\n";
     if (equalities.size() < 1){
@@ -423,6 +510,9 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
     std::vector<long> weights = getWeights2((*solver).myVariables, Bounds, false, (*solver).myNotVars);
     std::string line;
     line = singular_command_weighted;
+    if (indexes.size() > 0){
+        line = singular_command_liftstd_gb;
+    }
     std::stringstream ss;
     ss << modulos;
     line = ReplaceGBStringInput("{1}", line, ss);
@@ -456,11 +546,19 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
     line = ReplaceGBStringInput("{5}", line, ss);
     ss.str("");
     ss.clear();
+    if (indexes.size() > 0) {
+    for (auto i : indexes) {
+        // SOMEHOW FIGURE OUT HOW TO GET + in here 
+        line += " T[" + std::to_string(i) + "]";
+    }
+         line += "; quit;";
+    }
     std::string output = "";
     auto result = std::make_shared<std::string>("");
     std::shared_ptr<bool> done = std::make_shared<bool>(false);
     std::mutex resultMutex;
     (*solver).totalGBtry +=1;
+    std::cout << "RUNNING SINGULAR" << oldGBs.size() << "\n";
     auto future = std::async(std::launch::async, [&]() {
         auto res = runSingular(line);
         {
@@ -485,8 +583,17 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
         (*solver).timeoutGB +=1;
         return false;
     }
+    if (indexes.size() > 0){
+        std::cout << "HUH\n";
+        std::vector<int> result = parseGenNumbers(output);
+        std::cout << result.size() << "\n";
+        for (auto i: result){
+            minimalUnsat.push_back(i);
+        }
+        return true;
+    }
     std::vector<Polynomial> polys = parsePolynomialList(output);
-    clearEqualities();
+    //clearEqualities();
     std::vector<Node> GBPolys;
     for (auto p: polys){
         std::vector<Node> products;
@@ -496,29 +603,64 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds){
         }
         GBPolys.push_back(nm->mkNode(Kind::EQUAL, 
         nm->mkNode(Kind::ADD, products), nm->mkConstInt(0)));
-    }
-    clearEqualities();
-    for (Node poly: GBPolys){
+   }
+     //bool dif = false;
+     if (GBPolys.size() > 1 || rewrite(GBPolys[0]).getKind() != Kind::CONST_BOOLEAN ) {
+        clearEqualities();
+        std::string inGB = "";
+        for(auto i: origin){
+            inGB += i ;
+            inGB += ",";
+        }
+        oldGBs["GB"+std::to_string(oldGBs.size())] = inGB;
+        origin.clear();
+     }
+        int locCounter = 0;
+     for (Node poly: GBPolys){
+//                 //std::cout << "New Poly F:" << poly << "\n";
+//         if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
+//             rewrite(poly).getConst<bool>() == false){
+//                  status = Result::UNSAT;
+//                  std::cout << "UNSAT\n";
+//                     return true;
+//                 }
+//            if (std::find(equalities.begin(), equalities.end(), rewrite(poly)) != equalities.end())
+// {
+//                 dif = true;
+//             }
+//             //addEquality(rewrite(poly), true);
+//         }
+    // if (dif){
+        //for (Node poly: GBPolys){e
                 //std::cout << "New Poly F:" << poly << "\n";
         if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
             rewrite(poly).getConst<bool>() == false){
                  status = Result::UNSAT;
+                 causeOfUnsat = std::make_pair(GB, 0);
+                 std::cout << "UNSAT\n";
                     return true;
                 }
-            addEquality(rewrite(poly), false, true);
-        }
+            addEquality(rewrite(poly),false, true);
+            origin.push_back("GB"+std::to_string(oldGBs.size()-1) + "_" + std::to_string(locCounter));
+            locCounter+=1;
+        //}
+    }
+    // }
     return true;
 }
 
-bool Field::reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, Node eq){
+bool Field::reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, Node eq, bool cores){
     std::string line;
     std::stringstream ss;
     if (equalities.size() < 1){
         return false;
     }
     NodeManager* nm = NodeManager::currentNM();
-    if (mySingularReduce.empty()){
+    if (mySingularReduce.empty() || cores){
         line = singular_command_reduce;
+        if (cores){
+            line = singular_command_liftstd;
+        }
         //std::vector<long> weights = getWeights((*solver).myVariables, Bounds, false, (*solver).myNotVars);
         std::vector<long> weights = getWeights2((*solver).myVariables, Bounds, false, (*solver).myNotVars);
         ss.str("");
@@ -552,7 +694,6 @@ bool Field::reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > 
             }
         }
         line = ReplaceGBStringInput("{5}", line, ss);
-
     } else {
         line = mySingularReduce;
     }
@@ -564,6 +705,7 @@ bool Field::reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > 
     auto result = std::make_shared<std::string>("");
     std::shared_ptr<bool> done = std::make_shared<bool>(false);
     std::mutex resultMutex;
+    //std::cout << "RUNNING SINGULAR" << oldGBs.size() << "\n";
     auto future = std::async(std::launch::async, [&]() {
     auto res = runSingular(line);
         {
@@ -587,6 +729,11 @@ bool Field::reduceAgainstGB(std::map<std::string, std::pair<Integer, Integer> > 
         if (output.empty()){
             // It shouldn't take longer than 60 seconds to reduce..
             AlwaysAssert(false);
+        }
+        if (cores){
+        std::vector<int> indexes = parseNonzeroIndices(output);
+        runGB(Bounds, indexes);
+        return true;
         }
         if (output == "0\n"){
             return true;
@@ -689,6 +836,7 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
     std::mutex resultMutex;
     //std::cout << "Running Singular\n";
     // Launch the function asynchronously
+    //std::cout << "RUNNING SINGULAR" << oldGBs.size() << "\n";
     auto future = std::async(std::launch::async, [&]() {
         auto res = runSingular(line);
         {
