@@ -106,7 +106,7 @@ class IntegerField: protected EnvObj{
 
         Result status = Result::UNKNOWN;
 
-        void clearAll(){inequalities.clear(); equalities.clear(); origin.clear(), origin_diseq.clear(), status=Result::UNKNOWN;};
+        void clearAll(){inequalities.clear(); equalities.clear(); origin.clear(), origin_diseq.clear(), oldGBs.clear(), status=Result::UNKNOWN;};
 
 
 
@@ -197,7 +197,7 @@ class Field:  protected EnvObj {
 
         std::vector<Node> lemmas;
 
-        void clearAll(){inequalities.clear(); equalities.clear(); lemmas.clear();  origin.clear(); origin_diseq.clear(); status=Result::UNKNOWN;};
+        void clearAll(){inequalities.clear(); equalities.clear(); lemmas.clear();  origin.clear(); origin_diseq.clear(); oldGBs.clear(); status=Result::UNKNOWN;};
 
         void Lift(IntegerField& integerField, std::map<std::string, std::pair<Integer, Integer> > Bounds, int LearnLemmas);
 
@@ -223,7 +223,7 @@ class RangeSolver : protected EnvObj
         std::vector<std::pair<int,Node>>  processOldGBs(const std::map<std::string, std::string>& oldGBs, const std::string& key);
 
     // === Fact Collection Utilities ===
-        std::vector<std::pair<int,Node>> collectCores(const std::vector<std::string>& input, Integer modulus);
+        std::vector<std::pair<int,Node>> collectCores(std::string input);
         std::vector<std::pair<int,Node>>  processOldGBs(std::map<std::string, std::string>& oldGBs,std::string& key);
 
         Node fakeProcessFact(Node fact);
@@ -259,7 +259,7 @@ class RangeSolver : protected EnvObj
 
         void notifyFact(TNode fact);
 
-        Result postCheck(Theory::Effort);
+        Result postCheck(Theory::Effort, std::vector<Node> debug = {});
 
         IntegerField integerField;
 
@@ -288,12 +288,13 @@ class RangeSolver : protected EnvObj
 
         void printSystemState();
 
+         context::CDList<Node> d_facts;
+
 
     private:
 
-        context::CDList<Node> d_facts;
 
-        Result Solve();
+        Result Solve(std::vector<Node> debug = {});
 
         
 

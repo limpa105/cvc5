@@ -59,7 +59,9 @@ std::string singular_command_reduce_integers = "ring r = integer, ({2}), (dp); i
 
 std::string singular_command_reduce = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; reduce({6}, I); quit;";
 std::string singular_command_liftstd = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; lift(std(I), {6}); quit;";
+std::string singular_command_liftstd_int = "ring r =(integer, ({2}), (dp);; ideal I= {5}; lift(std(I), {6}); quit;";
 std::string singular_command_liftstd_gb = "ring r = (integer, {1}), ({2}), (wp({4})); ideal I= {5}; matrix T; liftstd(I, T);";
+std::string singular_command_liftstd_gb_int = "ring r = integer, ({2}), (dp); ideal I= {5}; matrix T; liftstd(I, T);";
 
 std::string singular_command_unweighted = "ring r = (integer, {1}), ({2}), (dp); option(redSB); ideal I= {5}; ideal G= std(I); G; quit;";
 std::string singular_command_reduce_uw = "ring r = (integer, {1}), ({2}), (dp); ideal I= {5}; reduce({6}, I); quit;";
@@ -172,7 +174,7 @@ std::string runSingular(std::string program)
                                                         << outputContents;
   std::filesystem::remove(output);
   std::filesystem::remove(input);
-  std::cout << outputContents << "\n";
+  //std::cout << outputContents << "\n";
   return outputContents;
 }
 
@@ -311,6 +313,9 @@ bool IntegerField::runGB(std::vector<int> indexes){
     //std::cout << "Computing GB in Integers\n";
     NodeManager* nm = NodeManager::currentNM();
     std::string line = singular_command_weighted_integers;
+     if (indexes.size() > 0){
+        line = singular_command_liftstd_gb_int;
+    }
     std::stringstream ss;
     int bound_count = 0;
     for (auto it =  (*solver).myVariables.begin(); it != (*solver).myVariables.end(); ++it) {
@@ -332,6 +337,13 @@ bool IntegerField::runGB(std::vector<int> indexes){
     line = ReplaceGBStringInput("{5}", line, ss);
     ss.str("");
     ss.clear();
+    if (indexes.size() > 0) {
+    for (auto i : indexes) {
+        // SOMEHOW FIGURE OUT HOW TO GET + in here 
+        line += " T[" + std::to_string(i) + "]";
+    }
+         line += "; quit;";
+    }
     std::string output = "";
     std::vector<Node> GBPolys;
     auto result = std::make_shared<std::string>("");
@@ -361,6 +373,15 @@ bool IntegerField::runGB(std::vector<int> indexes){
     }
     std::vector<Node> EmptyPolys;
     std::vector<Node> unsatPolys;
+    if (indexes.size() > 0){
+        //std::cout << "HUH\n";
+        std::vector<int> result = parseGenNumbers(output);
+        //td::cout << result.size() << "\n";
+        for (auto i: result){
+            minimalUnsat.push_back(i);
+        }
+        return true;
+    }
     if (output.empty()){
         (*solver).timeoutGB +=1;
         return false;
@@ -376,17 +397,17 @@ bool IntegerField::runGB(std::vector<int> indexes){
         GBPolys.push_back(nm->mkNode(Kind::EQUAL, 
         nm->mkNode(Kind::ADD, products), nm->mkConstInt(0)));
     }
-    //clearEqualities();
-    //bool dif = false;
-
-    // clearEqualities();
-    // std::string inGB = "";
-    // for(auto i: origin){
-    //     inGB += "," + i;
-    // }
-    // oldGBs["GB"+std::to_string(oldGBs.size())] = inGB;
-    // origin.clear();
-    // int locCounter = 0;
+    if (GBPolys.size() > 1 || rewrite(GBPolys[0]).getKind() != Kind::CONST_BOOLEAN ) {
+        clearEqualities();
+        std::string inGB = "";
+        for(auto i: origin){
+            inGB += i ;
+            inGB += ",";
+        }
+        oldGBs["GB"+std::to_string(oldGBs.size())] = inGB;
+        origin.clear();
+     }
+        int locCounter = 0;
     for (Node poly: GBPolys){
                 //std::cout << "New Poly F:" << poly << "\n";
         // if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
@@ -410,9 +431,9 @@ bool IntegerField::runGB(std::vector<int> indexes){
                  std::cout << "UNSAT\n";
                     return true;
                 }
-            // addEquality(rewrite(poly), true);
+            addEquality(rewrite(poly), true, "GB"+std::to_string(oldGBs.size()-1) + "_" + std::to_string(locCounter) + "_R0");
             // origin.push_back("GB"+std::to_string(oldGBs.size()-1) + "_" + std::to_string(locCounter));
-            // locCounter+=1;
+             locCounter+=1;
         }
     //}
     return true;
@@ -424,9 +445,13 @@ bool IntegerField::reduceAgainstGB(Node eq, bool cores){
     if (equalities.size() < 1){
         return false;
     }
+    
     NodeManager* nm = NodeManager::currentNM();
-    if (mySingularReduce.empty()){
+    if (mySingularReduce.empty() || cores){
         line = singular_command_reduce_integers;
+        if (cores){
+            line = singular_command_liftstd_int;
+        }
         ss.str("");
         ss.clear();
         for (auto it =  (*solver).myVariables.begin(); it != (*solver).myVariables.end(); ++it) {
@@ -480,6 +505,11 @@ bool IntegerField::reduceAgainstGB(Node eq, bool cores){
         if (output.empty()){
             // It shouldn't take longer than 60 seconds to reduce..
             AlwaysAssert(false);
+        }
+        if (cores){
+            std::vector<int> indexes = parseNonzeroIndices(output);
+            runGB(indexes);
+            return true;
         }
         if (output == "0\n"){
             return true;
@@ -584,9 +614,9 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, st
         return false;
     }
     if (indexes.size() > 0){
-        std::cout << "HUH\n";
+        //std::cout << "HUH\n";
         std::vector<int> result = parseGenNumbers(output);
-        std::cout << result.size() << "\n";
+        //td::cout << result.size() << "\n";
         for (auto i: result){
             minimalUnsat.push_back(i);
         }
@@ -640,8 +670,8 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, st
                  std::cout << "UNSAT\n";
                     return true;
                 }
-            addEquality(rewrite(poly),false, true);
-            origin.push_back("GB"+std::to_string(oldGBs.size()-1) + "_" + std::to_string(locCounter));
+            addEquality(rewrite(poly),false, true, "GB"+std::to_string(oldGBs.size()-1) + "_" + std::to_string(locCounter+1));
+            //origin.push_back("GB"+std::to_string(oldGBs.size()-1) + "_" + std::to_string(locCounter+1));
             locCounter+=1;
         //}
     }

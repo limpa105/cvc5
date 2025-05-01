@@ -30,6 +30,8 @@
 #include "theory/rewriter.h"
 #include "theory/theory_model.h"
 #include "util/cocoa_globals.h"
+#include "context/cdlist.h"
+#include "context/cdlist_forward.h"
 
 using namespace std;
 using namespace cvc5::internal::kind;
@@ -257,6 +259,11 @@ void TheoryArith::postCheck(Effort level)
       for (auto i: d_modularExtension->d_conflict){
         std::cout << i << "\n";
       }
+
+     
+    //  auto result2 = d_modularExtension->postCheck(level, d_modularExtension->d_conflict);
+    //  AlwaysAssert(result2 == Result::UNSAT);
+
       d_im.conflict(conflict, InferenceId::FF_LEMMA);
       std::cout << "CONFLICT" << conflict << "\n";
       //std::cout << "Why am I not unsat?\n";

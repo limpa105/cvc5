@@ -2231,7 +2231,12 @@ std::pair<Node, Node> IntegerField::separateTerms(const Node& node, std::string 
     }
 }
 
-
+// auto updateTracker = [&](std::string& targetVar, std::string& originExpr) {
+//     for (auto& var : getVarsHelper(originExpr)) {
+//         (*solver).BoundsTracker[targetVar] += "," + (*solver).BoundsTracker[var];
+//     }
+//     (*solver).BoundsTracker[targetVar] += originExpr;
+// };
 
 
 bool IntegerField::tightenBounds(std::map<std::string, std::pair<Integer, Integer> > &Bounds){
@@ -2245,6 +2250,7 @@ for (int i = 0; i < equalities.size(); i++) {
             //std::cout << "triggered\n";
             Integer value = equalities[i][1].getConst<Rational>().getNumerator();
             Bounds[equalities[i][0].getName()] = std::make_pair(value,value);
+             //updateTracker(targetVar, origin[i]);
             (*solver).BoundsTracker[equalities[i][0].getName()] += "," + origin[i];
             continue;
         }
@@ -2335,7 +2341,10 @@ for (int i = 0; i < equalities.size(); i++) {
             if (inferredBounds.second < Bounds[targetVar].second){
                 Bounds[targetVar].second = inferredBounds.second ;
                 newBound = true;
-                 (*solver).BoundsTracker[targetVar] += "," + origin[i];
+                for (auto& var : getVarsHelper(equalities[i])) {
+                    (*solver).BoundsTracker[targetVar] += "," + (*solver).BoundsTracker[var];
+                }
+                (*solver).BoundsTracker[targetVar] += "," + origin[i];
                 this->novelBound = true;
                 //std::cout << inferredBounds.second;
                 //std::cout << Bounds[targetVar].second;
@@ -2343,7 +2352,10 @@ for (int i = 0; i < equalities.size(); i++) {
             if (inferredBounds.first > Bounds[targetVar].first ){
                  Bounds[targetVar].first = inferredBounds.first;
                  this->novelBound = true;
-                  (*solver).BoundsTracker[targetVar] += "," + origin[i];
+                 for (auto& var : getVarsHelper(equalities[i])) {
+                    (*solver).BoundsTracker[targetVar] += "," + (*solver).BoundsTracker[var];
+                }
+                (*solver).BoundsTracker[targetVar] += "," + origin[i];
                  newBound = true;
                  //std::cout << inferredBounds.second;
                  //std::cout << Bounds[targetVar].second;
@@ -2351,7 +2363,10 @@ for (int i = 0; i < equalities.size(); i++) {
             //std::cout << "NewBounds " << Bounds[targetVar] << "\n";
             if (Bounds[targetVar].first > Bounds[targetVar].second){
                 std::cout << "BOUNDS ISSUE!!!";
-                 (*solver).BoundsTracker[targetVar] += "," + origin[i];
+                for (auto& var : getVarsHelper(equalities[i])) {
+                    (*solver).BoundsTracker[targetVar] += "," + (*solver).BoundsTracker[var];
+                }
+                (*solver).BoundsTracker[targetVar] += "," + origin[i];
                 std::cout << targetVar << "\n";
                 this->status = Result::UNSAT;
                 causeOfUnsat = std::make_pair(BD, targetVar);
@@ -2445,10 +2460,12 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     std::cout << "simplifying integers\n";
     NodeManager* nm = NodeManager::currentNM();
     tightenBounds(Bounds);
+    std::cout << "done tightening bounds\n";
     if (status == Result::UNSAT){
         std::cout << "INTEGER UNSAT DUE TO BOUNDS\n";
         return false;
     }
+    std::cout << "running GB for integers\n";
     if (newEqualitySinceGB && !ranGB && !GBTimedOut){
         //std::cout << "WE SHOULD BE HERE TM\n";
        if(!runGB()){
@@ -2459,6 +2476,7 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
         return false;
     }
     if (newEqualitySinceGB && (inequalities.size()>0)){
+        std::cout << "reducing diseq for integers\n";
     for(Node diseq: inequalities){
         //std::cout << diseq<< "\n";
         if (reduceAgainstGB(diseq)){
@@ -2595,7 +2613,7 @@ void IntegerField::addEquality(Node fact, bool GBAddition, std::string loc){
         equalities.push_back(fact);
         std::set<std::string> vars = getVarsHelper(fact);
         MyVars.insert(vars.begin(), vars.end());
-        //origin.push_back("R");
+        origin.push_back(loc);
         return;
     };
     return;
@@ -2952,6 +2970,7 @@ void Field::addEquality(Node fact, bool inField, bool GBAddition, std::string lo
         //origin.push_back("INT");  
         std::set<std::string> vars = getVarsHelper(fact);
         MyVars.insert(vars.begin(), vars.end());
+        origin.push_back(loc);
         //ALLequalities.push_back(fact);
         return;
         }
@@ -3187,6 +3206,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     //      LiftViaILP(Integers, Bounds);
     // }
     Lift(Integers, Bounds,startLearningLemmas);
+     std::cout << "runing gb for ring\n";
     if (newEqualitySinceGB && !ranGB && !GBTimedOut){
         if(!runGB(Bounds)){
             GBTimedOut = true;
@@ -3196,6 +3216,7 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
         return false;
     }
     if (newEqualitySinceGB && (inequalities.size()>0)){
+         std::cout << "reducing diseq for ring\n";
     int count = 0;
     for(Node diseq: inequalities){
         //std::cout << diseq<< "\n";
@@ -3386,7 +3407,11 @@ void Field::Lift(IntegerField& integerField, std::map<std::string, std::pair<Int
                 //eq = modOut(rewrite(eq));
                 if (checkIfConstraintIsMet(rewrite(eq), modulos, Bounds)){
                     //std::cout << "THIS ACTUALLY HELPED??\n";
-                    integerField.addEquality(eq, false, (origin[i] + "_R" + modulos.toString()));
+                    std::string core = origin[i] + "_R" + modulos.toString();
+                    for (auto& var : getVarsHelper(eq)) {
+                        core += "," + (*solver).BoundsTracker[var];
+                    }
+                    integerField.addEquality(eq, false, core);
                 }
                 // std::cout << "AFTER" << eq << "\n";
                 // std::cout << "AFTER" << rewrite(eq) << "\n";
@@ -3535,14 +3560,27 @@ void RangeSolver::preRegisterTerm(TNode node){
     }
 }
 
-
+std::string dedupCommaList(const std::string& s) {
+    std::set<std::string> parts;
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, ',')) {
+        if (!item.empty()) parts.insert(item);
+    }
+    std::string result;
+    for (const auto& part : parts) {
+        if (!result.empty()) result += ",";
+        result += part;
+    }
+    return result;
+}
 
 void RangeSolver::notifyFact(TNode fact){
     d_facts.emplace_back(fact); 
 }
 
 void RangeSolver::processFact(TNode fact, int loc){
-    //std::cout << "Fact" << fact << "\n";
+    //std::cout << "Fact" << fact << ", " << loc << "\n";
     NodeManager* nm = NodeManager::currentNM();
     if(fact.getKind() == Kind::GEQ && fact[0].getNumChildren()<=1){
         AlwaysAssert(fact[1].getKind()==Kind::CONST_INTEGER) << fact;
@@ -3697,8 +3735,10 @@ void RangeSolver::processFact(TNode fact, int loc){
             if (it != fields.end()) {
             //std::cout << "Adding Equality\n";
              it->second.addEquality(
-                nm->mkNode(Kind::EQUAL, fact[0][0], nm->mkConstInt(0)), false, true);
-             it->second.origin.push_back(std::to_string(loc));
+                nm->mkNode(Kind::EQUAL, fact[0][0], nm->mkConstInt(0)), false, true, std::to_string(loc));
+             //it->second.origin.push_back(std::to_string(loc));
+             // Maybe THIS WAS A REDUNDANT EQUATION!!! OHHHHHHH MAKE A FAIL SAFE FOT THOS!!!
+             AlwaysAssert(it->second.origin.size() == it->second.equalities.size()) ;
             } else {;
             AlwaysAssert(false);
         }
@@ -3825,11 +3865,11 @@ Node getFromCDList(const context::CDList<Node>& list, size_t idx) {
 }
 
 
-std::vector<std::pair<int, Node>> RangeSolver::collectCores(const std::vector<std::string>& input, Integer modulus) {
-    std::vector<std::pair<int, Node>> result;
-    for (const auto& fact : input) {
-        std::stringstream ss(fact);
-        std::string item;
+std::vector<std::pair<int, Node>> RangeSolver::collectCores(std::string input) {
+     std::vector<std::pair<int, Node>> result;
+    // for (const auto& fact : input) {
+        std::stringstream ss(input);
+       std::string item;
         while (std::getline(ss, item, ',')) {
             item.erase(0, item.find_first_not_of(" \t"));
             item.erase(item.find_last_not_of(" \t") + 1);
@@ -3845,7 +3885,10 @@ std::vector<std::pair<int, Node>> RangeSolver::collectCores(const std::vector<st
                     std::string gb_name = item.substr(0, first_);
                     std::string gb_index_str = item.substr(first_ + 1, second_ - first_ - 1);
                     int gb_index = std::stoi(gb_index_str);
+                    std::string modulus_str = item.substr(r_pos + 1); // everything after 'R'
+                    Integer modulus(modulus_str);
                     std::vector<std::pair<int, Node>> expl = explainGen(modulus, gb_name, gb_index);
+                    //std::cout << "EXP SIZE" << expl.size() << "\n";
                     result.insert(result.end(), expl.begin(), expl.end());
                     continue;
                 }
@@ -3861,6 +3904,8 @@ std::vector<std::pair<int, Node>> RangeSolver::collectCores(const std::vector<st
                 std::cerr << "Invalid entry in collectCores: " << item << " (" << e.what() << ")\n";
             }
         }
+    for (auto i: result){
+        std::cout << i.first <<"," << i.second << "\n";
     }
     return result;
 }
@@ -3877,11 +3922,11 @@ std::vector<std::pair<int, Node>> RangeSolver::processOldGBs(std::map<std::strin
     if (it == oldGBs.end()) {
       AlwaysAssert(false) << "ISSUE WITH GB IT DOESN'T EXIST" << "\n";
     }
-    std::cout << "WHY AM I EMPTYY:" << it->second << "\n";
+    //std::cout << "WHY AM I EMPTYY:" << it->second << "\n";
     std::stringstream ss(it->second);
     std::string item;
     while (std::getline(ss, item, ',')) {
-        std::cout << item << "\n";
+        //std::cout << item << "\n";
         // BD_ → not allowed
         if (item.rfind("BD_", 0) == 0) {
             AlwaysAssert(false) << "BDS IN GB ARE NOT IMPLEMENTED" << "\n";
@@ -3915,7 +3960,7 @@ std::vector<std::pair<int, Node>> RangeSolver::processOldGBs(std::map<std::strin
 
 std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::string GB, Node exp) {
     std::vector<std::pair<int, Node>> cores;
-    std::cout << GB << "\n";
+    //std::cout << "GB" << GB << "\n";
     if (modulus == Integer(0)) {
          IntegerField issue = integerField;
 
@@ -3925,7 +3970,7 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
             std::vector<std::pair<int, Node>> processGB = processOldGBs(issue.oldGBs, GB);
             issue.clearEqualities();
             for (auto node : processGB) {
-                std::cout << node << "\n";
+                //std::cout << node << "\n";
                 issue.addEquality(node.second, true, "0");
             }
             issue.reduceAgainstGB(exp);
@@ -3946,7 +3991,7 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
                 }
                 issue.reduceAgainstGB(Bounds, exp, true);
                 for (auto i : issue.minimalUnsat) {
-                std::cout << i << "\n";
+                //std::cout << i << "\n";
                 // SO THIS IS AN ISSUE BECAUSE WE SHOULD ACTUALLY BE PUSHING 
                 cores.push_back(std::make_pair(processGB[i - 1].first, getFromCDList(d_facts, processGB[i - 1].first)));
                 }
@@ -3965,45 +4010,49 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
 
 std::vector<std::pair<int, Node>> RangeSolver::explainGen(Integer modulus, std::string GB, int loc) {
     std::vector<std::pair<int, Node>> cores;
-
+    std::cout << "EXPLAINING GEN :)\n";
     if (modulus == Integer(0)) {
        IntegerField issue = integerField;
-       std::cout << issue.origin.size() << "\n";
-        if (issue.origin[0].find(GB) != std::string::npos) {
-            issue.runGB({loc});
-        } else {
+       //std::cout << "We are here" << "\n";
             std::vector<std::pair<int,Node>> processGB = processOldGBs(issue.oldGBs, GB);
             issue.clearEqualities();
             for (auto node :processGB) {
                 issue.addEquality(node.second, true, "0");
             }
             issue.runGB({loc});
-        }
+            for (auto i : issue.minimalUnsat) {
+             cores.push_back(std::make_pair(processGB[i - 1].first, getFromCDList(d_facts, processGB[i - 1].first)));
+            }
 
-        for (auto i : issue.minimalUnsat) {
-             cores.push_back(std::make_pair(std::stoi(issue.origin[i - 1]), getFromCDList(d_facts, std::stoi(issue.origin[i - 1]))));
-        }
+        // for (auto i : issue.minimalUnsat) {
+        //      cores.push_back(std::make_pair(std::stoi(issue.origin[i - 1]), getFromCDList(d_facts, std::stoi(issue.origin[i - 1]))));
+        // }
 
     } else {
         auto it = fields.find(modulus);
         AlwaysAssert(it != fields.end());
         Field issue = it->second;
-        std::cout << issue.origin.size() << "\n";
-        if (issue.origin[0].find(GB) != std::string::npos) {
-            issue.runGB(Bounds, {loc});
-        } else {
-            if (GB!="cur"){
-                std::vector<std::pair<int,Node>> processGB = processOldGBs(issue.oldGBs, GB);
-                issue.clearEqualities();
-                for (auto node : processGB) {
+        ///std::cout << issue.origin.size() << "\n";
+        if (GB!="cur"){
+            std::vector<std::pair<int,Node>> processGB = processOldGBs(issue.oldGBs, GB);
+            //std::cout << "processGB size" << processGB.size() << "\n";
+            issue.clearEqualities();
+            for (auto node : processGB) {
+                    //std::cout << node.second << "\n";
                     issue.addEquality(node.second, true, true, "0");
                 }
-            }
             issue.runGB(Bounds, {loc});
-        }
-
+            for (auto i : issue.minimalUnsat) {
+            std::cout << i << "\n";
+             cores.push_back(std::make_pair(processGB[i - 1].first, getFromCDList(d_facts, processGB[i - 1].first)));
+            }
+        } 
+        else {
+            issue.runGB(Bounds, {loc});
         for (auto i : issue.minimalUnsat) {
+            std::cout << issue.origin[i - 1] << "\n";
             cores.push_back(std::make_pair(std::stoi(issue.origin[i - 1]), getFromCDList(d_facts, std::stoi(issue.origin[i - 1]))));
+        }
         }
     }
 
@@ -4013,9 +4062,9 @@ std::vector<std::pair<int, Node>> RangeSolver::explainGen(Integer modulus, std::
 
 
 void RangeSolver::getUnsatCore(Integer modulus) {
-    printSystemState();
+    std::cout << "getting unsat cores\n";
     std::string gbName;
-    std::cout << "We are here good\n";
+    //std::cout << "We are here good\n";
     if (modulus == Integer(0)) {
         IntegerField issue = integerField;
 
@@ -4044,6 +4093,14 @@ void RangeSolver::getUnsatCore(Integer modulus) {
                 }
                 break;
             }
+            case BD: {
+                std::string cores = dedupCommaList(BoundsTracker[issue.causeOfUnsat.second]);
+                std::vector<std::pair<int, Node>> result = collectCores(cores);
+                for (auto pair : result){
+                    d_conflict.push_back(pair.second);
+                }
+                break;
+            }
             default:
                 AlwaysAssert(false) << "Unhandled causeOfUnsat in IntegerField";
         }
@@ -4052,7 +4109,7 @@ void RangeSolver::getUnsatCore(Integer modulus) {
         auto it = fields.find(modulus);
         AlwaysAssert(it != fields.end());
         Field issue = it->second;
-        std::cout << "great!\n";
+        //std::cout << "great!\n";
         if (issue.origin[0].find("GB") != std::string::npos) {
                 size_t pos = issue.origin[0].find('_');
                 gbName = issue.origin[0].substr(0, pos);  // extracts GB0 from GB0_1 or similar
@@ -4061,7 +4118,7 @@ void RangeSolver::getUnsatCore(Integer modulus) {
         }
         switch (issue.causeOfUnsat.first) {
             case DISEQ: {
-                std::cout << "diseq:" << issue.causeOfUnsat.second << "\n";
+                //std::cout << "diseq:" << issue.causeOfUnsat.second << "\n";
                 Node diseq = issue.inequalities[std::stoi(issue.causeOfUnsat.second)];
                 d_conflict.push_back(getFromCDList(d_facts, std::stoi(issue.origin_diseq[std::stoi(issue.causeOfUnsat.second)])));
                 std::vector<std::pair<int, Node>> explain = explainExp(modulus, gbName, diseq);
@@ -4071,7 +4128,7 @@ void RangeSolver::getUnsatCore(Integer modulus) {
                 break;
             }
             case GB: {
-                std::cout << "GB!!\n";
+                //std::cout << "GB!!\n";
                 //std::string gb = issue.causeOfUnsat.second;
                 std::vector<std::pair<int, Node>> explain = explainGen(modulus, gbName, 1);
                 for (auto pair : explain){
@@ -4162,7 +4219,7 @@ void RangeSolver::getUnsatCore(Integer modulus) {
 
 
 
-Result RangeSolver::Solve(){
+Result RangeSolver::Solve(std::vector<Node> debug){
 
     for (auto& fieldPair :fields){
             if (fieldPair.second.LearntLemmasFrom.size()!=0){
@@ -4185,6 +4242,16 @@ Result RangeSolver::Solve(){
         BoundsTracker[pair.first] = "";
     }
     int numFacts = 0;
+    if (debug.size()> 1){ 
+        for (auto fact:debug){
+        processFact(fact, numFacts);
+        numFacts+=1;
+        if (Bounds.find("") != Bounds.end()) {
+            std::cout << fact << "\n";
+            AlwaysAssert(false);
+        }
+       }
+    } else {
     for (auto fact:d_facts){
         processFact(fact, numFacts);
         numFacts+=1;
@@ -4193,7 +4260,8 @@ Result RangeSolver::Solve(){
             AlwaysAssert(false);
         }
     }
-   // printSystemState();
+    }
+    //printSystemState();
     //AlwaysAssert(false);
     // Check Bounds for incosinstency 
     for (auto &pair: Bounds){
@@ -4248,7 +4316,9 @@ Result RangeSolver::Solve(){
             if (fieldPair.second.status == Result::UNSAT && fieldPair.second.lemmas.size()== 0 && Lemmas.size()==0){
                 //std::cout << "LOOP COUNT" << count << "\n";
                 std::cout << "field" << fieldPair.first << "\n";
+                if (debug.size() == 0){
                 getUnsatCore(fieldPair.first);
+                }
                 return Result::UNSAT;
             }
 
@@ -4260,7 +4330,9 @@ Result RangeSolver::Solve(){
             //std::cout << "LOOP COUNT" << count << "\n";
             //printSystemState();
             std::cout << "Integers\n";
+            if (debug.size() == 0){
             getUnsatCore(Integer(0));
+            }
             return Result::UNSAT;
         }
         //printSystemState();
@@ -4282,7 +4354,9 @@ Result RangeSolver::Solve(){
                 fieldPair.second.status = Result::UNKNOWN;
                 std::cout << "LOOP COUNT" << count << "\n";
                 std::cout << "field" << fieldPair.first << "\n";
+                 if (debug.size() == 0){
                 getUnsatCore(fieldPair.first);
+                 }
                 return Result::UNSAT;
             }
             if (fieldPair.second.newEqualitySinceGB == true){
@@ -4318,8 +4392,8 @@ Result RangeSolver::Solve(){
     std::copy(d_facts.begin(), d_facts.end(), std::back_inserter(d_conflict));
     return d_conflict;}
 
-Result RangeSolver::postCheck(Theory::Effort level){
-    Result result = Solve();
+Result RangeSolver::postCheck(Theory::Effort level, std::vector<Node> debug){
+    Result result = Solve(debug);
     std::cout << result << "\n";
     //printSystemState();
     return result;
@@ -4368,7 +4442,7 @@ void RangeSolver::printSystemState(){
     // }
     std::cout << "Bounds origin";
     for(auto i : BoundsTracker){
-        std::cout << "(" << i.first << "," << i.second  << ")\n";
+        std::cout << "(" << i.first << "," << dedupCommaList(i.second)  << ")\n";
     }
     std::cout << "DONE!" << "\n\n\n";
 }
