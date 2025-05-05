@@ -257,16 +257,20 @@ void TheoryArith::postCheck(Effort level)
   {
     std::vector<Node> storage;
     if (Theory::fullEffort(level)){
-      if (d_modularExtension->callsCount == 0){
-        storage = d_astate.getValuation().getTheoryEngine().getPropEngine()->getTheoryProxy().d_zll->d_ldb.getLearnedLiterals(modes::LearnedLitType::PREPROCESS);
-         std::cout << "STORAGE SIZE" << storage.size() << "\n";
-         auto result0 = d_modularExtension->postCheck(level, storage);
-         if (result0 == Result::UNSAT){
-            NodeManager* nm = NodeManager::currentNM();
-            AlwaysAssert(d_modularExtension->d_conflict.size()>0);
-            const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->d_conflict);
-            d_im.conflict(conflict, InferenceId::FF_LEMMA);
-         }}
+       if (d_modularExtension->callsCount == 0){
+         storage = d_astate.getValuation().getTheoryEngine().getPropEngine()->getTheoryProxy().d_zll->d_ldb.getLearnedLiterals(modes::LearnedLitType::PREPROCESS);
+          //std::cout << "STORAGE SIZE" << storage.size() << "\n";
+          // for(int i = 0; i<11; i++){
+          //   std::cout << "[STORAGE]" << i << ":" << storage[i] << "\n";
+          // }
+          auto result0 = d_modularExtension->postCheck(level, storage);
+       }
+      //    if (result0 == Result::UNSAT){
+      //       NodeManager* nm = NodeManager::currentNM();
+      //       AlwaysAssert(d_modularExtension->d_conflict.size()>0);
+      //       const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->d_conflict);
+      //       d_im.conflict(conflict, InferenceId::FF_LEMMA);
+      //    }}
           //else {
             auto result = d_modularExtension->postCheck(level);
             if (result.getStatus() == Result::UNSAT){

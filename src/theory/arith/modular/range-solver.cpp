@@ -2708,6 +2708,57 @@ Integer inverse(Integer n, Integer p){
 //    }
 // }
 
+void Field::loadState(){
+    equalities = zero_equalities;
+    inequalities = zero_inequalities;
+    oldGBs = zero_old_GBs;
+    origin = zero_origin;
+    origin_diseq = zero_origin_diseq;
+}
+
+void IntegerField::loadState(){
+    equalities = zero_equalities;
+    inequalities = zero_inequalities;
+    oldGBs = zero_old_GBs;
+    origin = zero_origin;
+    origin_diseq = zero_origin_diseq;
+}
+
+void IntegerField::saveState(){
+    zero_equalities = equalities;
+    zero_inequalities = inequalities;
+    zero_old_GBs = oldGBs;
+    zero_origin = origin;
+    zero_origin_diseq = origin_diseq;
+}
+
+void Field::saveState(){
+    zero_equalities = equalities;
+    zero_inequalities = inequalities;
+    zero_old_GBs = oldGBs;
+    zero_origin = origin;
+    zero_origin_diseq = origin_diseq;
+}
+
+void RangeSolver::saveState(){
+    zero_Bounds = Bounds;
+    zero_BoundsTracker = BoundsTracker;
+    for (auto &pair: fields){
+        pair.second.saveState();
+    }
+    integerField.saveState();
+}
+
+void RangeSolver::loadState(){
+    Bounds = zero_Bounds;
+    BoundsTracker = zero_BoundsTracker;
+    for (auto &pair: fields){
+        pair.second.loadState();
+    }
+    integerField.loadState();
+}
+
+
 Integer Field::smallerInverse(Node fact){
     if (fact.getKind() == Kind::CONST_INTEGER){
         Integer temp = fact.getConst<Rational>().getNumerator().abs();
@@ -3038,6 +3089,9 @@ void Field::addInequality(Node fact){
     MyVars.insert(vars.begin(), vars.end());
     }
 };
+
+
+
 
 
 bool Field::LiftViaILP(IntegerField& Integers, std::map<std::string, std::pair<Integer, Integer> > Bounds){
@@ -3631,8 +3685,8 @@ void RangeSolver::processFact(TNode fact, int loc){
                 Bounds[sk.getName()].second = BIGINT;
                 BoundsTracker[sk.getName()]+= "," + std::to_string(loc);
                 Node new_node = nm->mkNode(Kind::EQUAL, sk, fact[0]);
-                integerField.addEquality(new_node, true);
-                integerField.origin.push_back(std::to_string(loc));
+                integerField.addEquality(new_node, true, std::to_string(loc));
+                //integerField.origin.push_back();
                 std::string singularName = replaceDots(sk.getName());
                 myVariables[singularName] = sk;
                 myNodes.insert(sk);
@@ -3694,8 +3748,8 @@ void RangeSolver::processFact(TNode fact, int loc){
                      Bounds[sk.getName()].first = Integer(-1) * BIGINT;
                      BoundsTracker[sk.getName()]+= "," + std::to_string(loc);
                      Node new_node = nm->mkNode(Kind::EQUAL, sk, fact[0][0]);
-                     integerField.addEquality(new_node, true);
-                     integerField.origin.push_back(std::to_string(loc));
+                     integerField.addEquality(new_node, true, std::to_string(loc));
+                     //integerField.origin.push_back(std::to_string(loc));
                      std::string singularName = replaceDots(sk.getName());
                      myVariables[singularName] = sk;
                      myNodes.insert(sk);
@@ -3744,8 +3798,8 @@ void RangeSolver::processFact(TNode fact, int loc){
         }
         }
         else {
-            integerField.addEquality(fact, true);
-            integerField.origin.push_back(std::to_string(loc));
+            integerField.addEquality(fact, true, std::to_string(loc));
+            //integerField.origin.push_back(std::to_string(loc));
         }
     }
     else if (fact.getKind() == Kind::NOT){
@@ -3926,7 +3980,7 @@ std::vector<std::pair<int, Node>> RangeSolver::processOldGBs(std::map<std::strin
     std::stringstream ss(it->second);
     std::string item;
     while (std::getline(ss, item, ',')) {
-        //std::cout << item << "\n";
+        std::cout << item << "\n";
         // BD_ → not allowed
         if (item.rfind("BD_", 0) == 0) {
             AlwaysAssert(false) << "BDS IN GB ARE NOT IMPLEMENTED" << "\n";
@@ -3949,10 +4003,13 @@ std::vector<std::pair<int, Node>> RangeSolver::processOldGBs(std::map<std::strin
             continue;
         }{
         int idx = std::stoi(item);
+        std::cout << "DFACTS SIZE" << d_facts.size() << "\n";
         Node processed = fakeProcessFact(getFromCDList(d_facts, idx));
+        std::cout << processed << "\n";
         result.push_back(std::make_pair(idx,processed));
         }
     }
+    
  return result;
 }
 
@@ -3960,7 +4017,7 @@ std::vector<std::pair<int, Node>> RangeSolver::processOldGBs(std::map<std::strin
 
 std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::string GB, Node exp) {
     std::vector<std::pair<int, Node>> cores;
-    //std::cout << "GB" << GB << "\n";
+    std::cout << "GB" << GB << "\n";
     if (modulus == Integer(0)) {
          IntegerField issue = integerField;
 
@@ -3968,6 +4025,7 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
         //     issue.reduceAgainstGB(exp);
         // } else {
             std::vector<std::pair<int, Node>> processGB = processOldGBs(issue.oldGBs, GB);
+            
             issue.clearEqualities();
             for (auto node : processGB) {
                 //std::cout << node << "\n";
@@ -3985,8 +4043,10 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
         Field issue = (it->second);
             if (GB != "cur"){
                 std::vector<std::pair<int,Node>> processGB = processOldGBs(issue.oldGBs, GB);
+                std::cout << "we got old gb?\n";
                 issue.clearEqualities();
                 for (auto node : processGB) {
+                    std::cout << "adding" << node.second << "\n";
                     issue.addEquality(node.second, true, true, "0");
                 }
                 issue.reduceAgainstGB(Bounds, exp, true);
@@ -4010,7 +4070,7 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
 
 std::vector<std::pair<int, Node>> RangeSolver::explainGen(Integer modulus, std::string GB, int loc) {
     std::vector<std::pair<int, Node>> cores;
-    std::cout << "EXPLAINING GEN :)\n";
+    //std::cout << "EXPLAINING GEN :)\n";
     if (modulus == Integer(0)) {
        IntegerField issue = integerField;
        //std::cout << "We are here" << "\n";
@@ -4043,14 +4103,14 @@ std::vector<std::pair<int, Node>> RangeSolver::explainGen(Integer modulus, std::
                 }
             issue.runGB(Bounds, {loc});
             for (auto i : issue.minimalUnsat) {
-            std::cout << i << "\n";
+            //std::cout << i << "\n";
              cores.push_back(std::make_pair(processGB[i - 1].first, getFromCDList(d_facts, processGB[i - 1].first)));
             }
         } 
         else {
             issue.runGB(Bounds, {loc});
         for (auto i : issue.minimalUnsat) {
-            std::cout << issue.origin[i - 1] << "\n";
+            //std::cout << issue.origin[i - 1] << "\n";
             cores.push_back(std::make_pair(std::stoi(issue.origin[i - 1]), getFromCDList(d_facts, std::stoi(issue.origin[i - 1]))));
         }
         }
@@ -4064,6 +4124,7 @@ std::vector<std::pair<int, Node>> RangeSolver::explainGen(Integer modulus, std::
 void RangeSolver::getUnsatCore(Integer modulus) {
     std::cout << "getting unsat cores\n";
     std::string gbName;
+    printSystemState();
     //std::cout << "We are here good\n";
     if (modulus == Integer(0)) {
         IntegerField issue = integerField;
@@ -4109,7 +4170,7 @@ void RangeSolver::getUnsatCore(Integer modulus) {
         auto it = fields.find(modulus);
         AlwaysAssert(it != fields.end());
         Field issue = it->second;
-        //std::cout << "great!\n";
+        std::cout << "great!\n";
         if (issue.origin[0].find("GB") != std::string::npos) {
                 size_t pos = issue.origin[0].find('_');
                 gbName = issue.origin[0].substr(0, pos);  // extracts GB0 from GB0_1 or similar
@@ -4118,11 +4179,13 @@ void RangeSolver::getUnsatCore(Integer modulus) {
         }
         switch (issue.causeOfUnsat.first) {
             case DISEQ: {
-                //std::cout << "diseq:" << issue.causeOfUnsat.second << "\n";
+                std::cout << "diseq:" << issue.causeOfUnsat.second << "\n";
                 Node diseq = issue.inequalities[std::stoi(issue.causeOfUnsat.second)];
+                std::cout << diseq << "\n";
                 d_conflict.push_back(getFromCDList(d_facts, std::stoi(issue.origin_diseq[std::stoi(issue.causeOfUnsat.second)])));
                 std::vector<std::pair<int, Node>> explain = explainExp(modulus, gbName, diseq);
                 for (auto pair : explain){
+                    std::cout << pair.second << "\n";
                     d_conflict.push_back(pair.second);
                 }
                 break;
@@ -4252,14 +4315,24 @@ Result RangeSolver::Solve(std::vector<Node> debug){
         }
        }
     } else {
-    for (auto fact:d_facts){
-        processFact(fact, numFacts);
-        numFacts+=1;
-        if (Bounds.find("") != Bounds.end()) {
-            std::cout << fact << "\n";
-            AlwaysAssert(false);
+        //loadState();
+        for (auto fact:d_facts){
+             //numFacts+=1;
+            //if (numFacts >= factsProcessed){
+                //continue;
+            processFact(fact, numFacts);
+            //numFacts+=1;
+            if (Bounds.find("") != Bounds.end()) {
+                std::cout << fact << "\n";
+                AlwaysAssert(false);
+            }
+            //}
+             numFacts+=1;
+
         }
     }
+    if (callsCount == 0){
+        return Result::UNKNOWN;
     }
     //printSystemState();
     //AlwaysAssert(false);
@@ -4394,6 +4467,11 @@ Result RangeSolver::Solve(std::vector<Node> debug){
 
 Result RangeSolver::postCheck(Theory::Effort level, std::vector<Node> debug){
     Result result = Solve(debug);
+    if (callsCount == 0){
+        saveState();
+        factsProcessed = debug.size();
+        callsCount+=1;
+    }
     std::cout << result << "\n";
     //printSystemState();
     return result;
