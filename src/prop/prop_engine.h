@@ -59,6 +59,9 @@ class TheoryProxy;
 class PropEngine : protected EnvObj
 {
  public:
+
+TheoryProxy& getTheoryProxy() { return *d_theoryProxy; }
+
   /**
    * Create a PropEngine with a particular decision and theory engine.
    */

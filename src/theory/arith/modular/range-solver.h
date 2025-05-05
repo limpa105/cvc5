@@ -80,6 +80,20 @@ class IntegerField: protected EnvObj{
 
         std::vector<Node> old_inequalities;
 
+        std::vector<Node> zero_equalities;
+
+        std::vector<Node> zero_inequalities;
+
+        std::vector<std::string> zero_origin;
+
+        std::vector<std::string> zero_origin_diseq;
+
+        std::map<std::string, std::string> zero_old_GBs;
+
+        void saveState();
+
+        void loadState();
+
         bool Simplify(std::map<Integer, Field>& fields, std::map<std::string, std::pair<Integer, Integer> > &Bounds);
 
         bool runGB(std::vector<int> indexes = std::vector<int>());
@@ -114,6 +128,10 @@ class IntegerField: protected EnvObj{
 
 class Field:  protected EnvObj {
     public:   
+
+        void saveState();
+
+        void loadState();
 
         std::pair<unsatReason, std::string> causeOfUnsat;
 
@@ -158,6 +176,16 @@ class Field:  protected EnvObj {
         bool CheckIfInvSmaller(Node eq);
 
         Integer modulos;
+
+        std::vector<Node> zero_equalities;
+
+        std::vector<Node> zero_inequalities;
+
+        std::vector<std::string> zero_origin;
+
+        std::vector<std::string> zero_origin_diseq;
+
+        std::map<std::string, std::string> zero_old_GBs;
  
         std::vector<Node> equalities;
 
@@ -214,6 +242,9 @@ class RangeSolver : protected EnvObj
 {
     public:
 
+        int callsCount = 0; 
+
+        int factsProcessed = 0;
            // === Explanation + Unsat Core ===
         std::vector<std::pair<int,Node>>  explainExp(Integer modulus, std::string GB, Node exp);
         std::vector<std::pair<int,Node>>  explainGen(Integer modulus, std::string GB, int loc);
@@ -227,6 +258,14 @@ class RangeSolver : protected EnvObj
         std::vector<std::pair<int,Node>>  processOldGBs(std::map<std::string, std::string>& oldGBs,std::string& key);
 
         Node fakeProcessFact(Node fact);
+
+        void saveState();
+
+        void loadState();
+
+        std::map<std::string, std::pair<Integer, Integer> > zero_Bounds;
+
+        std::map<std::string, std::string> zero_BoundsTracker;
 
 
         IntStat completeGB ;

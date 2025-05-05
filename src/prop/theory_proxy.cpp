@@ -62,10 +62,10 @@ TheoryProxy::TheoryProxy(Env& env,
       || isOutputOn(OutputTag::LEARNED_LITS)
       || options().smt.produceLearnedLiterals
       || options().parallel.computePartitions > 0;
-  if (trackZeroLevel)
-  {
+  // if (trackZeroLevel)
+  // {
     d_zll = std::make_unique<ZeroLevelLearner>(env, theoryEngine);
-  }
+  //}
 }
 
 TheoryProxy::~TheoryProxy() {

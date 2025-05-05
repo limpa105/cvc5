@@ -69,6 +69,8 @@ class ZeroLevelLearner : protected EnvObj
   /** compute type for learned literal */
   modes::LearnedLitType computeLearnedLiteralType(const Node& lit);
 
+  LearnedDb d_ldb;
+
  private:
   static void getAtoms(TNode a,
                        std::unordered_set<TNode>& visited,
@@ -89,7 +91,6 @@ class ZeroLevelLearner : protected EnvObj
   NodeSet d_levelZeroAsserts;
 
   /** What we have learned */
-  LearnedDb d_ldb;
 
   /** Whether we have seen an assertion level > 0 */
   context::CDO<bool> d_nonZeroAssert;

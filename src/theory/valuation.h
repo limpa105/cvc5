@@ -71,6 +71,7 @@ public:
     d_engine(engine) {
   }
 
+  TheoryEngine& getTheoryEngine() { return *d_engine; }
   /**
    * Return true if n has an associated SAT literal
    */

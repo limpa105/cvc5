@@ -198,6 +198,8 @@ class TheoryProxy : protected EnvObj, public Registrar
   /** Get literal type using ZLL utility */
   modes::LearnedLitType getLiteralType(const Node& lit) const;
 
+  std::unique_ptr<ZeroLevelLearner> d_zll;
+
  private:
   /** The prop engine we are using. */
   PropEngine* d_propEngine;
@@ -207,6 +209,8 @@ class TheoryProxy : protected EnvObj, public Registrar
 
   /** The decision engine we will be using */
   std::unique_ptr<decision::DecisionEngine> d_decisionEngine;
+
+
 
   /**
    * Whether the decision engine needs notification of active skolem
@@ -227,7 +231,6 @@ class TheoryProxy : protected EnvObj, public Registrar
   SkolemDefManager* d_skdm;
 
   /** The zero level learner */
-  std::unique_ptr<ZeroLevelLearner> d_zll;
 
   /** Preregister policy */
   std::unique_ptr<TheoryPreregistrar> d_prr;

@@ -27,11 +27,17 @@
 #include "theory/arith/linear/theory_arith_private.h"
 #include "theory/arith/nl/nonlinear_extension.h"
 #include "theory/ext_theory.h"
+#include "theory/theory_engine.h"
+#include "theory/valuation.h"
 #include "theory/rewriter.h"
 #include "theory/theory_model.h"
 #include "util/cocoa_globals.h"
 #include "context/cdlist.h"
 #include "context/cdlist_forward.h"
+#include "prop/prop_engine.h"
+#include "prop/theory_proxy.h"
+#include "prop/zero_level_learner.h"
+#include "prop/learned_db.h"
 
 using namespace std;
 using namespace cvc5::internal::kind;
@@ -249,43 +255,59 @@ void TheoryArith::postCheck(Effort level)
 {
   if (d_modularExtension != nullptr)
   {
+    std::vector<Node> storage;
     if (Theory::fullEffort(level)){
-    auto result = d_modularExtension->postCheck(level);
-    if (result.getStatus() == Result::UNSAT){
-      std::cout << "we got here :)\n";
-      NodeManager* nm = NodeManager::currentNM();
-      AlwaysAssert(d_modularExtension->d_conflict.size()>0);
-      const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->d_conflict);
-      for (auto i: d_modularExtension->d_conflict){
-        std::cout << i << "\n";
-      }
+      if (d_modularExtension->callsCount == 0){
+        storage = d_astate.getValuation().getTheoryEngine().getPropEngine()->getTheoryProxy().d_zll->d_ldb.getLearnedLiterals(modes::LearnedLitType::PREPROCESS);
+         std::cout << "STORAGE SIZE" << storage.size() << "\n";
+         auto result0 = d_modularExtension->postCheck(level, storage);
+         if (result0 == Result::UNSAT){
+            NodeManager* nm = NodeManager::currentNM();
+            AlwaysAssert(d_modularExtension->d_conflict.size()>0);
+            const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->d_conflict);
+            d_im.conflict(conflict, InferenceId::FF_LEMMA);
+         }}
+          //else {
+            auto result = d_modularExtension->postCheck(level);
+            if (result.getStatus() == Result::UNSAT){
+            std::cout << "we got here :)\n";
+            NodeManager* nm = NodeManager::currentNM();
+            AlwaysAssert(d_modularExtension->d_conflict.size()>0);
+            const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->d_conflict);
+            
+            for (auto i: d_modularExtension->d_conflict){
+              std::cout << i << "\n";
+            }
+            auto result2 = d_modularExtension->postCheck(level, d_modularExtension->d_conflict);
+            AlwaysAssert(result2 == Result::UNSAT);
+            d_im.conflict(conflict, InferenceId::FF_LEMMA);
+            } else {
+                d_im.setModelUnsound(IncompleteId::UNKNOWN);
+            }
+         //std::cout <<  d_astate.getValuation().getTheoryEngine().getPropEngine()->getTheoryProxy().d_zll->hasLearnedLiteralForRestart() << "\n";
+        //}
+    }
+    return;
+  } else {
+      AlwaysAssert(false);
+  }
+
+
+
 
      
     //  auto result2 = d_modularExtension->postCheck(level, d_modularExtension->d_conflict);
     //  AlwaysAssert(result2 == Result::UNSAT);
 
-      d_im.conflict(conflict, InferenceId::FF_LEMMA);
-      std::cout << "CONFLICT" << conflict << "\n";
+      // d_im.conflict(conflict, InferenceId::FF_LEMMA);
+      // std::cout << "CONFLICT" << conflict << "\n";
       //std::cout << "Why am I not unsat?\n";
       //std::cout << conflict << "\n";
       // if (conflictCount == 1){
       //   AlwaysAssert(false);
       // }
-    } else if(result.getStatus() == Result::UNKNOWN){
-        d_im.setModelUnsound(IncompleteId::UNKNOWN);
-      // return;
-      // NodeManager* nm = NodeManager::currentNM();
-      // const Node lemma = nm->mkNode(Kind::AND, d_modularExtension->Lemmas);
-      // std::cout << lemma << "\n";
-      // d_im.lemma(lemma, InferenceId::FF_LEMMA);
-    } else {
-      std::cout << "WOOO EXTERNAL HERE\n";
-      return;
-      }
-    }else {
-      return;
-    }
-  }
+    
+  //}
   d_im.reset();
   Trace("arith-check") << "TheoryArith::postCheck " << level << std::endl;
   if (Theory::fullEffort(level))
