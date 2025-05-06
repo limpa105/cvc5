@@ -161,7 +161,7 @@ std::vector<int> parseNonzeroIndices(const std::string& singularOutput) {
 std::string runSingular(std::string program)
 {
   std::filesystem::path output = tmpPath();
-  std::cout << program << "\n";
+  //std::cout << program << "\n";
   std::filesystem::path input = writeToTmpFile(program);
   std::stringstream commandStream;
   commandStream << "Singular -q -t " << input << " > " << output;
@@ -174,7 +174,7 @@ std::string runSingular(std::string program)
                                                         << outputContents;
   std::filesystem::remove(output);
   std::filesystem::remove(input);
-  std::cout << outputContents << "\n";
+  //std::cout << outputContents << "\n";
   return outputContents;
 }
 

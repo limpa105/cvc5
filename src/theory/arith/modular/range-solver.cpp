@@ -2244,7 +2244,9 @@ this->novelBound = false;
 bool newBound = true;
 while (newBound) {
     newBound = false;
+std::cout << equalities.size() << "\n";
 for (int i = 0; i < equalities.size(); i++) {
+        
         //std::cout << equalities[i] << "\n";
         if ( isVariableOrSkolem(equalities[i][0])  && equalities[i][1].getKind() == Kind::CONST_INTEGER){
             //std::cout << "triggered\n";
@@ -2547,7 +2549,10 @@ bool IntegerField::Simplify(std::map<Integer, Field>& fields, std::map<std::stri
     //std::cout << "lowering?\n";
     for (auto& fieldPair : fields){
         //std::cout << "LOWERING\n";
+        if ((*solver).callsCount!=0){
+    //}
         Lower(fieldPair.second,Bounds);
+        }
         //nonLowCount +=  static_cast<int>(unlowerableIneq);
         // if (!unlowerableIneq){
         //     nonLowCount +=1;
@@ -2714,6 +2719,7 @@ void Field::loadState(){
     oldGBs = zero_old_GBs;
     origin = zero_origin;
     origin_diseq = zero_origin_diseq;
+    newEqualitySinceGB = true;
 }
 
 void IntegerField::loadState(){
@@ -2722,6 +2728,7 @@ void IntegerField::loadState(){
     oldGBs = zero_old_GBs;
     origin = zero_origin;
     origin_diseq = zero_origin_diseq;
+    newEqualitySinceGB = true;
 }
 
 void IntegerField::saveState(){
@@ -3259,7 +3266,9 @@ bool Field::Simplify(IntegerField& Integers, std::map<std::string, std::pair<Int
     // if (equalities.size()>0 && newEqualitySinceGB){
     //      LiftViaILP(Integers, Bounds);
     // }
-    Lift(Integers, Bounds,startLearningLemmas);
+    if ((*solver).callsCount!=0){
+        Lift(Integers, Bounds,startLearningLemmas);
+    }
      std::cout << "runing gb for ring\n";
     if (newEqualitySinceGB && !ranGB && !GBTimedOut){
         if(!runGB(Bounds)){
@@ -3918,6 +3927,15 @@ Node getFromCDList(const context::CDList<Node>& list, size_t idx) {
     return *it;
 }
 
+std::vector<Node> getFromCDListMany(const context::CDList<Node>& list, const std::vector<int>& idxs) {
+    std::vector<Node> result;
+    for (int i : idxs) {
+        auto it = list.begin();
+        std::advance(it, i);
+        result.push_back(*it);
+    }
+    return result;
+}
 
 std::vector<std::pair<int, Node>> RangeSolver::collectCores(std::string input) {
      std::vector<std::pair<int, Node>> result;
@@ -3964,8 +3982,8 @@ std::vector<std::pair<int, Node>> RangeSolver::collectCores(std::string input) {
     return result;
 }
 
-std::vector<std::pair<int, Node>> RangeSolver::processOldGBs(std::map<std::string, std::string>& oldGBs,std::string& key) {
-    std::vector<std::pair<int,Node>> result;
+std::vector<std::pair<std::vector<int>, Node>> RangeSolver::processOldGBs(std::map<std::string, std::string>& oldGBs,std::string& key) {
+    std::vector<std::pair<std::vector<int>,Node>> result;
     std::unordered_set<std::string> visited;
     if (visited.count(key)) {
         return result;
@@ -3980,7 +3998,10 @@ std::vector<std::pair<int, Node>> RangeSolver::processOldGBs(std::map<std::strin
     std::stringstream ss(it->second);
     std::string item;
     while (std::getline(ss, item, ',')) {
-        std::cout << item << "\n";
+        std::cout << "item" << item << "\n";
+        if (item.empty()){
+            continue;
+        }
         // BD_ → not allowed
         if (item.rfind("BD_", 0) == 0) {
             AlwaysAssert(false) << "BDS IN GB ARE NOT IMPLEMENTED" << "\n";
@@ -3988,8 +4009,14 @@ std::vector<std::pair<int, Node>> RangeSolver::processOldGBs(std::map<std::strin
         size_t underscore = item.find('_');
         if (item.rfind("GB", 0) == 0 && underscore != std::string::npos) {
             std::string gbKey = item.substr(0, underscore);
-            std::vector<std::pair<int, Node>> subGB = processOldGBs(oldGBs, gbKey);
+            if (visited.count(gbKey)){
+                continue;
+            }
+            std::vector<std::pair<std::vector<int>, Node>> subGB = processOldGBs(oldGBs, gbKey);
+            std::cout << "okay here\n";
+            visited.insert(gbKey);
             result.insert(result.end(), subGB.begin(), subGB.end());
+            continue;
         }
        size_t r_pos = item.find("_R");
         if (r_pos != std::string::npos) {
@@ -3997,19 +4024,27 @@ std::vector<std::pair<int, Node>> RangeSolver::processOldGBs(std::map<std::strin
                 int fieldKey = std::stoi(item.substr(r_pos + 2)); // after "_R"
                     Node fact = getFromCDList(d_facts, factIdx);
                     Node processed = fakeProcessFact(fact);
+                    AlwaysAssert(processed.getKind()!=Kind::CONST_INTEGER);
                     auto fieldIt = fields.find(fieldKey);
                     Node modded = fieldIt->second.modOut(processed);
-                    result.push_back(std::make_pair(factIdx, modded));
+                    result.push_back(std::make_pair(std::vector<int>{factIdx}, modded));
             continue;
-        }{
+        }
+        {
         int idx = std::stoi(item);
-        std::cout << "DFACTS SIZE" << d_facts.size() << "\n";
+        std::cout << "passed\n";
+        //std::cout << "DFACTS SIZE" << d_facts.size() << "\n";
         Node processed = fakeProcessFact(getFromCDList(d_facts, idx));
-        std::cout << processed << "\n";
-        result.push_back(std::make_pair(idx,processed));
+        if (processed.getKind() == Kind::CONST_INTEGER){
+            result[result.size()-1].first.push_back(idx);
+            std::cout << result[result.size()-1].first.size() << "\n";
+        } else {
+        //std::cout << processed << "\n";
+            result.push_back(std::make_pair(std::vector<int>{idx},processed));
+        }
         }
     }
-    
+    std::cout << "done\n";
  return result;
 }
 
@@ -4024,7 +4059,7 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
         // if (issue.origin[0].find(GB) != std::string::npos) {
         //     issue.reduceAgainstGB(exp);
         // } else {
-            std::vector<std::pair<int, Node>> processGB = processOldGBs(issue.oldGBs, GB);
+            std::vector<std::pair<std::vector<int>, Node>> processGB = processOldGBs(issue.oldGBs, GB);
             
             issue.clearEqualities();
             for (auto node : processGB) {
@@ -4034,7 +4069,11 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
             issue.reduceAgainstGB(exp);
        // }
         for (auto i : issue.minimalUnsat) {
-            cores.push_back(std::make_pair(processGB[i - 1].first, getFromCDList(d_facts, processGB[i - 1].first)));
+            std::vector<Node> some = getFromCDListMany(d_facts, processGB[i - 1].first);
+            for(auto j=0; j < some.size(); j++){
+                cores.push_back(std::make_pair(processGB[i - 1].first[j], some[j]));
+            }
+            //cores.push_back(std::make_pair(processGB[i - 1].first, getFromCDList(d_facts, processGB[i - 1].first)));
         }
 
     } else {
@@ -4042,8 +4081,14 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
         AlwaysAssert(it != fields.end());
         Field issue = (it->second);
             if (GB != "cur"){
-                std::vector<std::pair<int,Node>> processGB = processOldGBs(issue.oldGBs, GB);
+                std::cout << "we are here\n";
+                std::vector<std::pair<std::vector<int>,Node>> processGB = processOldGBs(issue.oldGBs, GB);
                 std::cout << "we got old gb?\n";
+                for (int i =0; i< issue.equalities.size(); i++){
+                    if (issue.origin[i].find("GB") == std::string::npos){
+                        processGB.push_back(std::make_pair(std::vector<int>{std::stoi(issue.origin[i])}, issue.equalities[i]));
+                    }
+                }
                 issue.clearEqualities();
                 for (auto node : processGB) {
                     std::cout << "adding" << node.second << "\n";
@@ -4053,7 +4098,10 @@ std::vector<std::pair<int, Node>> RangeSolver::explainExp(Integer modulus, std::
                 for (auto i : issue.minimalUnsat) {
                 //std::cout << i << "\n";
                 // SO THIS IS AN ISSUE BECAUSE WE SHOULD ACTUALLY BE PUSHING 
-                cores.push_back(std::make_pair(processGB[i - 1].first, getFromCDList(d_facts, processGB[i - 1].first)));
+                    std::vector<Node> some = getFromCDListMany(d_facts, processGB[i - 1].first);
+                    for(auto j=0; j < some.size(); j++){
+                        cores.push_back(std::make_pair(processGB[i - 1].first[j], some[j]));
+                    }
                 }
             } else {
                  issue.reduceAgainstGB(Bounds, exp, true);
@@ -4074,14 +4122,17 @@ std::vector<std::pair<int, Node>> RangeSolver::explainGen(Integer modulus, std::
     if (modulus == Integer(0)) {
        IntegerField issue = integerField;
        //std::cout << "We are here" << "\n";
-            std::vector<std::pair<int,Node>> processGB = processOldGBs(issue.oldGBs, GB);
+            std::vector<std::pair<std::vector<int>,Node>> processGB = processOldGBs(issue.oldGBs, GB);
             issue.clearEqualities();
             for (auto node :processGB) {
                 issue.addEquality(node.second, true, "0");
             }
             issue.runGB({loc});
             for (auto i : issue.minimalUnsat) {
-             cores.push_back(std::make_pair(processGB[i - 1].first, getFromCDList(d_facts, processGB[i - 1].first)));
+                std::vector<Node> some = getFromCDListMany(d_facts, processGB[i - 1].first);
+                for(auto j=0; j < some.size(); j++){
+                    cores.push_back(std::make_pair(processGB[i - 1].first[j], some[j]));
+                }
             }
 
         // for (auto i : issue.minimalUnsat) {
@@ -4094,7 +4145,14 @@ std::vector<std::pair<int, Node>> RangeSolver::explainGen(Integer modulus, std::
         Field issue = it->second;
         ///std::cout << issue.origin.size() << "\n";
         if (GB!="cur"){
-            std::vector<std::pair<int,Node>> processGB = processOldGBs(issue.oldGBs, GB);
+            std::vector<std::pair<std::vector<int>,Node>> processGB = processOldGBs(issue.oldGBs, GB);
+            std::cout << "processed old gbs\n";
+            for (int i =0; i< issue.equalities.size(); i++){
+                    if (issue.origin[i].find("GB") == std::string::npos){
+                        std::cout << issue.origin[i] << "\n";
+                        processGB.push_back(std::make_pair(std::vector<int>{std::stoi(issue.origin[i])}, issue.equalities[i]));
+                    }
+                }
             //std::cout << "processGB size" << processGB.size() << "\n";
             issue.clearEqualities();
             for (auto node : processGB) {
@@ -4103,8 +4161,10 @@ std::vector<std::pair<int, Node>> RangeSolver::explainGen(Integer modulus, std::
                 }
             issue.runGB(Bounds, {loc});
             for (auto i : issue.minimalUnsat) {
-            //std::cout << i << "\n";
-             cores.push_back(std::make_pair(processGB[i - 1].first, getFromCDList(d_facts, processGB[i - 1].first)));
+            std::vector<Node> some = getFromCDListMany(d_facts, processGB[i - 1].first);
+            for(auto j=0; j < some.size(); j++){
+                cores.push_back(std::make_pair(processGB[i - 1].first[j], some[j]));
+            }
             }
         } 
         else {
@@ -4177,7 +4237,7 @@ void RangeSolver::getUnsatCore(Integer modulus) {
                 gbName = "cur";
                 
         }
-        std::cout << "GB" << gbName << "\n";
+        //std::cout << "GB" << gbName << "\n";
         switch (issue.causeOfUnsat.first) {
             case DISEQ: {
                 std::cout << "diseq:" << issue.causeOfUnsat.second << "\n";
@@ -4192,7 +4252,7 @@ void RangeSolver::getUnsatCore(Integer modulus) {
                 break;
             }
             case GB: {
-                //std::cout << "GB!!\n";
+                std::cout << "GB!!\n";
                 //std::string gb = issue.causeOfUnsat.second;
                 std::vector<std::pair<int, Node>> explain = explainGen(modulus, gbName, 1);
                 for (auto pair : explain){
@@ -4347,9 +4407,9 @@ Result RangeSolver::Solve(std::vector<Node> debug){
 
         }
     }
-    // if (callsCount == 0){
-    //     return Result::UNKNOWN;
-    // }
+    if (callsCount == 0){
+        return Result::UNKNOWN;
+    }
     //printSystemState();
     //AlwaysAssert(false);
     // Check Bounds for incosinstency 

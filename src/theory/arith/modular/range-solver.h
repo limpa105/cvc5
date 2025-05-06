@@ -251,11 +251,10 @@ class RangeSolver : protected EnvObj
         void getUnsatCore(Integer modulus);
 
     // === GB Fact Unfolding ===
-        std::vector<std::pair<int,Node>>  processOldGBs(const std::map<std::string, std::string>& oldGBs, const std::string& key);
 
     // === Fact Collection Utilities ===
         std::vector<std::pair<int,Node>> collectCores(std::string input);
-        std::vector<std::pair<int,Node>>  processOldGBs(std::map<std::string, std::string>& oldGBs,std::string& key);
+        std::vector<std::pair<std::vector<int>,Node>>  processOldGBs(std::map<std::string, std::string>& oldGBs,std::string& key);
 
         Node fakeProcessFact(Node fact);
 

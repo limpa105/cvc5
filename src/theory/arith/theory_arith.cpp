@@ -334,6 +334,7 @@ void TheoryArith::postCheck(Effort level)
             //AlwaysAssert(false);
             auto result2 = d_modularExtension->postCheck(level, d_modularExtension->d_conflict);
             AlwaysAssert(result2 == Result::UNSAT);
+            //AlwaysAssert(false);
             d_im.conflict(conflict, InferenceId::FF_LEMMA);
             } else {
                 d_im.setModelUnsound(IncompleteId::UNKNOWN);
