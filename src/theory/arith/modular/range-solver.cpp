@@ -1975,7 +1975,7 @@ std::vector<long> Field::getWeights2(std::map<std::string, Node> variables,
                     answer.push_back(2);
                     Bounds[symbol] = std::make_pair(0, 2);
                 } else {
-                    AlwaysAssert(false) << symbol << " has no bound??";
+                    //AlwaysAssert(false) << symbol << " has no bound??";
                     float result = BIGINTLOG2;
                     answer.push_back(long(result));
                 }
@@ -4148,7 +4148,7 @@ void RangeSolver::getUnsatCore(Integer modulus) {
             }
             case GB: {
                 std::string gb = issue.causeOfUnsat.second;
-                std::vector<std::pair<int, Node>> result = explainGen(modulus, gbName, 0);
+                std::vector<std::pair<int, Node>> result = explainGen(modulus, gbName, 1);
                 for (auto pair : result){
                     d_conflict.push_back(pair.second);
                 }
@@ -4170,13 +4170,14 @@ void RangeSolver::getUnsatCore(Integer modulus) {
         auto it = fields.find(modulus);
         AlwaysAssert(it != fields.end());
         Field issue = it->second;
-        std::cout << "great!\n";
         if (issue.origin[0].find("GB") != std::string::npos) {
                 size_t pos = issue.origin[0].find('_');
                 gbName = issue.origin[0].substr(0, pos);  // extracts GB0 from GB0_1 or similar
             } else {
                 gbName = "cur";
+                
         }
+        std::cout << "GB" << gbName << "\n";
         switch (issue.causeOfUnsat.first) {
             case DISEQ: {
                 std::cout << "diseq:" << issue.causeOfUnsat.second << "\n";
@@ -4305,7 +4306,7 @@ Result RangeSolver::Solve(std::vector<Node> debug){
         BoundsTracker[pair.first] = "";
     }
     int numFacts = 0;
-    if (debug.size()> 1){ 
+    if (callsCount!=0 & debug.size()> 0){ 
         for (auto fact:debug){
         processFact(fact, numFacts);
         numFacts+=1;
@@ -4314,11 +4315,10 @@ Result RangeSolver::Solve(std::vector<Node> debug){
             AlwaysAssert(false);
         }
        }
-    } else {
-        //loadState();
+    } else if(callsCount == 0){
         for (auto fact:d_facts){
              //numFacts+=1;
-            //if (numFacts >= factsProcessed){
+            if (numFacts < debug.size()){
                 //continue;
             processFact(fact, numFacts);
             //numFacts+=1;
@@ -4326,14 +4326,30 @@ Result RangeSolver::Solve(std::vector<Node> debug){
                 std::cout << fact << "\n";
                 AlwaysAssert(false);
             }
-            //}
+            }
+             numFacts+=1;
+
+        }
+    } else {
+        loadState();
+        for (auto fact:d_facts){
+             //numFacts+=1;
+            if (numFacts >= factsProcessed){
+                //continue;
+            processFact(fact, numFacts);
+            //numFacts+=1;
+            if (Bounds.find("") != Bounds.end()) {
+                std::cout << fact << "\n";
+                AlwaysAssert(false);
+            }
+            }
              numFacts+=1;
 
         }
     }
-    if (callsCount == 0){
-        return Result::UNKNOWN;
-    }
+    // if (callsCount == 0){
+    //     return Result::UNKNOWN;
+    // }
     //printSystemState();
     //AlwaysAssert(false);
     // Check Bounds for incosinstency 
@@ -4381,6 +4397,9 @@ Result RangeSolver::Solve(std::vector<Node> debug){
     //printSystemState();
     count+=1;
     std::cout << count << "\n";
+    if (count == 2 & callsCount==0){
+        return Result::UNKNOWN;
+    }
     if (count == 5){
         AlwaysAssert(false);
     }

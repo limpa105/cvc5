@@ -264,6 +264,54 @@ void TheoryArith::postCheck(Effort level)
           //   std::cout << "[STORAGE]" << i << ":" << storage[i] << "\n";
           // }
           auto result0 = d_modularExtension->postCheck(level, storage);
+          if (result0 == Result::UNSAT){
+            AlwaysAssert(false);
+          }
+          // int count = 0;
+          // for (auto fact: d_modularExtension->d_facts ){
+          //    std::cout << "[" << count << "]" << fact << "\n";
+          //   //AlwaysAssert(fact == storage[count]) << fact << " " << storage[count] <<  " " << count << "\n";
+          //   count +=1;
+          // }
+          //  count = 0;
+          // for (auto fact: storage ){
+          //    std::cout << "[" << count << "]" << fact << "\n";
+          //   //AlwaysAssert(fact == storage[count]) << fact << " " << storage[count] <<  " " << count << "\n";
+          //   count +=1;
+          // }
+          // size_t N = storage.size();
+          // std::cout << N << "\n";
+          // std::unordered_map<Node, int> countStorage, countFacts;
+
+          // // Count occurrences in storage
+          // for (const Node& n : storage) {
+          //   countStorage[n]++;
+          // }
+
+          // // Count occurrences in the first N facts
+          // for (size_t i = 0; i < N; ++i) {
+          //   countFacts[d_modularExtension->d_facts[i]]++;
+          // }
+
+          // // Compare the two multisets
+          // for (const auto& [node, count] : countStorage) {
+          //   //std::cout << node << "\n";
+          //   if (countFacts[node] != count) {
+          //     std::cout << "Mismatch: node " << node << " has count " << count
+          //               << " in storage but " << countFacts[node] << " in facts\n";
+          //     AlwaysAssert(false);
+          //   }
+          // }
+
+          // for (const auto& [node, count] : countFacts) {
+          //   if (countStorage[node] != count) {
+          //     std::cout << "Mismatch: node " << node << " has count " << count
+          //               << " in facts but " << countStorage[node] << " in storage\n";
+          //     AlwaysAssert(false);
+          //   }
+          // }
+
+          //AlwaysAssert(false);
        }
       //    if (result0 == Result::UNSAT){
       //       NodeManager* nm = NodeManager::currentNM();
@@ -274,14 +322,16 @@ void TheoryArith::postCheck(Effort level)
           //else {
             auto result = d_modularExtension->postCheck(level);
             if (result.getStatus() == Result::UNSAT){
+            
             std::cout << "we got here :)\n";
             NodeManager* nm = NodeManager::currentNM();
             AlwaysAssert(d_modularExtension->d_conflict.size()>0);
             const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->d_conflict);
             
             for (auto i: d_modularExtension->d_conflict){
-              std::cout << i << "\n";
+              std::cout << "[CONFLICT]" << i << "\n";
             }
+            //AlwaysAssert(false);
             auto result2 = d_modularExtension->postCheck(level, d_modularExtension->d_conflict);
             AlwaysAssert(result2 == Result::UNSAT);
             d_im.conflict(conflict, InferenceId::FF_LEMMA);
