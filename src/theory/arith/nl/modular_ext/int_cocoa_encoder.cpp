@@ -29,6 +29,7 @@
 #include <CoCoA/DenseMatrix.H>
 #include <CoCoA/error.H>
 #include <CoCoA/PPOrdering.H>
+#include "CoCoA/ideal.H"
 
 // std includes
 #include <sstream>
@@ -56,6 +57,7 @@ namespace arith {
 namespace nl {
 
 #define LETTER(c) (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z'))
+
 
 
 
@@ -195,7 +197,7 @@ std::vector<Node> CocoaEncoder::getCurVars(){
 
 void CocoaEncoder::addFact(const Node& fact)
 {
-  std::cout << fact << "\n";
+  //std::cout << fact << "\n";
   AlwaysAssert(isFfFact(fact));
   if (d_stage == Stage::Scan)
   {
@@ -312,21 +314,6 @@ void CocoaEncoder::encodeTerm(const Node& t)
           elem *= d_cache[c];
         }
       }
-      // ff.bitsum
-      else if (node.getKind() == Kind::FINITE_FIELD_BITSUM)
-      {
-        Poly sum = CoCoA::zero(*d_polyRing);
-        Poly two = CoCoA::one(*d_polyRing) * 2;
-        Poly twoPow = CoCoA::one(*d_polyRing);
-        for (const auto& c : node)
-        {
-          sum += twoPow * d_cache[c];
-          twoPow *= two;
-        }
-        elem = symPoly(d_bitsumSyms.at(node));
-        d_bitsumPolys.push_back(sum - elem);
-      }
-      // ff constant
       else if (node.getKind() == Kind::CONST_INTEGER)
       {
         elem = CoCoA::one(*d_polyRing)
@@ -335,7 +322,7 @@ void CocoaEncoder::encodeTerm(const Node& t)
       // !!
       else
       {
-        AlwaysAssert(false);
+        AlwaysAssert(false) << node.getKind();
         Unimplemented() << node;
       }
     }
@@ -364,6 +351,43 @@ void CocoaEncoder::encodeFact(const Node& f)
     d_cache.insert({f, diff * symPoly(d_diseqSyms.at(f)) - 1});
   }
 }
+
+std::optional<Poly> CocoaEncoder::tryEncodeFact(const Node& f)
+{
+  Assert(d_stage == Stage::Encode);
+
+  if (f.getKind() != Kind::EQUAL)
+  {
+    Trace("intgb") << "Skipping non-equality fact: " << f << "\n";
+    return std::nullopt;
+  }
+
+  std::unordered_set<Node> vars;
+  collectVars(f[0], vars);
+  collectVars(f[1], vars);
+
+  for (const Node& v : vars)
+  {
+    if (d_varSyms.find(v) == d_varSyms.end())
+    {
+      Trace("intgb") << "Unknown variable in equality: " << v << "\n";
+      return std::nullopt;
+    }
+  }
+
+  try
+  {
+    encodeTerm(f[0]);
+    encodeTerm(f[1]);
+    return d_cache.at(f[0]) - d_cache.at(f[1]);
+  }
+  catch (const std::exception& e)
+  {
+    Trace("intgb") << "Failed to encode equality: " << f << " with error: " << e.what() << "\n";
+    return std::nullopt;
+  }
+}
+
 
 
 Integer CocoaEncoder::cocoaToVal(CoCoA::RingElem elem) {
@@ -529,6 +553,45 @@ std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, 
     return result;
 
   }
+
+
+std::optional<CoCoA::RingElem> CocoaEncoder::tryEncodeTerm(const Node& t)
+{
+  Assert(d_stage == Stage::Encode);
+
+  // Extract variables from the node recursively
+  std::unordered_set<Node> vars;
+  collectVars(t, vars);
+
+  for (const Node& v : vars)
+  {
+    if (d_varSyms.find(v) == d_varSyms.end())
+    {
+      //Trace("intgb") << "Cannot encode node: " << t << " because variable " << v << " is unknown\n";
+      return std::nullopt;
+    }
+  }
+
+  try
+  {
+    // If already encoded, reuse from cache
+    auto it = d_cache.find(t);
+    if (it != d_cache.end())
+    {
+      return it->second;
+    }
+
+    // Otherwise, encode it
+    encodeTerm(t);
+    return d_cache.at(t);
+  }
+  catch (const std::exception& e)
+  {
+    Trace("intgb") << "Exception while encoding node " << t << ": " << e.what() << "\n";
+    return std::nullopt;
+  }
+}
+
 
 }
 }  // namespace nl

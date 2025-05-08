@@ -8,6 +8,7 @@
 #include <CoCoA/SparsePolyOps-ideal.H>
 #include <CoCoA/ring.H>
 #include <CoCoA/TmpGPoly.H>
+#include "CoCoA/ideal.H"
 
 namespace cvc5::internal {
 namespace theory {
@@ -17,7 +18,6 @@ namespace nl {
   Ring::Ring(Env& env):
     EnvObj(env)
   {
-    d_encoder = std::make_unique<CocoaEncoder>();
   }
 
   bool Ring::reduceAddEquality(Node fact){
@@ -68,25 +68,38 @@ namespace nl {
     }
     // Store the GB basis and encoder
     gbBasis = basis;
-    d_polyRing = enc.polyRing();
-    d_encoder = std::make_unique<CocoaEncoder>(enc);
+    //d_polyRing = enc.polyRing();
+    d_encoder =  enc;
     newPoly = enc.cocoaToNode(basis, nodeManager());
     equalities = newPoly;
     return Result::UNKNOWN;
   }
 
   Result Ring::checkDiseq() {
-    if (gbBasis.empty() || !d_encoder) {
+    if (gbBasis.empty()) {
       return Result::UNKNOWN;
+      //computeGB;
     }
-
     // Check each disequality
     for (const Node& diseq : disequalities) {
       // Use the stored encoder to get the polynomial
-      CoCoA::RingElem poly = d_encoder->getTermEncoding(diseq);
+      CoCoA::RingElem poly;
+      std::optional<CoCoA::RingElem> maybePoly = d_encoder.tryEncodeFact(diseq);
+      if (!maybePoly)
+      {
+       continue;
+        // handle gracefully (e.g., skip, return, continue)
+      }
+      else
+      {
+         poly = *maybePoly;
+        // continue using `poly`
+      }
       
       // Reduce against GB basis
-      CoCoA::RingElem reduced = CoCoA::NR(poly, gbBasis);
+      CoCoA::ideal I = CoCoA::ideal(gbBasis);  // Wrap your GB
+      CoCoA::RingElem reduced = CoCoA::NF(poly, I);  // Or: poly % I
+      //CoCoA::RingElem reduced = CoCoA::NF(poly, gbBasis);
       
       // Check if reduced to 0
       if (CoCoA::IsZero(reduced)) {

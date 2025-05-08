@@ -74,6 +74,10 @@ class CocoaEncoder
    * Available in Stage::Encode.
    */
 
+  std::optional<Poly> tryEncodeFact(const Node& f);
+
+   std::optional<CoCoA::RingElem> tryEncodeTerm(const Node& t);
+
   Node cocoaToNodeOne(CoCoA::RingElem RingPolynomial, NodeManager* nm);
 
   const std::vector<Poly>& polys() const { return d_polys; }

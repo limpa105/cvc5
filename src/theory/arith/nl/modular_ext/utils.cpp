@@ -249,6 +249,22 @@ std::optional<std::pair<Bound,Bound>> getBounds(Node fact, Integer new_field, st
   return true;
 }
 
+void collectVars(const Node& t, std::unordered_set<Node>& vars)
+{
+  if (t.isVar())
+  {
+    vars.insert(t);
+  }
+  else
+  {
+    for (const Node& child : t)
+    {
+      collectVars(child, vars);
+    }
+  }
+}
+
+
 std::vector<long> boundsToWeights(std::vector<CoCoA::symbol>& vars,
                                   std::map<std::string, std::pair<Bound, Bound>>& bounds) {
     std::vector<long> weights;

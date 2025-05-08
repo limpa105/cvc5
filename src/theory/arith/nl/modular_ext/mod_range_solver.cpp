@@ -52,6 +52,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   int count = 0;
   bool infoToLearn = false;
   Trace("mod-range-solver") << "Starred solving " << std::endl;
+  printSystemState();
   while(count < 3 ){
     count +=1;
     //Trace("mod-range-solver") << "Starred solving " << std::endl;
@@ -71,6 +72,12 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
         d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
         return;
        }
+       if(pair.second->checkDiseq() == Result::UNSAT){
+        std::cout << "UNSAT" << "\n";
+        d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
+        return;
+       }
+       
     }
     //printSystemState();
     // Lift + compute GBs in the Integer ring
@@ -90,6 +97,11 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
       std::cout << "UNSAT" << "\n";
         d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
          return;
+       }
+     if(myIntegerRing.checkDiseq() == Result::UNSAT){
+        std::cout << "UNSAT" << "\n";
+        d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
+        return;
        }
     //std::cout << "got to here\n";
   }

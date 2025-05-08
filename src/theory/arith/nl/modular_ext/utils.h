@@ -59,6 +59,9 @@ std::string extractStr(const T& t)
   return o.str();
 }
 
+void collectVars(const Node& t, std::unordered_set<Node>& vars);
+
+
 std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights);
 
 bool checkIfConstraintIsMet(Node equality, Integer modulos, std::map<std::string, std::pair<Bound, Bound> > Bounds, bool ineq = false);
