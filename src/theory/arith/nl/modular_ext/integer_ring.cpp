@@ -219,7 +219,9 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
         Bound b(val);
         Bounds[lhs.getName()] = std::make_pair(b, b);
         updatedVars.insert(lhs);
+        newEqSinceGB = true;
         //this->novelBound = true;
+        newEqSinceGB = true;
         changedThisRound = true;
         continue;
       }
@@ -304,6 +306,7 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
         if (updated) {
           updatedVars.insert(targetVar);
           updateCounts[targetVar]++;
+          newEqSinceGB = true;
           changedThisRound = true;
           if (!curLower.isInfinite() && !curUpper.isInfinite() &&
               *curLower.getValue() == *curUpper.getValue()) {

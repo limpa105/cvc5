@@ -58,6 +58,19 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   for(auto& fact: assertions){
       processFact(fact);
   }
+  for (const auto& [name, boundPair] : bounds)
+    {
+      const Bound& lower = boundPair.first;
+      const Bound& upper = boundPair.second;
+
+      if (upper < lower)
+      {
+        Trace("mod-range-solver") << "o.g bds unsat" << std::endl;
+         d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
+         return;
+
+      }
+    }
   int count = 0;
   bool infoToLearn = true;
   Trace("mod-range-solver") << "Started solving " << std::endl;
@@ -101,7 +114,12 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
     // Then we look at the integers 
     // 0) Tighten bounds
     Trace("mod-range-solver") << "tightening bounds" << std::endl;
-    myIntegerRing.tightenBounds(bounds);
+    if (myIntegerRing.tightenBounds(bounds) == Result::UNSAT){
+       Trace("mod-range-solver") << "returned unsat bounds" << std::endl;
+        d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
+        return;
+
+    };
     // 1) Lower
     Trace("mod-range-solver") << "lowering" << std::endl;
     for (int i = myIntegerRing.EqsMoved; i< myIntegerRing.equalities.size(); i++){
@@ -237,33 +255,6 @@ void ModRangeSolver::processFact(Node node){
                   ogBound->second.second = std::min(Bound((bd)), ogBound->second.second);
             }
       }
-      //   AlwaysAssert(node[1].getKind() == Kind::CONST_INTEGER) << node;
-      //   if (tempSkolemMap.find(node[0]) != tempSkolemMap.end())
-      //     {
-      //       Node sk = tempSkolemMap[node[0]];
-      //       //std::string name = sk.getName();
-      //       AlwaysAssert(node[1].getKind() == Kind::CONST_INTEGER);
-
-
-      //   thoughts even like 3x < 6 be in this case.. is this okay? yes
-      // // hopefully 
-      //   SkolemManager* sm = nm->getSkolemManager();
-      //   Node sk = sm->mkDummySkolem("Var", nm->integerType());
-      //    Bounds[sk.getName()].second = Bound;
-      //                Bounds[sk.getName()].first = Integer(-1) * BIGINT;
-      //                BoundsTracker[sk.getName()]+= "," + std::to_string(loc);
-      //                Node new_node = nm->mkNode(Kind::EQUAL, sk, fact[0][0]);
-      //                integerField.addEquality(new_node, true, std::to_string(loc));
-      //                //integerField.origin.push_back(std::to_string(loc));
-      //                std::string singularName = replaceDots(sk.getName());
-      //                myVariables[singularName] = sk;
-      //                myNodes.insert(sk);
-      //               tempSkolemMap.insert(std::make_pair(fact[0][0], sk));
-      //   //std::cout << node[0].getKind() << "\n";
-      // }
-      // thoughts even like 3x < 6 be in this case.. is this okay? yes
-      // hopefully 
-      //AlwaysAssert(false) <<  node << "NOT IMPLEMENTED YET";
     }
    }
   }
