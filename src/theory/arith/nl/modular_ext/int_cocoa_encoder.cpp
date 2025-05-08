@@ -132,16 +132,42 @@ CoCoA::symbol CocoaEncoder::freshSym(const std::string& varName,
   return sym;
 }
 
-void CocoaEncoder::endScanIntegers(std::vector<long> weights){
+void CocoaEncoder::endScanIntegers(std::vector<long> weights) {
   Assert(d_stage == Stage::Scan);
   d_stage = Stage::Encode;
+
+  Trace("intgb") << "Entered endScanIntegers\n";
+  Trace("intgb") << "Number of weights: " << weights.size() << "\n";
+  Trace("intgb") << "Number of d_syms: " << d_syms.size() << "\n";
+
   std::vector<std::vector<long>> k = grevlexWeighted(weights);
+  Trace("intgb") << "Computed weighted grevlex order:\n";
+  for (const auto& row : k) {
+    Trace("intgb") << "[";
+    for (long w : row) {
+      Trace("intgb") << w << " ";
+    }
+    Trace("intgb") << "]\n";
+  }
+
   CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ(), k);
-  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms, CoCoA::NewMatrixOrdering(m, d_syms.size()-1));
+  Trace("intgb") << "Constructed matrix of orderings with "
+                 << CoCoA::NumRows(m) << " rows and "
+                 << CoCoA::NumCols(m) << " columns\n";
+
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms,
+                                  CoCoA::NewMatrixOrdering(m, d_syms.size() - 1));
+
+  Trace("intgb") << "Constructed new polynomial ring\n";
+
   for (size_t i = 0, n = d_syms.size(); i < n; ++i)
   {
-    d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
+    std::string name = extractStr(d_syms[i]);
+    d_symPolys.insert({name, CoCoA::indet(*d_polyRing, i)});
+    Trace("intgb") << "Mapped variable '" << name << "' to CoCoA indet index " << i << "\n";
   }
+
+  Trace("intgb") << "Finished endScanIntegers\n";
 }
 
 
@@ -169,7 +195,8 @@ std::vector<Node> CocoaEncoder::getCurVars(){
 
 void CocoaEncoder::addFact(const Node& fact)
 {
-  Assert(isFfFact(fact));
+  std::cout << fact << "\n";
+  AlwaysAssert(isFfFact(fact));
   if (d_stage == Stage::Scan)
   {
     for (const auto& node :
@@ -185,8 +212,8 @@ void CocoaEncoder::addFact(const Node& fact)
       {
         //std::cout << "CoCoA var sym for " << node << std::endl;
         CoCoA::symbol sym = freshSym(node.getName());
-        Assert(!d_varSyms.count(node));
-        Assert(!d_symNodes.count(extractStr(sym)));
+        AlwaysAssert(!d_varSyms.count(node));
+        AlwaysAssert(!d_symNodes.count(extractStr(sym)));
         d_varSyms.insert({node, sym});
         d_symNodes.insert({extractStr(sym), node});
       }
@@ -200,7 +227,7 @@ void CocoaEncoder::addFact(const Node& fact)
   }
   else
   {
-    Assert(d_stage == Stage::Encode);
+    AlwaysAssert(d_stage == Stage::Encode);
     encodeFact(fact);
     d_polys.push_back(d_cache.at(fact));
   }
@@ -220,14 +247,14 @@ bool CocoaEncoder::hasNode(CoCoA::symbol s) const
 
 std::vector<std::pair<size_t, Node>> CocoaEncoder::nodeIndets() const
 {
-  std::cout << "We are here" << d_syms.size()<<"\n";
+  //std::cout << "We are here" << d_syms.size()<<"\n";
   std::vector<std::pair<size_t, Node>> out;
   for (size_t i = 0, end = d_syms.size(); i < end; ++i)
   {
     if (hasNode(d_syms[i]))
     {
-      std::cout << "We are here??\n";
-      std::cout << d_syms[i] << "\n";
+      //std::cout << "We are here??\n";
+      //std::cout << d_syms[i] << "\n";
       Node n = symNode(d_syms[i]);
       // skip indets for !=
       if (isFfLeaf(n))
@@ -236,7 +263,7 @@ std::vector<std::pair<size_t, Node>> CocoaEncoder::nodeIndets() const
       }
     }
   }
-  std::cout << "return\n";
+  //std::cout << "return\n";
   return out;
 }
 
@@ -341,12 +368,12 @@ void CocoaEncoder::encodeFact(const Node& f)
 
 Integer CocoaEncoder::cocoaToVal(CoCoA::RingElem elem) {
   //CoCoA::SparsePolyIter iter=CoCoA::BeginIter(elem);
-  std::cout << "We are here\n";
+  //std::cout << "We are here\n";
   return Integer(extractStr(elem), 10);
 }
 
 Node CocoaEncoder::cocoaToNodeOne(CoCoA::RingElem RingPolynomial, NodeManager* nm){
-  std::cout << "I am the issue\n";
+  //std::cout << "I am the issue\n";
 std::vector<Node> LHS;
     //LHS.push_back(nm->mkConst(0));
     std::vector<Node> RHS;
@@ -390,7 +417,7 @@ std::vector<Node> LHS;
         }
         // TODO NEED TO ADD A CHECK IF ITS A CONSTANT!!!!
         else if (CoCoA::IsIndet(tempMonomial)) {
-          std::cout << tempMonomial << "\n";
+          //std::cout << tempMonomial << "\n";
           // we just have one variable
           if(positive){
             LHS.push_back(nm->mkNode(Kind::MULT, Coeff, d_symNodes[extractStr(tempMonomial)]));

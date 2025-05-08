@@ -92,15 +92,10 @@ CoCoA::BigInt intToCocoa(const Integer& i)
 }
 
 std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights){
-  std::cout << "Grev Order\n";
   int numRows = 1;
   int numColumns = weights.size();
-  std::cout << weights.size() << "\n";
   int grevColumns = numColumns - numRows;
   std::vector<std::vector<long>> finalMatrix(grevColumns, std::vector<long>(numColumns, 0));
-  std::cout << finalMatrix.size() << "\n";
-  std::cout << finalMatrix[0].size() << "\n";
-  std::cout << "Starting for loop\n";
   for (int i =0; i<grevColumns; ++i){
     for (int j = 0; j<numColumns; ++j){
       if (i+j < grevColumns){
@@ -111,9 +106,7 @@ std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights){
     }
   }
   }
-  std::cout << "Created first matrix \n";
   finalMatrix.insert(finalMatrix.begin(),weights);
-  std::cout << "Created final matrix \n";
   return finalMatrix;
 }
 
@@ -256,14 +249,21 @@ std::optional<std::pair<Bound,Bound>> getBounds(Node fact, Integer new_field, st
   return true;
 }
 
-std::vector<long> boundsToWeights(std::unordered_set<std::string> d_vars, const std::map<std::string, std::pair<Bound, Bound>>& bounds) {
+std::vector<long> boundsToWeights(std::vector<CoCoA::symbol>& vars,
+                                  std::map<std::string, std::pair<Bound, Bound>>& bounds) {
     std::vector<long> weights;
-    for (const auto& [var, pair] : bounds) {
-        if (d_vars.find(var) == d_vars.end()) {
-          continue;
+
+    for (CoCoA::symbol& sym : vars) {
+        std::string var = extractStr(sym);
+        auto it = bounds.find(var);
+        if (it == bounds.end()) {
+            // No bound info — use default
+            weights.push_back(1);
+            continue;
         }
-        const Bound& b1 = pair.first;
-        const Bound& b2 = pair.second;
+
+         Bound& b1 = it->second.first;
+         Bound& b2 = it->second.second;
 
         if (b1.isInfinite() || b2.isInfinite() ||
             !b1.getValue().has_value() || !b2.getValue().has_value()) {
@@ -273,11 +273,14 @@ std::vector<long> boundsToWeights(std::unordered_set<std::string> d_vars, const 
             Integer abs2 = b2.getValue().value().abs();
             Integer max = (abs1 > abs2) ? abs1 : abs2;
             auto dbg = max.getLong();
-            weights.push_back(static_cast<long>(std::log(dbg) * 10.0));
+            long weight = static_cast<long>(std::log(dbg) * 10.0);
+            weights.push_back(weight > 0 ? weight : 1);
         }
     }
+
     return weights;
 }
+
 
 Node replaceMMMod(Node exp, NodeManager* nm){
     if (exp.getKind() == Kind::MM_MOD){

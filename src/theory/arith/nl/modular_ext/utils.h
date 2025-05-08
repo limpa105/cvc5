@@ -63,7 +63,8 @@ std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights);
 
 bool checkIfConstraintIsMet(Node equality, Integer modulos, std::map<std::string, std::pair<Bound, Bound> > Bounds, bool ineq = false);
 
-std::vector<long> boundsToWeights(std::unordered_set<std::string> d_vars, const std::map<std::string, std::pair<Bound, Bound>>& bounds);
+std::vector<long> boundsToWeights(std::vector<CoCoA::symbol>& vars,
+                                  std::map<std::string, std::pair<Bound, Bound>>& bounds);
 
 Node replaceMMMod(Node exp, NodeManager* nm);
 

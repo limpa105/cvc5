@@ -51,12 +51,14 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   }
   int count = 0;
   bool infoToLearn = false;
+  Trace("mod-range-solver") << "Starred solving " << std::endl;
   while(count < 3 ){
     count +=1;
+    //Trace("mod-range-solver") << "Starred solving " << std::endl;
     //printSystemState();
     // Lower + compute GBs in the moduli ring
     for (auto &pair: myModularRings){
-      for (auto &eq: pair.second->equalities){
+      for (Node &eq: pair.second->equalities){
         if (checkIfConstraintIsMet(eq, pair.second->modulus, bounds)){
           myIntegerRing.reduceAddEquality(eq);
         }
@@ -84,17 +86,17 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
         }
       }
     }
-    // if(myIntegerRing.computeGB(myVariables, bounds) == Result::UNSAT){
-    //   std::cout << "UNSAT" << "\n";
-    //     d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
-    //      return;
-    //    }
-    std::cout << "got to here\n";
+    if(myIntegerRing.computeGB(myVariables, bounds) == Result::UNSAT){
+      std::cout << "UNSAT" << "\n";
+        d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
+         return;
+       }
+    //std::cout << "got to here\n";
   }
 
   std::cout << "UNKNOWN" << "\n";
   for (auto& as: false_asserts){
-    std::cout << as << "\n";
+    //std::cout << as << "\n";
      d_im.lemma(nodeManager()->mkNode(Kind::EQUAL, replaceMMMod(as, nodeManager())[0], as[0]), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
   }    
   //printSystemState();
@@ -121,31 +123,37 @@ void ModRangeSolver::preRegisterTerm(Node node){
 
 void ModRangeSolver::processFact(Node node){
   // strip down to the polynomial
+  //std::cout << node << "\n";
+  NodeManager* nm = nodeManager();
   bool isNeg = (node.getKind() == Kind::NOT);
   if (isNeg) {
     node = node[0];
   }
   bool isEq = (node.getKind() == Kind::EQUAL);
-  bool isMod = (isEq && (node[0].getKind() == Kind::MM_MOD));
+  bool isMod = (isEq & (node[0].getKind() == Kind::MM_MOD));
   if (isEq){
+    //std::cout << "we should not be here\n";
     if(isMod){
       Node exp = node[0][0];
       Integer modulo = node[0][1].getConst<Rational>().getNumerator();
       ModularRing* currRing = myModularRings[modulo].get();
       if (isNeg){
-        currRing->disequalities.push_back(exp);
+        currRing->disequalities.push_back(nm->mkNode(Kind::EQUAL, exp, nm->mkConstInt(0)));
       } else {
-         currRing->equalities.push_back(exp);
+         currRing->equalities.push_back(nm->mkNode(Kind::EQUAL, exp, nm->mkConstInt(0)));
       }
     } else {
-      Node exp = nodeManager()->mkNode(Kind::SUB, node[0], node[1]);
+      Node exp = nm->mkNode(Kind::SUB, node[0], node[1]);
       if (isNeg){
-        myIntegerRing.disequalities.push_back(exp);
+        myIntegerRing.disequalities.push_back(nm->mkNode(Kind::EQUAL, exp, nm->mkConstInt(0)));
       } else {
-        myIntegerRing.equalities.push_back(exp);
+        myIntegerRing.equalities.push_back(nm->mkNode(Kind::EQUAL, exp, nm->mkConstInt(0)));
       }
     }
   } else {
+    if (node[0].getKind() == Kind::MM_MOD){
+      return;
+    }
     // Non Skolem case
     if (isVariableOrSkolem(node[0]) && node[1].getKind()==Kind::CONST_INTEGER){
       auto ogBound = bounds.find(node[0].getName());
@@ -164,7 +172,7 @@ void ModRangeSolver::processFact(Node node){
       if (node[0].getKind() == Kind::MM_MOD){
         return;
       }else {
-        std::cout << node[0].getKind() << "\n";
+        //std::cout << node[0].getKind() << "\n";
       }
       // thoughts even like 3x < 6 be in this case.. is this okay? yes
       // hopefully 

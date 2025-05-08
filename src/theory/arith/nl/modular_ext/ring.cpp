@@ -7,77 +7,94 @@
 #include <CoCoA/RingZZ.H>
 #include <CoCoA/SparsePolyOps-ideal.H>
 #include <CoCoA/ring.H>
-
+#include <CoCoA/TmpGPoly.H>
 
 namespace cvc5::internal {
 namespace theory {
 namespace arith {
 namespace nl {
 
-
   Ring::Ring(Env& env):
     EnvObj(env)
-    {};
+  {
+    d_encoder = std::make_unique<CocoaEncoder>();
+  }
 
   bool Ring::reduceAddEquality(Node fact){
-        fact = rewrite(fact);
-        if (std::find(equalities.begin(), equalities.end(), fact) == equalities.end()){
-          equalities.push_back(fact);
-          return true;
-        }
-        return false;
-     }
+    fact = rewrite(fact);
+    if (std::find(equalities.begin(), equalities.end(), fact) == equalities.end()){
+      equalities.push_back(fact);
+      return true;
+    }
+    return false;
+  }
 
   bool Ring::AddDisquality(Node fact){
-        fact = rewrite(fact);
-        if (std::find(disequalities.begin(), disequalities.end(), fact) == disequalities.end()){
-          disequalities.push_back(fact);
-          return true;
-        }
-        return false;
-      }
-
+    fact = rewrite(fact);
+    if (std::find(disequalities.begin(), disequalities.end(), fact) == disequalities.end()){
+      disequalities.push_back(fact);
+      return true;
+    }
+    return false;
+  }
 
   void Ring::prepGB(CocoaEncoder& enc){
-     for (const Node& node : equalities)
-      {
-        enc.addFact(node);
-      }
+    for (const Node& node : equalities) {
+      enc.addFact(node);
+    }
   }
 
   Result Ring::analyzeGB(CocoaEncoder& enc){
-    std::cout << "oh\n";
-    for (const Node& node :equalities)
-      {
-        std::cout << node << "\n";
-        enc.addFact(node);
-      }
-    std::cout << "huh1\n";
+    Trace("intgb") << "Adding facts\n";
+    for (const Node& node : equalities) {
+      enc.addFact(node);
+    }
+    Trace("intgb") << "Constructing ideal\n";
     std::vector<CoCoA::RingElem> generators;
     generators.insert(generators.end(), enc.polys().begin(), enc.polys().end());
     std::vector<Node> newPoly;
     CoCoA::ideal ideal = CoCoA::ideal(generators);
-    std::cout << "huh\n";
-    const auto basis = GBasis(ideal);
-      if (basis.size() == 1 && CoCoA::deg(basis.front()) == 0)
-      {
-        return Result::UNSAT;
-      }
-      newPoly = enc.cocoaToNode(basis, nodeManager());
-      equalities = newPoly;
+    Trace("intgb") << "Computing GB for" <<  enc.polyRing() << std::endl;
+    std::vector<Poly> basis;
+    try {
+      basis = GBasis(ideal, CoCoA::CpuTimeLimit(30));
+    }
+    catch (CoCoA::TimeoutException& t) {
+      GBTimeOut = true;
       return Result::UNKNOWN;
+    }
+    if (basis.size() == 1 && CoCoA::deg(basis.front()) == 0) {
+      return Result::UNSAT;
+    }
+    // Store the GB basis and encoder
+    gbBasis = basis;
+    d_polyRing = enc.polyRing();
+    d_encoder = std::make_unique<CocoaEncoder>(enc);
+    newPoly = enc.cocoaToNode(basis, nodeManager());
+    equalities = newPoly;
+    return Result::UNKNOWN;
   }
 
+  Result Ring::checkDiseq() {
+    if (gbBasis.empty() || !d_encoder) {
+      return Result::UNKNOWN;
+    }
 
-      //std::cout << "Scanned Integers \n";
-      //std::cout << "Got weights \n";
-      // assert facts
+    // Check each disequality
+    for (const Node& diseq : disequalities) {
+      // Use the stored encoder to get the polynomial
+      CoCoA::RingElem poly = d_encoder->getTermEncoding(diseq);
       
-
-
-
-
-
+      // Reduce against GB basis
+      CoCoA::RingElem reduced = CoCoA::NR(poly, gbBasis);
+      
+      // Check if reduced to 0
+      if (CoCoA::IsZero(reduced)) {
+        return Result::UNSAT;
+      }
+    }
+    return Result::UNKNOWN;
+  }
 
 }  // namespace nl
 }  // namespace arith

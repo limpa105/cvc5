@@ -14,7 +14,7 @@ namespace nl {
     };
 
   Result IntegerRing::computeGB(std::vector<Node> variables, std::map<std::string, std::pair<Bound, Bound>> bounds){
-  if (equalities.size() < 2){
+  if (equalities.size() < 2 || GBTimeOut){
       return Result::UNKNOWN;
   }
   try {
@@ -23,14 +23,20 @@ namespace nl {
       {
         enc.addFact(node);
       }
-   std::vector<long> weights = boundsToWeights(enc.d_vars, bounds);
-  enc.endScanIntegers(weights);
-  return analyzeGB(enc);
+  std::vector<long> weights = boundsToWeights(enc.d_syms, bounds);
+  Trace("intgb") << "Weights: ";
+    for (long w : weights) Trace("intgb") << w << " ";
+    Trace("intgb") << "\nCalling endScanIntegers...\n";
+
+    enc.endScanIntegers(weights);
+
+    Trace("intgb") << "Calling analyzeGB...\n";
+    return analyzeGB(enc);
 
 } catch (const CoCoA::ErrorInfo& e) {
   std::cerr << "[Exception] " << e << std::endl;
   AlwaysAssert(false);
-  return {}; // or false, or nullptr
+  //return {}; // or false, or nullptr
 }
 }
 
