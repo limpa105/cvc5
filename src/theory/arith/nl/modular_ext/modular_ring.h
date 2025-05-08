@@ -18,6 +18,12 @@ class ModularRing : public Ring
  public:
   ModularRing(Env& env, Integer& modulus);
 
+  Node modOut(Node fact);
+
+  bool reduceAddEquality(Node fact);
+
+  bool AddDisquality(Node fact);
+
   Integer modulus;
 
   bool isPrime;

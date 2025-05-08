@@ -37,7 +37,7 @@ const std::optional<Integer>& Bound::getValue() const {
   return value;
 }
 
-void Bound::setValue(Integer& v) {
+void Bound::setValue(const Integer& v) {
   type = Type::FINITE;
   value = v;
 }

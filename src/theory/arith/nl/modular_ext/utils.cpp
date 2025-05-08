@@ -264,6 +264,20 @@ void collectVars(const Node& t, std::unordered_set<Node>& vars)
   }
 }
 
+bool containsVariable(const Node& node, Node targetNode) {
+    if (node.getName() == targetNode.getName()) {
+        return true;
+    }
+    for (size_t i = 0; i < node.getNumChildren(); ++i) {
+        if (containsVariable(node[i], targetNode)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+
 
 std::vector<long> boundsToWeights(std::vector<CoCoA::symbol>& vars,
                                   std::map<std::string, std::pair<Bound, Bound>>& bounds) {

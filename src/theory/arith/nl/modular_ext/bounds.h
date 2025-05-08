@@ -27,7 +27,7 @@ public:
   std::optional<Integer>& getValue();
 
 
-  void setValue(Integer& v);  // set to a new finite value
+  void setValue(const Integer& v);  // set to a new finite value
   void setTo( Bound& other);
   void setInfinite(); 
   void setPositiveInfinity();

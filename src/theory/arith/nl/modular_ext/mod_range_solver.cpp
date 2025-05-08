@@ -46,73 +46,101 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
                               const std::vector<Node>& false_asserts,
                               const std::vector<Node>& xts)
 {
+  // CLEAR STATE HERE 
+  for (auto &pair: myModularRings){
+    pair.second->clearState();
+  }
+  myIntegerRing.clearState();
+  for (auto &bd: bounds){
+    bd.second =  std::make_pair(Bound::negativeInfinity(), Bound::positiveInfinity());
+  };
   for(auto& fact: assertions){
       processFact(fact);
   }
   int count = 0;
-  bool infoToLearn = false;
-  Trace("mod-range-solver") << "Starred solving " << std::endl;
-  printSystemState();
-  while(count < 3 ){
+  bool infoToLearn = true;
+  Trace("mod-range-solver") << "Started solving " << std::endl;
+  while(infoToLearn){
+    infoToLearn = false;
     count +=1;
-    //Trace("mod-range-solver") << "Starred solving " << std::endl;
-    //printSystemState();
-    // Lower + compute GBs in the moduli ring
+    // First we look at the fields:
+    Trace("mod-range-solver") << "lifting" << std::endl;
     for (auto &pair: myModularRings){
+      // 1) Lift
       for (Node &eq: pair.second->equalities){
         if (checkIfConstraintIsMet(eq, pair.second->modulus, bounds)){
-          myIntegerRing.reduceAddEquality(eq);
+            if(myIntegerRing.reduceAddEquality(eq)){
+              infoToLearn = true;
+            };
         }
         }
-       for (auto &diseq: pair.second->disequalities){
-        myIntegerRing.AddDisquality(diseq);
+       for (int i = pair.second->DiseqMoved; i < pair.second->disequalities.size(); i++){
+          Node diseq = pair.second->disequalities[i];
+          if(myIntegerRing.AddDisquality(diseq)){
+            infoToLearn = true;
+          };
        }
+       pair.second->DiseqMoved = pair.second->disequalities.size();
+       // 2) Compute GB
        if(pair.second->computeGB() == Result::UNSAT){
-        std::cout << "UNSAT" << "\n";
+        //std::cout << "UNSAT" << "\n";
+        Trace("mod-range-solver") << "returned unsat field gb" << std::endl;
         d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
         return;
        }
+       // 3) Reduce Diseq
        if(pair.second->checkDiseq() == Result::UNSAT){
-        std::cout << "UNSAT" << "\n";
+        Trace("mod-range-solver") << "returned unsat field diseq" << std::endl;
         d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
         return;
        }
        
     }
     //printSystemState();
-    // Lift + compute GBs in the Integer ring
-    for (auto &eq: myIntegerRing.equalities){
+    // Then we look at the integers 
+    // 0) Tighten bounds
+    Trace("mod-range-solver") << "tightening bounds" << std::endl;
+    myIntegerRing.tightenBounds(bounds);
+    // 1) Lower
+    Trace("mod-range-solver") << "lowering" << std::endl;
+    for (int i = myIntegerRing.EqsMoved; i< myIntegerRing.equalities.size(); i++){
       for (auto &pair: myModularRings){
-        pair.second->reduceAddEquality(eq);
+        Node eq = myIntegerRing.equalities[i];
+        if (pair.second->reduceAddEquality(eq)){
+          infoToLearn = true;
+        };
       }
     }
+    myIntegerRing.EqsMoved = myIntegerRing.equalities.size();
     for (auto &diseq: myIntegerRing.disequalities){
       for (auto &pair: myModularRings){
         if (checkIfConstraintIsMet(diseq, pair.second->modulus, bounds, true)){
-          pair.second->reduceAddEquality(diseq);
+          if(pair.second->AddDisquality(diseq)){
+            infoToLearn = true;
+          };
         }
       }
     }
+    // 2) Compute GB
     if(myIntegerRing.computeGB(myVariables, bounds) == Result::UNSAT){
-      std::cout << "UNSAT" << "\n";
+        Trace("mod-range-solver") << "returned unsat int gb" << std::endl;
         d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
          return;
        }
+    // 3) Reduce Diseq
      if(myIntegerRing.checkDiseq() == Result::UNSAT){
-        std::cout << "UNSAT" << "\n";
+        Trace("mod-range-solver") << "returned unsat int diseq" << std::endl;
         d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
         return;
        }
-    //std::cout << "got to here\n";
   }
 
-  std::cout << "UNKNOWN" << "\n";
+  Trace("mod-range-solver") << "returned unknown" << std::endl;
+  printSystemState();
   for (auto& as: false_asserts){
     //std::cout << as << "\n";
      d_im.lemma(nodeManager()->mkNode(Kind::EQUAL, replaceMMMod(as, nodeManager())[0], as[0]), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
   }    
-  //printSystemState();
-  //AlwaysAssert(false);
 };
 
 void ModRangeSolver::preRegisterTerm(Node node){
@@ -224,7 +252,6 @@ void ModRangeSolver::printSystemState(){
     {
       std::cout << "\t" << i.first << ":(" << i.second.first.toString() << ", " << i.second.second.toString() << ")\n";
   }
-    std::cout << "DONE!" << "\n";
 }
 
 }  // namespace nl

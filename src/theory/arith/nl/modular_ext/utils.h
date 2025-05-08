@@ -59,8 +59,10 @@ std::string extractStr(const T& t)
   return o.str();
 }
 
+
 void collectVars(const Node& t, std::unordered_set<Node>& vars);
 
+bool containsVariable(const Node& node, Node targetNode);
 
 std::vector<std::vector<long>> grevlexWeighted(std::vector<long> weights);
 

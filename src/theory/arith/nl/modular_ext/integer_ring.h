@@ -17,6 +17,14 @@ namespace nl {
 
          Result computeGB(std::vector<Node> variables, std::map<std::string, std::pair<Bound, Bound>> bounds);
 
+        std::pair<Bound, Bound> inferBoundsRecursive(
+            const Node& node,
+            std::map<std::string, std::pair<Bound, Bound>>& Bounds);
+
+        std::pair<Node, Node> separateTerms(const Node& node, Node targetNode);
+
+         Result tightenBounds(std::map<std::string, std::pair<Bound, Bound>>& Bounds);
+
     };
 
 } // namespace modular

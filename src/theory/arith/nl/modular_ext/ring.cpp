@@ -23,8 +23,33 @@ namespace nl {
   bool Ring::reduceAddEquality(Node fact){
     fact = rewrite(fact);
     if (std::find(equalities.begin(), equalities.end(), fact) == equalities.end()){
-      equalities.push_back(fact);
-      return true;
+        if (gbBasis.empty() || GBTimeOut) {
+            equalities.push_back(fact);
+            newEqSinceGB = true;
+            return true;
+          } else {
+            CoCoA::RingElem poly;
+            std::optional<CoCoA::RingElem> maybePoly = d_encoder.tryEncodeFact(fact);
+            if (!maybePoly)
+            {
+            equalities.push_back(fact);
+            newEqSinceGB = true;
+            return true;
+            }
+            else
+            {
+              poly = *maybePoly;
+            }
+          CoCoA::ideal I = CoCoA::ideal(gbBasis);
+          CoCoA::RingElem reduced = CoCoA::NF(poly, I);  // Or: poly % I
+          if (CoCoA::IsZero(reduced)) {
+            return false;
+          } else {
+            equalities.push_back(fact);
+            newEqSinceGB = true;
+            return true;
+          }
+          }
     }
     return false;
   }
@@ -72,42 +97,54 @@ namespace nl {
     d_encoder =  enc;
     newPoly = enc.cocoaToNode(basis, nodeManager());
     equalities = newPoly;
+    newEqSinceGB = false;
+    DiseqReduced = 0;
+    EqsMoved = 0;
     return Result::UNKNOWN;
   }
 
-  Result Ring::checkDiseq() {
-    if (gbBasis.empty()) {
-      return Result::UNKNOWN;
-      //computeGB;
-    }
-    // Check each disequality
-    for (const Node& diseq : disequalities) {
-      // Use the stored encoder to get the polynomial
-      CoCoA::RingElem poly;
-      std::optional<CoCoA::RingElem> maybePoly = d_encoder.tryEncodeFact(diseq);
-      if (!maybePoly)
-      {
-       continue;
-        // handle gracefully (e.g., skip, return, continue)
-      }
-      else
-      {
-         poly = *maybePoly;
-        // continue using `poly`
-      }
-      
-      // Reduce against GB basis
-      CoCoA::ideal I = CoCoA::ideal(gbBasis);  // Wrap your GB
-      CoCoA::RingElem reduced = CoCoA::NF(poly, I);  // Or: poly % I
-      //CoCoA::RingElem reduced = CoCoA::NF(poly, gbBasis);
-      
-      // Check if reduced to 0
-      if (CoCoA::IsZero(reduced)) {
-        return Result::UNSAT;
-      }
-    }
+Result Ring::checkDiseq()
+{
+  Trace("intgb") << "Starting checkDiseq...\n";
+
+  if (gbBasis.empty())
+  {
+    Trace("intgb") << "Gröbner basis is empty, returning UNKNOWN.\n";
     return Result::UNKNOWN;
   }
+
+  // Wrap your GB into a CoCoA ideal
+  CoCoA::ideal I = CoCoA::ideal(gbBasis);
+
+  for (int i = DiseqReduced; i<disequalities.size(); i++)
+  {
+    Node diseq = disequalities[i];
+    Trace("intgb") << "Processing disequality: " << diseq << "\n";
+
+    std::optional<CoCoA::RingElem> maybePoly = d_encoder.tryEncodeFact(diseq);
+    if (!maybePoly)
+    {
+      Trace("intgb") << "Could not encode disequality, skipping: " << diseq << "\n";
+      continue;
+    }
+
+    CoCoA::RingElem poly = *maybePoly;
+    Trace("intgb") << "Encoded polynomial: " << poly << "\n";
+
+    CoCoA::RingElem reduced = CoCoA::NF(poly, I);
+    Trace("intgb") << "Reduced form: " << reduced << "\n";
+
+    if (CoCoA::IsZero(reduced))
+    {
+      Trace("intgb") << "Disequality reduces to 0 → contradiction → UNSAT\n";
+      return Result::UNSAT;
+    }
+  }
+  DiseqReduced = disequalities.size();
+  Trace("intgb") << "No disequality reduced to 0 → returning UNKNOWN\n";
+  return Result::UNKNOWN;
+}
+
 
 }  // namespace nl
 }  // namespace arith
