@@ -178,9 +178,38 @@ std::optional<std::pair<Bound,Bound>> getBounds(Node fact, Integer new_field, st
 
     return std::make_pair(minProd, maxProd);
   }
+  else if (fact.getKind() == Kind::SUB)
+  {
+    auto aBoundsOpt = getBounds(fact[0], new_field, Bounds, ineq);
+    auto bBoundsOpt = getBounds(fact[1], new_field, Bounds, ineq);
+
+    if (!aBoundsOpt.has_value() || !bBoundsOpt.has_value())
+    {
+      return std::nullopt;
+    }
+
+    Bound aLo = aBoundsOpt->first;
+    Bound aHi = aBoundsOpt->second;
+    Bound bLo = bBoundsOpt->first;
+    Bound bHi = bBoundsOpt->second;
+
+    if (aLo.isInfinite() || aHi.isInfinite() ||
+        bLo.isInfinite() || bHi.isInfinite() ||
+        !aLo.getValue().has_value() || !aHi.getValue().has_value() ||
+        !bLo.getValue().has_value() || !bHi.getValue().has_value())
+    {
+      return std::nullopt;
+    }
+
+    Integer minVal = *aLo.getValue() - *bHi.getValue();
+    Integer maxVal = *aHi.getValue() - *bLo.getValue();
+    return std::make_pair(Bound(minVal), Bound(maxVal));
+  }
 
   // Addition
   AlwaysAssert(fact.getKind() == Kind::ADD) << fact;
+
+
   Integer sumMin(0), sumMax(0);
   for (int i = 0; i < fact.getNumChildren(); ++i)
   {

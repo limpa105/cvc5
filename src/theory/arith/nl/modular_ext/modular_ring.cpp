@@ -100,8 +100,12 @@ Node ModularRing::modOut(Node fact)
   if (k == Kind::EQUAL){
     return nm->mkNode(Kind::EQUAL, modOut(fact[0]), modOut(fact[1]));
   }
+  if (k == Kind::SUB) {
+    Node negated = nm->mkNode(Kind::MULT, nm->mkConstInt(Integer(-1)), modOut(fact[1]));
+    return nm->mkNode(Kind::ADD, modOut(fact[0]), negated);
+  }
 
-  AlwaysAssert(false) << "Unsupported kind in modOut: " << k;
+  AlwaysAssert(false) << "Unsupported kind in modOut: " << k << " for node " << fact;
 }
 
 bool ModularRing::reduceAddEquality(Node fact){

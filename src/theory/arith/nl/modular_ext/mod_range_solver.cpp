@@ -22,6 +22,7 @@
 #include "theory/arith/nl/modular_ext/utils.h"
 #include "util/integer.h"
 #include "util/rational.h"
+#include "expr/skolem_manager.h"
 
 
 using namespace cvc5::internal::kind;
@@ -136,7 +137,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   }
 
   Trace("mod-range-solver") << "returned unknown" << std::endl;
-  printSystemState();
+  //printSystemState();
   for (auto& as: false_asserts){
     //std::cout << as << "\n";
      d_im.lemma(nodeManager()->mkNode(Kind::EQUAL, replaceMMMod(as, nodeManager())[0], as[0]), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
@@ -205,18 +206,64 @@ void ModRangeSolver::processFact(Node node){
       } else {
             ogBound->second.second = std::min(Bound((newBound-1)), ogBound->second.second);
       }
-
-
     } //Skolem Case
     else {
       if (node[0].getKind() == Kind::MM_MOD){
         return;
-      }else {
-        //std::cout << node[0].getKind() << "\n";
+      } else {
+         AlwaysAssert(node.getKind() == Kind::GEQ) << "unsupported inequality";
+         Integer bd; 
+         if (node[1].getKind() == Kind::CONST_INTEGER){
+            bd = node[1].getConst<Rational>().getNumerator();
+            node = node[0];
+         } else {
+            bd = Integer(0);
+            node = nm->mkNode(Kind::SUB, node[0], node[1]);
+         }
+          Node sk;
+          if (tempSkolemMap.find(node) != tempSkolemMap.end())
+           {
+              sk = tempSkolemMap[node];
+           } else {
+              SkolemManager* sm = nm->getSkolemManager();
+              sk = sm->mkDummySkolem("Var", nm->integerType());
+              bounds[sk.getName()] = std::make_pair(Bound::negativeInfinity(), Bound::positiveInfinity());
+           }
+            auto ogBound = bounds.find(sk.getName());
+            AlwaysAssert(ogBound!= bounds.end()) << "unregistered variable";
+            if (!isNeg){
+                ogBound->second.first= std::max(Bound(bd), ogBound->second.first);
+            } else {
+                  ogBound->second.second = std::min(Bound((bd)), ogBound->second.second);
+            }
       }
+      //   AlwaysAssert(node[1].getKind() == Kind::CONST_INTEGER) << node;
+      //   if (tempSkolemMap.find(node[0]) != tempSkolemMap.end())
+      //     {
+      //       Node sk = tempSkolemMap[node[0]];
+      //       //std::string name = sk.getName();
+      //       AlwaysAssert(node[1].getKind() == Kind::CONST_INTEGER);
+
+
+      //   thoughts even like 3x < 6 be in this case.. is this okay? yes
+      // // hopefully 
+      //   SkolemManager* sm = nm->getSkolemManager();
+      //   Node sk = sm->mkDummySkolem("Var", nm->integerType());
+      //    Bounds[sk.getName()].second = Bound;
+      //                Bounds[sk.getName()].first = Integer(-1) * BIGINT;
+      //                BoundsTracker[sk.getName()]+= "," + std::to_string(loc);
+      //                Node new_node = nm->mkNode(Kind::EQUAL, sk, fact[0][0]);
+      //                integerField.addEquality(new_node, true, std::to_string(loc));
+      //                //integerField.origin.push_back(std::to_string(loc));
+      //                std::string singularName = replaceDots(sk.getName());
+      //                myVariables[singularName] = sk;
+      //                myNodes.insert(sk);
+      //               tempSkolemMap.insert(std::make_pair(fact[0][0], sk));
+      //   //std::cout << node[0].getKind() << "\n";
+      // }
       // thoughts even like 3x < 6 be in this case.. is this okay? yes
       // hopefully 
-      AlwaysAssert(false) <<  node << "NOT IMPLEMENTED YET";
+      //AlwaysAssert(false) <<  node << "NOT IMPLEMENTED YET";
     }
    }
   }

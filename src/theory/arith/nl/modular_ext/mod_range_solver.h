@@ -86,6 +86,8 @@ class ModRangeSolver : protected EnvObj
 
   void processFact(Node node);
 
+  std::map<Node,Node> tempSkolemMap;
+
   /**
   * Set the conflict to be all facts.
   */
