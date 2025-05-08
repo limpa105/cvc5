@@ -139,7 +139,8 @@ std::pair<Bound, Bound> IntegerRing::inferBoundsRecursive(
     return {resultLo, resultHi};
   }
 
-  AlwaysAssert(false);  // Unsupported kind
+
+  AlwaysAssert(false) << node.getKind();  // Unsupported kind
 }
 
 

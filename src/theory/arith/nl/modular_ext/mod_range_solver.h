@@ -52,7 +52,10 @@ class ModRangeSolver : protected EnvObj
 
 
 
+
  private:
+
+  bool failedOnce = false;
   // The inference manager that we push conflicts and lemmas to.
   InferenceManager& d_im;
 

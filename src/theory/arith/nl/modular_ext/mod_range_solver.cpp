@@ -47,6 +47,13 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
                               const std::vector<Node>& false_asserts,
                               const std::vector<Node>& xts)
 {
+  if (failedOnce){
+    for (auto& as: false_asserts){
+    //std::cout << as << "\n";
+     d_im.lemma(nodeManager()->mkNode(Kind::EQUAL, replaceMMMod(as, nodeManager())[0], as[0]), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
+    }
+    return;
+  }
   // CLEAR STATE HERE 
   for (auto &pair: myModularRings){
     pair.second->clearState();
@@ -58,6 +65,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   for(auto& fact: assertions){
       processFact(fact);
   }
+  //printSystemState();
   for (const auto& [name, boundPair] : bounds)
     {
       const Bound& lower = boundPair.first;
@@ -155,6 +163,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   }
 
   Trace("mod-range-solver") << "returned unknown" << std::endl;
+  failedOnce = true;
   //printSystemState();
   for (auto& as: false_asserts){
     //std::cout << as << "\n";
@@ -226,6 +235,7 @@ void ModRangeSolver::processFact(Node node){
       }
     } //Skolem Case
     else {
+      Trace("debug-process-fact") << node << "\n";
       if (node[0].getKind() == Kind::MM_MOD){
         return;
       } else {
