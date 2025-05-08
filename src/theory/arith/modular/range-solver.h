@@ -33,6 +33,9 @@ enum unsatReason {
 class IntegerField: protected EnvObj{
     public:
 
+        int EqsLowered = 0; 
+
+        int DiseqReduced = 0; 
 
         std::pair<unsatReason, std::string> causeOfUnsat;
 
@@ -241,6 +244,7 @@ class Field:  protected EnvObj {
 class RangeSolver : protected EnvObj
 {
     public:
+
 
         int callsCount = 0; 
 

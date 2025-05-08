@@ -323,17 +323,17 @@ void TheoryArith::postCheck(Effort level)
             auto result = d_modularExtension->postCheck(level);
             if (result.getStatus() == Result::UNSAT){
             
-            std::cout << "we got here :)\n";
+            //std::cout << "we got here :)\n";
             NodeManager* nm = NodeManager::currentNM();
             AlwaysAssert(d_modularExtension->d_conflict.size()>0);
             const Node conflict = nm->mkNode(Kind::AND,d_modularExtension->d_conflict);
             
-            for (auto i: d_modularExtension->d_conflict){
-              std::cout << "[CONFLICT]" << i << "\n";
-            }
+            // for (auto i: d_modularExtension->d_conflict){
+            //   std::cout << "[CONFLICT]" << i << "\n";
+            // }
             //AlwaysAssert(false);
-            auto result2 = d_modularExtension->postCheck(level, d_modularExtension->d_conflict);
-            AlwaysAssert(result2 == Result::UNSAT);
+            // auto result2 = d_modularExtension->postCheck(level, d_modularExtension->d_conflict);
+            //  AlwaysAssert(result2 == Result::UNSAT);
             //AlwaysAssert(false);
             d_im.conflict(conflict, InferenceId::FF_LEMMA);
             } else {

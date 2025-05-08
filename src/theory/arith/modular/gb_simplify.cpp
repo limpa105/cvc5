@@ -105,6 +105,7 @@ std::string readFileToString(std::filesystem::path path)
 
 
 std::vector<int> parseGenNumbers(const std::string& singularOutput) {
+    //std::cout << singularOutput << "\n";
     std::vector<int> gens;
     size_t pos = 0;
 
@@ -350,7 +351,7 @@ bool IntegerField::runGB(std::vector<int> indexes){
     std::shared_ptr<bool> done = std::make_shared<bool>(false);
     std::mutex resultMutex;
     (*solver).totalGBtry +=1;
-    std::cout << "RUNNING SINGULAR" << oldGBs.size() << "\n";
+    //std::cout << "RUNNING SINGULAR" << oldGBs.size() << "\n";
     auto future = std::async(std::launch::async, [&]() {
         auto res = runSingular(line);
         {
@@ -406,6 +407,8 @@ bool IntegerField::runGB(std::vector<int> indexes){
         }
         oldGBs["GB"+std::to_string(oldGBs.size())] = inGB;
         origin.clear();
+        EqsLowered = 0;
+        DiseqReduced = 0;
      }
         int locCounter = 0;
     for (Node poly: GBPolys){
@@ -428,7 +431,7 @@ bool IntegerField::runGB(std::vector<int> indexes){
         if (rewrite(poly).getKind() == Kind::CONST_BOOLEAN && 
             rewrite(poly).getConst<bool>() == false){
                  status = Result::UNSAT;
-                 std::cout << "UNSAT\n";
+                 //std::cout << "UNSAT\n";
                     return true;
                 }
             addEquality(rewrite(poly), true, "GB"+std::to_string(oldGBs.size()-1) + "_" + std::to_string(locCounter) + "_R0");
@@ -588,7 +591,7 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, st
     std::shared_ptr<bool> done = std::make_shared<bool>(false);
     std::mutex resultMutex;
     (*solver).totalGBtry +=1;
-    std::cout << "RUNNING SINGULAR" << oldGBs.size() << "\n";
+   //std::cout << "RUNNING SINGULAR" << oldGBs.size() << "\n";
     auto future = std::async(std::launch::async, [&]() {
         auto res = runSingular(line);
         {
@@ -667,7 +670,7 @@ bool Field::runGB(std::map<std::string, std::pair<Integer, Integer> > Bounds, st
             rewrite(poly).getConst<bool>() == false){
                  status = Result::UNSAT;
                  causeOfUnsat = std::make_pair(GB, 0);
-                 std::cout << "UNSAT\n";
+                 //std::cout << "UNSAT\n";
                     return true;
                 }
             addEquality(rewrite(poly),false, true, "GB"+std::to_string(oldGBs.size()-1) + "_" + std::to_string(locCounter+1));
@@ -891,7 +894,7 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
     std::vector<Node> unsatPolys;
     unsatPolys.push_back(nm->mkConstInt(1));
     if (output.empty()){
-        std::cout << "NO OUTPUT\n";
+        //std::cout << "NO OUTPUT\n";
         return EmptyPolys;
     }
     std::vector<Polynomial> polys = parsePolynomialList(output);
@@ -995,7 +998,7 @@ std::vector<Node> SimplifyViaGB(IntegerField *F, std::map<std::string, std::pair
     }
 
     if (output.empty()){
-        std::cout << "NO OUTPUT\n";
+        //std::cout << "NO OUTPUT\n";
         return EmptyPolys;
     }
             //std::cout << line <<"\n";
