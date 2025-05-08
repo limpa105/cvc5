@@ -897,7 +897,9 @@ bool TheoryArithPrivate::AssertDisequality(ConstraintP constraint){
 
   if(!split && c_i == d_partialModel.getAssignment(x_i)){
     Trace("arith::eq") << "lemma now! " << constraint << endl;
-    outputTrustedLemma(constraint->split(), InferenceId::ARITH_SPLIT_DEQ);
+    if (!options().arith.modularRangeSolver){
+      outputTrustedLemma(constraint->split(), InferenceId::ARITH_SPLIT_DEQ);
+    }
     return false;
   }else if(d_partialModel.strictlyLessThanLowerBound(x_i, c_i)){
     Trace("arith::eq") << "can drop as less than lb" << constraint << endl;
