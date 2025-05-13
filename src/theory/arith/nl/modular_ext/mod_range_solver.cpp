@@ -81,7 +81,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   int count = 0;
   bool infoToLearn = true;
   Trace("mod-range-solver") << "Started solving " << std::endl;
-  printSystemState();
+  //printSystemState();
   while(infoToLearn){
     infoToLearn = false;
     count +=1;
