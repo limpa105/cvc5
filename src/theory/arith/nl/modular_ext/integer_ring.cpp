@@ -189,6 +189,8 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
   std::map<Node, int> updateCounts;
   std::map<Node, std::set<Node>> dependencyGraph;
 
+  Trace("trace-tighten-bds") << "Starting tightenBounds on " << equalities.size() << " equalities\n";
+
   for (const auto& eq : equalities) {
     std::unordered_set<Node> vars;
     collectVars(eq, vars);
@@ -196,6 +198,8 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
   }
 
   while (round++ < MAX_ROUNDS && !varsToProcess.empty()) {
+    Trace("trace-tighten-bds") << "Round " << round << ", processing " << varsToProcess.size() << " vars\n";
+
     bool changedThisRound = false;
     std::set<Node> updatedVars;
 
@@ -214,6 +218,8 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
       }
       if (!relevant) continue;
 
+      Trace("trace-tighten-bds") << "- Processing equality " << equalities[i] << "\n";
+
       // Case: x = c
       if (isVariableOrSkolem(lhs) && rhs.getKind() == Kind::CONST_INTEGER) {
         Integer val = rhs.getConst<Rational>().getNumerator();
@@ -221,48 +227,62 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
         Bounds[lhs.getName()] = std::make_pair(b, b);
         updatedVars.insert(lhs);
         newEqSinceGB = true;
-        //this->novelBound = true;
-        newEqSinceGB = true;
         changedThisRound = true;
+        Trace("trace-tighten-bds") << "  - Set fixed bound for " << lhs << ": " << val << "\n";
         continue;
       }
 
       for (const auto& targetVar : eqVars) {
-        if (updateCounts[targetVar] >= MAX_UPDATES_PER_VAR) continue;
+         Trace("trace-tighten-bds") << "  - Looking @ " << targetVar << "\n";
+          Trace("trace-tighten-bds") << " Has updateCounts? " << updateCounts[targetVar] << "\n";
+        if (updateCounts[targetVar] >= MAX_UPDATES_PER_VAR) {
+          Trace("trace-tighten-bds") << "  - Skipping " << targetVar << ", hit update limit\n";
+          continue;
+        }
 
         NodeManager* nm = nodeManager();
         Node offset = nm->mkNode(Kind::ADD, rhs, nm->mkNode(Kind::MULT, nm->mkConstInt(-1), lhs));
         std::pair<Node, Node> separated = separateTerms(rewrite(offset), targetVar);
-
+          Trace("trace-tighten-bds") << "  - seperated terms" << separated << "\n";
         const Node& targetTerm = separated.second;
         Integer coeff = -1;
 
         if (targetTerm.getKind() != Kind::MULT ||
             targetTerm.getNumChildren() != 2 ||
             targetTerm[0].getKind() != Kind::CONST_INTEGER) {
+          Trace("trace-tighten-bds") << "  - Could not isolate variable " << targetVar << "\n";
           continue;
         }
-
+         Trace("trace-tighten-bds") << "coef?" << targetTerm[0] << "\n";
         coeff *= targetTerm[0].getConst<Rational>().getNumerator();
-        if (coeff == 0) continue;
+        if (coeff == 0) {
+          Trace("trace-tighten-bds") << "  - Coefficient is zero for " << targetVar << ", skipping\n";
+          continue;
+        }
 
         bool skip = false;
         std::unordered_set<Node> tempVars;
         collectVars(separated.first, tempVars);
         for (const auto& dep : tempVars) {
           if (dep == targetVar) {
-            std::cerr << "Cycle detected on " << targetVar << ", skipping.\n";
+            Trace("trace-tighten-bds") << "  - Cycle detected in " << targetVar << "\n";
             skip = true;
             break;
           }
           dependencyGraph[targetVar].insert(dep);
         }
         if (skip) continue;
-
+         Trace("trace-tighten-bds") << "trying to recurse" << "\n";
         auto inferred = inferBoundsRecursive(separated.first, Bounds);
+        Trace("trace-tighten-bds") << "inferred!!" << "\n";
+         if (!inferred.first.getValue().has_value() ||
+            !inferred.second.getValue().has_value()) {
+            Trace("trace-tighten-bds") << "  - Inference failed or incomplete bounds.\n";
+            continue;
+        }
         Rational lowerRat = Rational(*inferred.first.getValue()) / Rational(coeff);
         Rational upperRat = Rational(*inferred.second.getValue()) / Rational(coeff);
-       Rational minRat = (lowerRat < upperRat) ? lowerRat : upperRat;
+        Rational minRat = (lowerRat < upperRat) ? lowerRat : upperRat;
         Rational maxRat = (lowerRat > upperRat) ? lowerRat : upperRat;
 
         Integer inferredLower = minRat.ceiling();
@@ -274,8 +294,12 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
         Bound& curLower = current.first;
         Bound& curUpper = current.second;
 
+        Trace("trace-tighten-bds") << "  - Inferred bounds for " << targetVar
+                                   << ": [" << inferredLower << ", " << inferredUpper << "]\n";
+
         // Check contradiction before update
         if (!newLower.isInfinite() && !newUpper.isInfinite() && inferredLower > inferredUpper) {
+          Trace("trace-tighten-bds") << "  - Contradiction! inferred lower > upper for " << targetVar << "\n";
           return Result::UNSAT;
         }
 
@@ -286,6 +310,7 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
           if (curLower.isInfinite() || *newLower.getValue() > *curLower.getValue()) {
             curLower.setTo(newLower);
             updated = true;
+            Trace("trace-tighten-bds") << "  - Updated lower bound of " << targetVar << " to " << *newLower.getValue() << "\n";
           }
         }
 
@@ -294,14 +319,14 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
           if (curUpper.isInfinite() || *newUpper.getValue() < *curUpper.getValue()) {
             curUpper.setTo(newUpper);
             updated = true;
+            Trace("trace-tighten-bds") << "  - Updated upper bound of " << targetVar << " to " << *newUpper.getValue() << "\n";
           }
         }
 
-        // Post-update contradiction
         if (!curLower.isInfinite() && !curUpper.isInfinite() &&
             *curLower.getValue() > *curUpper.getValue()) {
+          Trace("trace-tighten-bds") << "  - Contradiction after update for " << targetVar << "\n";
           return Result::UNSAT;
-         
         }
 
         if (updated) {
@@ -309,21 +334,29 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
           updateCounts[targetVar]++;
           newEqSinceGB = true;
           changedThisRound = true;
+
           if (!curLower.isInfinite() && !curUpper.isInfinite() &&
               *curLower.getValue() == *curUpper.getValue()) {
             Node eqNode = nm->mkNode(Kind::EQUAL, targetVar, nm->mkConstInt(*curLower.getValue()));
+            Trace("trace-tighten-bds") << "  - Bound collapsed to point: adding equality " << eqNode << "\n";
             reduceAddEquality(eqNode);
           }
         }
       }
     }
 
-    if (!changedThisRound) break;
+    if (!changedThisRound) {
+      Trace("trace-tighten-bds") << "No changes in round " << round << ", stopping\n";
+      break;
+    }
+
     varsToProcess = updatedVars;
   }
 
+  Trace("trace-tighten-bds") << "Finished tightenBounds\n";
   return Result::UNKNOWN;
 }
+
 
 
 
