@@ -29,7 +29,8 @@
 #include <CoCoA/DenseMatrix.H>
 #include <CoCoA/error.H>
 #include <CoCoA/PPOrdering.H>
-#include "CoCoA/ideal.H"
+#include <CoCoA/ideal.H>
+#include <CoCoA/PPOrdering.H>
 
 // std includes
 #include <sstream>
@@ -152,13 +153,13 @@ void CocoaEncoder::endScanIntegers(std::vector<long> weights) {
     Trace("intgb") << "]\n";
   }
 
-  CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ());
-  Trace("intgb") << "Constructed matrix of orderings with "
-                 << CoCoA::NumRows(m) << " rows and "
-                 << CoCoA::NumCols(m) << " columns\n";
+  //CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ());
+  // Trace("intgb") << "Constructed matrix of orderings with "
+  //                << CoCoA::NumRows(m) << " rows and "
+  //                << CoCoA::NumCols(m) << " columns\n";
 
   d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms,
-                                  CoCoA::NewMatrixOrdering(m, d_syms.size() - 1));
+                                   CoCoA::StdDegRevLex(d_syms.size()));
 
   Trace("intgb") << "Constructed new polynomial ring\n";
 
@@ -179,7 +180,7 @@ void CocoaEncoder::endScanModulo()
   d_stage = Stage::Encode;
   Assert(d_modulus.has_value());
   Assert(d_modulus.isPrime());
-  d_polyRing = CoCoA::NewPolyRing(CoCoA::NewZZmod(intToCocoa(d_modulus.value())), d_syms);
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::NewZZmod(intToCocoa(d_modulus.value())), d_syms,  CoCoA::StdDegRevLex(d_syms.size()));
   for (size_t i = 0, n = d_syms.size(); i < n; ++i)
   {
     d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
