@@ -81,6 +81,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   int count = 0;
   bool infoToLearn = true;
   Trace("mod-range-solver") << "Started solving " << std::endl;
+  printSystemState();
   while(infoToLearn){
     infoToLearn = false;
     count +=1;
@@ -163,7 +164,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
 
   Trace("mod-range-solver") << "returned unknown" << std::endl;
   failedOnce = true;
-  printSystemState();
+  //printSystemState();
   for (auto& as: false_asserts){
     //std::cout << as << "\n";
      d_im.lemma(nodeManager()->mkNode(Kind::EQUAL, replaceMMMod(as, nodeManager())[0], as[0]), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);

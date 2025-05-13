@@ -41,6 +41,7 @@ namespace nl {
               poly = *maybePoly;
             }
           CoCoA::ideal I = CoCoA::ideal(gbBasis);
+         
           CoCoA::RingElem reduced = CoCoA::NF(poly, I);  // Or: poly % I
           if (CoCoA::IsZero(reduced)) {
             return false;

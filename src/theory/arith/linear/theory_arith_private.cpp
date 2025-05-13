@@ -3588,10 +3588,11 @@ bool TheoryArithPrivate::splitDisequalities(){
         Trace("arith::lemma") << "RHS value = " << rhsValue << endl;
         TrustNode lemma = front->split();
         ++(d_statistics.d_statDisequalitySplits);
-
+    if (!options().arith.modularRangeSolver){
         Trace("arith::lemma") << "Now " << lemma.getNode() << endl;
         outputTrustedLemma(lemma, InferenceId::ARITH_SPLIT_DEQ);
         splitSomething = true;
+          }
       }else if(d_partialModel.strictlyLessThanLowerBound(lhsVar, rhsValue)){
         Trace("arith::eq") << "can drop as less than lb" << front << endl;
       }else if(d_partialModel.strictlyGreaterThanUpperBound(lhsVar, rhsValue)){

@@ -152,7 +152,7 @@ void CocoaEncoder::endScanIntegers(std::vector<long> weights) {
     Trace("intgb") << "]\n";
   }
 
-  CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ(), k);
+  CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ());
   Trace("intgb") << "Constructed matrix of orderings with "
                  << CoCoA::NumRows(m) << " rows and "
                  << CoCoA::NumCols(m) << " columns\n";
