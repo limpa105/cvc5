@@ -105,11 +105,11 @@ namespace nl {
 
 Result Ring::checkDiseq()
 {
-  Trace("intgb") << "Starting checkDiseq...\n";
+  Trace("diseq") << "Starting checkDiseq...\n";
 
   if (gbBasis.empty())
   {
-    Trace("intgb") << "Gröbner basis is empty, returning UNKNOWN.\n";
+    Trace("diseq") << "Gröbner basis is empty, returning UNKNOWN.\n";
     return Result::UNKNOWN;
   }
 
@@ -119,29 +119,29 @@ Result Ring::checkDiseq()
   for (int i = DiseqReduced; i<disequalities.size(); i++)
   {
     Node diseq = disequalities[i];
-    Trace("intgb") << "Processing disequality: " << diseq << "\n";
+    Trace("diseq") << "Processing disequality: " << diseq << "\n";
 
     std::optional<CoCoA::RingElem> maybePoly = d_encoder.tryEncodeFact(diseq);
     if (!maybePoly)
     {
-      Trace("intgb") << "Could not encode disequality, skipping: " << diseq << "\n";
+      Trace("diseq") << "Could not encode disequality, skipping: " << diseq << "\n";
       continue;
     }
 
     CoCoA::RingElem poly = *maybePoly;
-    Trace("intgb") << "Encoded polynomial: " << poly << "\n";
+    Trace("diseq") << "Encoded polynomial: " << poly << "\n";
 
     CoCoA::RingElem reduced = CoCoA::NF(poly, I);
-    Trace("intgb") << "Reduced form: " << reduced << "\n";
+    Trace("diseq") << "Reduced form: " << reduced << "\n";
 
     if (CoCoA::IsZero(reduced))
     {
-      Trace("intgb") << "Disequality reduces to 0 → contradiction → UNSAT\n";
+      Trace("diseq") << "Disequality reduces to 0 → contradiction → UNSAT\n";
       return Result::UNSAT;
     }
   }
   DiseqReduced = disequalities.size();
-  Trace("intgb") << "No disequality reduced to 0 → returning UNKNOWN\n";
+  Trace("diseq") << "No disequality reduced to 0 → returning UNKNOWN\n";
   return Result::UNKNOWN;
 }
 

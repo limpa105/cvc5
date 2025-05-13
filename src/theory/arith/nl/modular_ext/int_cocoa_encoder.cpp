@@ -279,57 +279,86 @@ void CocoaEncoder::encodeTerm(const Node& t)
 {
   Assert(d_stage == Stage::Encode);
 
+  Trace("encode") << "Starting encodeTerm on: " << t << "\n";
+
   // for all un-encoded descendents:
   for (const auto& node :
        NodeDfsIterable(t, VisitOrder::POSTORDER, [this](TNode nn) {
          return d_cache.count(nn);
        }))
   {
-    // a rule must put the encoding here
+    Trace("encode") << "Visiting node: " << node << " [kind: " << node.getKind() << "]\n";
+
     Poly elem;
-    //std::cout << "Encode1" << node << "\n";
+
     if (isFfFact(node) || isFfTerm(node))
     {
-      //std::cout << "Encode " << node << "\n";
-      // ff leaf
       if (isFfLeaf(node) && !node.isConst())
       {
+        Trace("encode") << "  Leaf variable: " << node << "\n";
         elem = symPoly(d_varSyms.at(node));
       }
-      // ff.add
       else if (node.getKind() == Kind::ADD)
       {
+        Trace("encode") << "  Encoding ADD term: " << node << "\n";
         elem = CoCoA::zero(*d_polyRing);
         for (const auto& c : node)
         {
+          Trace("encode") << "    + child: " << c << " = " << d_cache[c] << "\n";
           elem += d_cache[c];
         }
       }
-      // ff.mul
-      else if (node.getKind() == Kind::MULT|| node.getKind()==Kind::NONLINEAR_MULT)
+      else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT)
       {
+        Trace("encode") << "  Encoding MULT term: " << node << "\n";
         elem = CoCoA::one(*d_polyRing);
         for (const auto& c : node)
         {
+          Trace("encode") << "    * child: " << c << " = " << d_cache[c] << "\n";
           elem *= d_cache[c];
         }
       }
       else if (node.getKind() == Kind::CONST_INTEGER)
       {
+        Trace("encode") << "  Encoding CONST_INTEGER: " << node << "\n";
         elem = CoCoA::one(*d_polyRing)
                * intToCocoa(node.getConst<Rational>().getNumerator());
       }
-      // !!
+      else if (node.getKind()== Kind::SUB){
+         Trace("encode") << "  Encoding SUB term: " << node << "\n";
+          AlwaysAssert(node.getNumChildren() == 2);
+
+          const Node& left = node[0];
+          const Node& right = node[1];
+
+          // Ensure both sides are encoded
+          AlwaysAssert(d_cache.count(left)) << "Left child not encoded: " << left;
+          AlwaysAssert(d_cache.count(right)) << "Right child not encoded: " << right;
+
+          Poly lhs = d_cache.at(left);
+          Poly rhs = d_cache.at(right);
+
+          elem = lhs - rhs;
+      }
       else
       {
+        Trace("encode") << "  Unhandled kind: " << node.getKind() << "\n";
         AlwaysAssert(false) << node.getKind();
         Unimplemented() << node;
       }
     }
-    // cache the encoding
+    else
+    {
+      Trace("encode") << "  Skipping non-ff term/fact: " << node << "\n";
+    }
+
+    Trace("encode") << "  Caching: " << node << " ↦ " << elem << "\n";
     d_cache.insert({node, elem});
   }
+
+  Trace("encode") << "Finished encodeTerm on: " << t << "\n";
 }
+
 
 void CocoaEncoder::encodeFact(const Node& f)
 {
@@ -379,7 +408,16 @@ std::optional<Poly> CocoaEncoder::tryEncodeFact(const Node& f)
   {
     encodeTerm(f[0]);
     encodeTerm(f[1]);
-    return d_cache.at(f[0]) - d_cache.at(f[1]);
+
+    if (!d_cache.count(f[0]))
+      Trace("debug") << "d_cache missing f[0]: " << f[0] << "\n";
+    if (!d_cache.count(f[1]))
+      Trace("debug") << "d_cache missing f[1]: " << f[1] << "\n";
+
+
+    const Poly& lhs = d_cache.at(f[0]);
+    const Poly& rhs = d_cache.at(f[1]);
+    return lhs - rhs;
   }
   catch (const std::exception& e)
   {
