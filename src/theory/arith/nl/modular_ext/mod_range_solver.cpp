@@ -32,6 +32,9 @@ namespace theory {
 namespace arith {
 namespace nl {
 
+
+
+
 ModRangeSolver::ModRangeSolver(Env& env,
                        InferenceManager& im)
     : EnvObj(env),
@@ -40,6 +43,54 @@ ModRangeSolver::ModRangeSolver(Env& env,
     myIntegerRing(env)
 {
 }
+
+bool ModRangeSolver::traverseOriginEq(
+  std::vector<EqOrigin>& eqs,
+  const std::vector<Node>& assertions,
+  std::vector<Node>& result,
+  std::set<int>& visited_gbs,
+  Ring F
+) {
+  for (const auto& origin : eqs) {
+    if (origin.value == -1) {
+      return false; // early termination
+    }
+
+    if (origin.gb == 0) {
+      result.push_back(assertions[origin.value]);
+    } else {
+      if (visited_gbs.count(origin.gb)) {
+        continue; // already visited this GB
+      }
+      visited_gbs.insert(origin.gb);
+
+      auto it = F.pastGbs.find(origin.gb);
+      if (it == F.pastGbs.end()) {
+        return false; // GB not found
+      }
+
+      if (!traverseOriginEq(it->second, assertions, result, visited_gbs, F)) {
+        return false; // recursive failure
+      }
+    }
+  }
+  return true;
+}
+
+std::vector<Node> ModRangeSolver::collectCores(
+  const std::vector<Node>& assertions,
+  Ring F
+) {
+  std::vector<Node> result;
+  std::set<int> globally_visited;
+
+  if (!traverseOriginEq(F.origin_eq, assertions, result, globally_visited, F)) {
+    return {};
+  }
+
+  return result;
+}
+
 
 ModRangeSolver::~ModRangeSolver() {}
 
@@ -62,8 +113,8 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   for (auto &bd: bounds){
     bd.second =  std::make_pair(Bound::negativeInfinity(), Bound::positiveInfinity());
   };
-  for(auto& fact: assertions){
-      processFact(fact);
+  for(int i =0; i< assertions.size(); i++){
+      processFact(assertions[i], EqOrigin{i, 0});
   }
   for (const auto& [name, boundPair] : bounds)
     {
@@ -81,7 +132,11 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   int count = 0;
   bool infoToLearn = true;
   Trace("mod-range-solver") << "Started solving " << std::endl;
-  //printSystemState();
+  printSystemState();
+  for (auto &pair: myModularRings){
+    pair.second->allEqsOg = true;
+  }
+  myIntegerRing.allEqsOg = true;
   while(infoToLearn){
     infoToLearn = false;
     count +=1;
@@ -91,14 +146,14 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
       // 1) Lift
       for (Node &eq: pair.second->equalities){
         if (checkIfConstraintIsMet(eq, pair.second->modulus, bounds)){
-            if(myIntegerRing.reduceAddEquality(eq)){
+            if(myIntegerRing.reduceAddEquality(eq, EqOrigin{-1,-1})){
               infoToLearn = true;
             };
         }
         }
        for (int i = pair.second->DiseqMoved; i < pair.second->disequalities.size(); i++){
           Node diseq = pair.second->disequalities[i];
-          if(myIntegerRing.AddDisquality(diseq)){
+          if(myIntegerRing.AddDisquality(diseq, pair.second->origin_diseq[i])){
             infoToLearn = true;
           };
        }
@@ -133,7 +188,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
     for (int i = myIntegerRing.EqsMoved; i< myIntegerRing.equalities.size(); i++){
       for (auto &pair: myModularRings){
         Node eq = myIntegerRing.equalities[i];
-        if (pair.second->reduceAddEquality(eq)){
+        if (pair.second->reduceAddEquality(eq, myIntegerRing.origin_eq[i])){
           infoToLearn = true;
         };
       }
@@ -142,7 +197,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
     for (auto &diseq: myIntegerRing.disequalities){
       for (auto &pair: myModularRings){
         if (checkIfConstraintIsMet(diseq, pair.second->modulus, bounds, true)){
-          if(pair.second->AddDisquality(diseq)){
+          if(pair.second->AddDisquality(diseq, -1)){
             infoToLearn = true;
           };
         }
@@ -157,6 +212,11 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
     // 3) Reduce Diseq
      if(myIntegerRing.checkDiseq() == Result::UNSAT){
         Trace("mod-range-solver") << "returned unsat int diseq" << std::endl;
+        printSystemState();
+        std::vector<Node> result = collectCores(assertions, myIntegerRing);
+        for (int k = 0; k< result.size(); k++){
+          std::cout << "Assertion" << k << "\n";
+        }
         d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
         return;
        }
@@ -164,7 +224,8 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
 
   Trace("mod-range-solver") << "returned unknown" << std::endl;
   failedOnce = true;
-  //printSystemState();
+  printSystemState();
+  //AlwaysAssert(false);
   for (auto& as: false_asserts){
     //std::cout << as << "\n";
      d_im.lemma(nodeManager()->mkNode(Kind::EQUAL, replaceMMMod(as, nodeManager())[0], as[0]), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
@@ -189,7 +250,7 @@ void ModRangeSolver::preRegisterTerm(Node node){
  }
 };
 
-void ModRangeSolver::processFact(Node node){
+void ModRangeSolver::processFact(Node node, EqOrigin index){
   // strip down to the polynomial
   //std::cout << node << "\n";
   NodeManager* nm = nodeManager();
@@ -207,15 +268,19 @@ void ModRangeSolver::processFact(Node node){
       ModularRing* currRing = myModularRings[modulo].get();
       if (isNeg){
         currRing->disequalities.push_back(nm->mkNode(Kind::EQUAL, exp, nm->mkConstInt(0)));
+        currRing->origin_diseq.push_back(index.value);
       } else {
          currRing->equalities.push_back(nm->mkNode(Kind::EQUAL, exp, nm->mkConstInt(0)));
+         currRing->origin_eq.push_back(index);
       }
     } else {
       Node exp = nm->mkNode(Kind::SUB, node[0], node[1]);
       if (isNeg){
         myIntegerRing.disequalities.push_back(nm->mkNode(Kind::EQUAL, exp, nm->mkConstInt(0)));
+        myIntegerRing.origin_diseq.push_back(index.value);
       } else {
         myIntegerRing.equalities.push_back(nm->mkNode(Kind::EQUAL, exp, nm->mkConstInt(0)));
+        myIntegerRing.origin_eq.push_back(index);
       }
     }
   } else {

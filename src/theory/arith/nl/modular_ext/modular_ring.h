@@ -20,9 +20,9 @@ class ModularRing : public Ring
 
   Node modOut(Node fact);
 
-  bool reduceAddEquality(Node fact);
+  bool reduceAddEquality(Node fact, EqOrigin index);
 
-  bool AddDisquality(Node fact);
+  bool AddDisquality(Node fact, int index);
 
   Integer modulus;
 

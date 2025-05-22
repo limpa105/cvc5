@@ -108,14 +108,14 @@ Node ModularRing::modOut(Node fact)
   AlwaysAssert(false) << "Unsupported kind in modOut: " << k << " for node " << fact;
 }
 
-bool ModularRing::reduceAddEquality(Node fact){
+bool ModularRing::reduceAddEquality(Node fact, EqOrigin index){
     fact = modOut(fact);
-    return Ring::reduceAddEquality(fact);
+    return Ring::reduceAddEquality(fact, index);
 }
 
-  bool ModularRing::AddDisquality(Node fact){
+  bool ModularRing::AddDisquality(Node fact, int index){
     fact = modOut(fact);
-    return Ring::AddDisquality(fact);
+    return Ring::AddDisquality(fact, index);
 
   }
 

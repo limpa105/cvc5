@@ -50,7 +50,9 @@ class ModRangeSolver : protected EnvObj
 
   void preRegisterTerm(Node n);
 
+  std::vector<Node> collectCores(const std::vector<Node>& assertions,Ring F);
 
+  bool traverseOriginEq(std::vector<EqOrigin>& eqs, const std::vector<Node>& assertions, std::vector<Node>& result,std::set<int>& visited_gbs, Ring F);
 
 
  private:
@@ -87,7 +89,7 @@ class ModRangeSolver : protected EnvObj
   */
   void printSystemState();
 
-  void processFact(Node node);
+  void processFact(Node node, EqOrigin id);
 
   std::map<Node,Node> tempSkolemMap;
 

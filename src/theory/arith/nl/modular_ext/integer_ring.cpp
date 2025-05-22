@@ -339,7 +339,7 @@ Result IntegerRing::tightenBounds(std::map<std::string, std::pair<Bound, Bound>>
               *curLower.getValue() == *curUpper.getValue()) {
             Node eqNode = nm->mkNode(Kind::EQUAL, targetVar, nm->mkConstInt(*curLower.getValue()));
             Trace("trace-tighten-bds") << "  - Bound collapsed to point: adding equality " << eqNode << "\n";
-            reduceAddEquality(eqNode);
+            reduceAddEquality(eqNode, EqOrigin{-1,-1});
           }
         }
       }

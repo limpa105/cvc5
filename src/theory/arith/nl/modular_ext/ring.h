@@ -13,6 +13,14 @@ namespace theory {
 namespace arith {
 namespace nl {
 
+
+struct EqOrigin {
+    int value; 
+    int gb;
+};
+
+std::ostream& operator<<(std::ostream& os, const EqOrigin& e);
+
     class Ring: protected EnvObj {
 
     public:
@@ -21,6 +29,9 @@ namespace nl {
         * Equalities living in the ring.
         */
 
+
+        bool allEqsOg = true;
+
         bool newEqSinceGB = false;
 
         int EqsMoved = 0;
@@ -28,6 +39,12 @@ namespace nl {
         int DiseqMoved = 0;
 
         int DiseqReduced = 0;
+
+        std::vector<EqOrigin> origin_eq;
+
+        std::map<int, std::vector<EqOrigin>> pastGbs;
+
+        std::vector<int> origin_diseq;
 
         CocoaEncoder d_encoder;
 
@@ -56,9 +73,9 @@ namespace nl {
         */
         Result CheckUnsat();
 
-        bool reduceAddEquality(Node fact);
+        bool reduceAddEquality(Node fact, EqOrigin index);
 
-        bool AddDisquality(Node fact);
+        bool AddDisquality(Node fact, int index);
 
         void prepGB(CocoaEncoder& enc);
 
