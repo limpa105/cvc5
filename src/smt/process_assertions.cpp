@@ -117,7 +117,7 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   {
     applyPass("bv-gauss", ap);
   }
-
+   // applyPass("square-split", ap);
   // Add dummy assertion in last position - to be used as a
   // placeholder for any new assertions to get added
   ap.push_back(d_true);
@@ -131,7 +131,10 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   // effect of replacing defined functions with their definitions.
   // We do not call theory-specific expand definitions here, since we want
   // to give the opportunity to rewrite/preprocess terms before expansion.
+
   applyPass("apply-substs", ap);
+
+  
   Trace("smt-proc")
       << "ProcessAssertions::processAssertions() : post-definition-expansion"
       << endl;
@@ -201,7 +204,6 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
 
   // Assertions MUST BE guaranteed to be rewritten by this point
   applyPass("rewrite", ap);
-
   // Convert non-top-level Booleans to bit-vectors of size 1
   if (options().bv.boolToBitvector != options::BoolToBVMode::OFF)
   {
@@ -279,7 +281,7 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   {
     applyPass("learned-rewrite", ap);
   }
-
+  applyPass("square-split", ap);
   if (options().smt.earlyIteRemoval)
   {
     d_slvStats.d_numAssertionsPre += ap.size();
