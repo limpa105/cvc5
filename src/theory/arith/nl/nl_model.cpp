@@ -211,7 +211,7 @@ bool NlModel::checkModel(const std::vector<Node>& assertions,
         {
           Kind k = cur.getKind();
           if (k != Kind::MULT && k != Kind::ADD && k != Kind::NONLINEAR_MULT
-              && k != Kind::TO_REAL && !isTranscendentalKind(k)
+              && k!= Kind::MM_MOD && k != Kind::TO_REAL && !isTranscendentalKind(k)
               && k != Kind::IAND && k != Kind::POW2)
           {
             // if we have not set an approximate bound for it

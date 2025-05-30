@@ -203,15 +203,11 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
     applyPass("int-range-or", ap);
   }
 
-  if (options().arith.modularRangeSolver && options().arith.niaIntroMmMod)
-  {
-    applyPass("nia-intro-mm-mod", ap);
-  }
+ 
 
 
   // Assertions MUST BE guaranteed to be rewritten by this point
   applyPass("rewrite", ap);
-
   // Convert non-top-level Booleans to bit-vectors of size 1
   if (options().bv.boolToBitvector != options::BoolToBVMode::OFF)
   {
@@ -279,6 +275,10 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   dumpAssertions("assertions::post-simplify", ap);
   Trace("assertions::post-simplify") << std::endl;
 
+   if (options().arith.modularRangeSolver && options().arith.niaIntroMmMod)
+  {
+    applyPass("nia-intro-mm-mod", ap);
+  }
   if (options().smt.staticLearning)
   {
     applyPass("static-learning", ap);

@@ -100,8 +100,11 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
 {
   if (failedOnce){
     for (auto& as: false_asserts){
+      //std::cout << "OG" << as << "\n";
+     //std::cout << "NEW" << replaceMMMod(as, nodeManager()) << "\n";
     //std::cout << as << "\n";
      d_im.lemma(nodeManager()->mkNode(Kind::EQUAL, replaceMMMod(as, nodeManager())[0], as[0]), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
+    //d_im.lemma(replaceMMMod(as, nodeManager()), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
     }
     return;
   }
@@ -132,7 +135,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   int count = 0;
   bool infoToLearn = true;
   Trace("mod-range-solver") << "Started solving " << std::endl;
-  printSystemState();
+  //printSystemState();
   for (auto &pair: myModularRings){
     pair.second->allEqsOg = true;
   }
@@ -140,6 +143,10 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
   while(infoToLearn){
     infoToLearn = false;
     count +=1;
+    // if (count == 5){
+    //   printSystemState();
+    //   AlwaysAssert(false);
+    // }
     // First we look at the fields:
     Trace("mod-range-solver") << "lifting" << std::endl;
     for (auto &pair: myModularRings){
@@ -188,7 +195,8 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
     for (int i = myIntegerRing.EqsMoved; i< myIntegerRing.equalities.size(); i++){
       for (auto &pair: myModularRings){
         Node eq = myIntegerRing.equalities[i];
-        if (pair.second->reduceAddEquality(eq, myIntegerRing.origin_eq[i])){
+         Trace("mod-range-solver") << eq << std::endl;
+        if (pair.second->reduceAddEquality(eq, EqOrigin{-1, -1})){
           infoToLearn = true;
         };
       }
@@ -212,7 +220,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
     // 3) Reduce Diseq
      if(myIntegerRing.checkDiseq() == Result::UNSAT){
         Trace("mod-range-solver") << "returned unsat int diseq" << std::endl;
-        printSystemState();
+        //printSystemState();
         std::vector<Node> result = collectCores(assertions, myIntegerRing);
         for (int k = 0; k< result.size(); k++){
           std::cout << "Assertion" << k << "\n";
@@ -224,11 +232,13 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
 
   Trace("mod-range-solver") << "returned unknown" << std::endl;
   failedOnce = true;
-  printSystemState();
+  //printSystemState();
   //AlwaysAssert(false);
   for (auto& as: false_asserts){
-    //std::cout << as << "\n";
+    //  std::cout << "OG" << as << "\n";
+    //  std::cout << "NEW" << replaceMMMod(as, nodeManager()) << "\n";
      d_im.lemma(nodeManager()->mkNode(Kind::EQUAL, replaceMMMod(as, nodeManager())[0], as[0]), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
+     //d_im.lemma(replaceMMMod(as, nodeManager()), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
   }    
 };
 

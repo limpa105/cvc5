@@ -181,9 +181,9 @@ Result Ring::checkDiseq()
       if (allEqsOg){
         Trace("mod-range-solver") << "looking @the indices but idk how\n";
          std::vector<size_t> coreIndices = tracer.trace(reduced);
-         for (auto j: coreIndices){
-            std::cout << "index" << j << "\n";
-         }
+        //  for (auto j: coreIndices){
+        //     std::cout << "index" << j << "\n";
+        //  }
       }
        return Result::UNSAT;
     }
