@@ -49,45 +49,72 @@ bool ModRangeSolver::traverseOriginEq(
   const std::vector<Node>& assertions,
   std::vector<Node>& result,
   std::set<int>& visited_gbs,
-  Ring F
+  Ring& F
 ) {
   for (const auto& origin : eqs) {
     if (origin.value == -1) {
-      return false; // early termination
+      Trace("unsat-cores") << "Bad value\n";
+      return false;
     }
 
-    if (origin.gb == 0) {
+    if (origin.gb == -1) {
       result.push_back(assertions[origin.value]);
     } else {
-      if (visited_gbs.count(origin.gb)) {
-        continue; // already visited this GB
-      }
-      visited_gbs.insert(origin.gb);
+      int gb_id = origin.gb;
 
-      auto it = F.pastGbs.find(origin.gb);
+      if (visited_gbs.count(gb_id)) {
+        continue;
+      }
+      visited_gbs.insert(gb_id);
+
+      auto it = F.pastGbs.find(gb_id);
       if (it == F.pastGbs.end()) {
-        return false; // GB not found
+        Trace("unsat-cores") << "Could not find GB " << gb_id << "\n";
+        return false;
       }
 
+      // Recurse on pastGbs[gb_id] to get inputs for this GB 
       if (!traverseOriginEq(it->second, assertions, result, visited_gbs, F)) {
-        return false; // recursive failure
+        return false;
       }
+
+      // Collect indices belonging to this GB
+      std::vector<int> indices;
+      for (const auto& e : eqs) {
+        if (e.gb == gb_id) {
+          indices.push_back(e.value);
+        }
+      }
+
+      Trace("unsat-cores") << "Analyzing GB " << gb_id << " with indices ";
+      for (int idx : indices) Trace("unsat-cores") << idx << " ";
+      Trace("unsat-cores") << "\n";
+
+      // if (!F.analyzeGB(F.d_encoder, indices)) {
+      //   Trace("unsat-cores") << "analyzeGB failed on GB " << gb_id << "\n";
+      //   return false;
+      // }
     }
   }
+
   return true;
 }
+
 
 std::vector<Node> ModRangeSolver::collectCores(
   const std::vector<Node>& assertions,
   Ring F
 ) {
+  Trace("mod-range-solver") << "Collecting Cores" << std::endl;
   std::vector<Node> result;
   std::set<int> globally_visited;
-
-  if (!traverseOriginEq(F.origin_eq, assertions, result, globally_visited, F)) {
+  AlwaysAssert(F.unsatCause.size()> 0);
+  if (!traverseOriginEq(F.unsatCause, assertions, result, globally_visited, F)) {
+    AlwaysAssert(false) << "Something went wrong\n";
     return {};
+    //AlwaysAssert(false);
   }
-
+  AlwaysAssert(result.size()>0);
   return result;
 }
 
@@ -117,7 +144,7 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
     bd.second =  std::make_pair(Bound::negativeInfinity(), Bound::positiveInfinity());
   };
   for(int i =0; i< assertions.size(); i++){
-      processFact(assertions[i], EqOrigin{i, 0});
+      processFact(assertions[i], EqOrigin{i, -1});
   }
   for (const auto& [name, boundPair] : bounds)
     {
@@ -175,7 +202,8 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
        // 3) Reduce Diseq
        if(pair.second->checkDiseq() == Result::UNSAT){
         Trace("mod-range-solver") << "returned unsat field diseq" << std::endl;
-        d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
+        std::vector<Node> result = collectCores(assertions, *pair.second);
+        d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, result)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
         return;
        }
        
@@ -212,12 +240,15 @@ void ModRangeSolver::initLastCall(const std::vector<Node>& assertions,
       }
     }
     // 2) Compute GB
+    printSystemState();
     if(myIntegerRing.computeGB(myVariables, bounds) == Result::UNSAT){
         Trace("mod-range-solver") << "returned unsat int gb" << std::endl;
         d_im.lemma(nodeManager()->mkNode(Kind::NOT, nodeManager()->mkNode(Kind::AND, assertions)), InferenceId::ARITH_NL_MOD_RANGE_SOLVER);
          return;
        }
+    std::cout << "LOOK HERE" << myIntegerRing.origin_eq.size() << "\n";
     // 3) Reduce Diseq
+      printSystemState();
      if(myIntegerRing.checkDiseq() == Result::UNSAT){
         Trace("mod-range-solver") << "returned unsat int diseq" << std::endl;
         //printSystemState();
@@ -350,13 +381,24 @@ void ModRangeSolver::printSystemState(){
     std::cout << "Num Rings:" << myModularRings.size()+1 << "\n"; 
     std::cout << "ZZ Ring " << "\n";
     std::cout << "\tequalities:" << "\n";
-    for (auto i: myIntegerRing.equalities) {
-        std::cout << "\t\t" <<  i << "\n";
+    AlwaysAssert(myIntegerRing.equalities.size()==myIntegerRing.origin_eq.size() );
+    for (int i = 0; i < myIntegerRing.equalities.size(); i++) {
+        std::cout << "\t\t" <<   myIntegerRing.equalities[i] << " : "  << myIntegerRing.origin_eq[i] << "\n";
     }
     std::cout << "\tdisequalities:" << "\n";
-    for (auto i: myIntegerRing.disequalities) {
-        std::cout << "\t\t" << i << "\n";
+    for (int i=0; i<myIntegerRing.disequalities.size(); i++) {
+        std::cout << "\t\t" << myIntegerRing.disequalities[i] <<  " : "  << myIntegerRing.origin_diseq[i] << "\n";;
     }
+    for (const auto& [key, vec] : myIntegerRing.pastGbs)
+    {
+        std::cout << "GB" << key << " :";
+        for (const auto& origin : vec)
+        {
+            std::cout << origin << ",";  // Call the print function of EqOrigin
+    }
+    }
+    std::cout << "\n";
+    
     for (auto& pair: myModularRings){
         std::cout << "ZZ/" << pair.first << "\n";
         //std::cout << "Status:" << pair.second.status << "\n";

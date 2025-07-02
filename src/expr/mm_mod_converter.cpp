@@ -38,6 +38,7 @@ Node MmModNodeConverter::postConvert(Node node)
                 d_nm->mkNode(Kind::MM_MOD, node[1][0], node[1][1]), node[0]);
 
      }
+     // x = 0 mod n for n in Z
      if (node[0].getKind() == Kind::INTS_MODULUS_TOTAL &&
         node[1].getKind() == Kind::INTS_MODULUS_TOTAL && 
         node[0][1].getKind() == Kind::CONST_INTEGER &&
@@ -45,7 +46,7 @@ Node MmModNodeConverter::postConvert(Node node)
         node[0][1].getConst<Rational>() ==  node[1][1].getConst<Rational>()
         ){
             return d_nm-> mkNode(Kind::EQUAL, 
-                d_nm->mkNode(Kind::MM_MOD, d_nm->mkNode(Kind::SUB, node[0][0], node[1][1]), 
+                d_nm->mkNode(Kind::MM_MOD, d_nm->mkNode(Kind::SUB, node[0][1], node[1][1]), 
                 node[0][1]), d_nm->mkConstInt(Rational(0)));
         }
 

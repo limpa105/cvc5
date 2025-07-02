@@ -88,7 +88,8 @@ std::ostream& operator<<(std::ostream& os, const EqOrigin& e) {
     }
   }
 
-  Result Ring::analyzeGB(CocoaEncoder& enc){
+  Result Ring::analyzeGB(CocoaEncoder& enc, std::vector<int> indices){
+    allEqsOg = true;
     Trace("intgb") << "Adding facts\n";
     for (const Node& node : equalities) {
       enc.addFact(node);
@@ -117,19 +118,32 @@ std::ostream& operator<<(std::ostream& os, const EqOrigin& e) {
       if (allEqsOg){
          std::vector<size_t> coreIndices = tracer.trace(basis.front());
          for (auto i: coreIndices){
-            std::cout << i << "\n";
+            unsatCause.push_back(origin_eq[i]);
          }
 
       }
       return Result::UNSAT;
     }
+    Trace("intgb") << "GB was valid" << std::endl;
+    
     // Store the GB basis and encoder
     gbBasis = basis;
+    if (indices.size()>0){
+      for (auto idx: indices){
+        for (auto j: tracer.trace(basis[idx])){
+          unsatCause.push_back(EqOrigin{static_cast<int>(j), -1});
+        }
+      }
+    }
     //d_polyRing = enc.polyRing();
+    pastGbs[pastGbs.size()] = origin_eq;
     d_encoder =  enc;
     newPoly = enc.cocoaToNode(basis, nodeManager());
     equalities = newPoly;
     origin_eq.clear();
+    for (int i=0; i<equalities.size(); i++){
+        origin_eq.push_back(EqOrigin{i,  static_cast<int>(pastGbs.size()-1)});
+    }
     newEqSinceGB = false;
     DiseqReduced = 0;
     EqsMoved = 0;
@@ -138,6 +152,7 @@ std::ostream& operator<<(std::ostream& os, const EqOrigin& e) {
 
 Result Ring::checkDiseq()
 {
+  allEqsOg = true;
   Trace("diseq") << "Starting checkDiseq...\n";
 
   if (gbBasis.empty())
@@ -180,10 +195,12 @@ Result Ring::checkDiseq()
       Trace("diseq") << "Disequality reduces to 0 → contradiction → UNSAT\n";
       if (allEqsOg){
         Trace("mod-range-solver") << "looking @the indices but idk how\n";
+        unsatCause.push_back(EqOrigin{i, -1});
          std::vector<size_t> coreIndices = tracer.trace(reduced);
-        //  for (auto j: coreIndices){
-        //     std::cout << "index" << j << "\n";
-        //  }
+         for (auto j: coreIndices){
+            unsatCause.push_back(origin_eq[j]);
+             //std::cout << "index" << j << "\n";
+         }
       }
        return Result::UNSAT;
     }

@@ -52,7 +52,7 @@ class ModRangeSolver : protected EnvObj
 
   std::vector<Node> collectCores(const std::vector<Node>& assertions,Ring F);
 
-  bool traverseOriginEq(std::vector<EqOrigin>& eqs, const std::vector<Node>& assertions, std::vector<Node>& result,std::set<int>& visited_gbs, Ring F);
+  bool traverseOriginEq(std::vector<EqOrigin>& eqs, const std::vector<Node>& assertions, std::vector<Node>& result,std::set<int>& visited_gbs, Ring& F);
 
 
  private:

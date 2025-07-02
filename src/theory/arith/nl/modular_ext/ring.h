@@ -28,8 +28,6 @@ std::ostream& operator<<(std::ostream& os, const EqOrigin& e);
         /**
         * Equalities living in the ring.
         */
-
-
         bool allEqsOg = true;
 
         bool newEqSinceGB = false;
@@ -39,6 +37,8 @@ std::ostream& operator<<(std::ostream& os, const EqOrigin& e);
         int DiseqMoved = 0;
 
         int DiseqReduced = 0;
+
+        std::vector<EqOrigin> unsatCause;
 
         std::vector<EqOrigin> origin_eq;
 
@@ -79,7 +79,7 @@ std::ostream& operator<<(std::ostream& os, const EqOrigin& e);
 
         void prepGB(CocoaEncoder& enc);
 
-        Result analyzeGB(CocoaEncoder& enc);
+        Result analyzeGB(CocoaEncoder& enc,  std::vector<int> indices = {});
 
     } ;
 
