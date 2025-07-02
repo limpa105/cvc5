@@ -1,8 +1,21 @@
+###############################################################################
+# Top contributors (to current version):
+#   Gereon Kremer, Aina Niemetz, Mathias Preiner
+#
+# This file is part of the cvc5 project.
+#
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
+# in the top-level source directory and their institutional affiliations.
+# All rights reserved.  See the file COPYING in the top-level source
+# directory for licensing information.
+# #############################################################################
+#
 # Configuration file for the Sphinx documentation builder.
 #
 # This file only contains a selection of the most common options. For a full
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
+##
 
 # -- Path setup --------------------------------------------------------------
 
@@ -56,6 +69,10 @@ extensions = [
         'include_build_file',
         'run_command',
 ]
+
+# Google analytics
+if ${GOOGLE_ANALYTICS_ENABLE}:
+  extensions += ['sphinxcontrib.googleanalytics']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -140,6 +157,10 @@ cpp_index_common_prefix = ["cvc5::"]
 
 bibtex_bibfiles = ['references.bib']
 
+# -- extension:: sphinxcontrib.googleanalytics -------------------------------
+
+googleanalytics_id = 'G-ML12X2V35B'
+googleanalytics_enabled = ${GOOGLE_ANALYTICS_ENABLE}
 
 # -- custom extension:: examples ---------------------------------------------
 
@@ -149,6 +170,11 @@ examples_types = {
                 'title': 'C++',
                 'lang': 'c++',
                 'group': 'c++'
+        },
+        '\.c$': {
+                'title': 'C',
+                'lang': 'c',
+                'group': 'c'
         },
         '\.h$': {
                 'title': 'C++ (header)',

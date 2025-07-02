@@ -4,7 +4,7 @@
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -277,4 +277,13 @@ macro(copy_file_from_src filename)
       ${CMAKE_CURRENT_BINARY_DIR}/${filename}
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${filename}
   )
+endmacro()
+
+macro(update_rpath_macos dylibname)
+  install(CODE "execute_process(COMMAND \${CMAKE_COMMAND}
+    -DRPATH=@loader_path
+    -DINSTALL_NAME_TOOL=${CMAKE_INSTALL_NAME_TOOL}
+    -DDYLIB_PATH=\${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/${dylibname}
+    -DDEPS_BASE=${DEPS_BASE}
+    -P ${CMAKE_SOURCE_DIR}/cmake/update_rpath_macos.cmake)")
 endmacro()

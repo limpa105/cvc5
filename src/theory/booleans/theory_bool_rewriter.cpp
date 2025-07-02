@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Aina Niemetz, Tim King, Haniel Barbosa
+ *   Andrew Reynolds, Aina Niemetz, Tim King
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -21,7 +21,11 @@
 #include <algorithm>
 #include <unordered_set>
 
+#include "expr/algorithm/flatten.h"
 #include "expr/node_value.h"
+#include "proof/conv_proof_generator.h"
+#include "proof/proof.h"
+#include "theory/quantifiers/bv_inverter.h"
 #include "util/cardinality.h"
 
 namespace cvc5::internal {
@@ -32,6 +36,376 @@ TheoryBoolRewriter::TheoryBoolRewriter(NodeManager* nm) : TheoryRewriter(nm)
 {
   d_true = nm->mkConst(true);
   d_false = nm->mkConst(false);
+  registerProofRewriteRule(ProofRewriteRule::MACRO_BOOL_NNF_NORM,
+                           TheoryRewriteCtx::POST_DSL);
+  registerProofRewriteRule(ProofRewriteRule::MACRO_BOOL_BV_INVERT_SOLVE,
+                           TheoryRewriteCtx::POST_DSL);
+}
+
+Node TheoryBoolRewriter::rewriteViaRule(ProofRewriteRule id, const Node& n)
+{
+  switch (id)
+  {
+    case ProofRewriteRule::MACRO_BOOL_NNF_NORM:
+    {
+      Node nn = computeNnfNorm(nodeManager(), n);
+      if (nn != n)
+      {
+        return nn;
+      }
+    }
+    break;
+    case ProofRewriteRule::MACRO_BOOL_BV_INVERT_SOLVE:
+    {
+      if (n.getKind() != Kind::EQUAL || n[0].getKind() != Kind::EQUAL
+          || n[1].getKind() != Kind::EQUAL)
+      {
+        return Node::null();
+      }
+      Node v = n[1][0];
+      TypeNode tn = v.getType();
+      if (!v.isVar() || !tn.isBitVector())
+      {
+        return Node::null();
+      }
+      std::unordered_set<Kind> disallowedKinds;
+      disallowedKinds.insert(Kind::BITVECTOR_CONCAT);
+      NodeManager* nm = nodeManager();
+      Node slv = getBvInvertSolve(nm, n[0], v, disallowedKinds);
+      if (slv == n[1][1])
+      {
+        return nm->mkConst(true);
+      }
+    }
+    break;
+    default: break;
+  }
+  return Node::null();
+}
+
+bool TheoryBoolRewriter::addNnfNormChild(std::vector<Node>& children,
+                                         Node c,
+                                         Kind k,
+                                         std::map<Node, bool>& lit_pol,
+                                         bool& childrenChanged)
+{
+  if (k == Kind::OR || k == Kind::AND)
+  {
+    Node lit = c.getKind() == Kind::NOT ? c[0] : c;
+    bool pol = c.getKind() != Kind::NOT;
+    std::map<Node, bool>::iterator it = lit_pol.find(lit);
+    if (it == lit_pol.end())
+    {
+      lit_pol[lit] = pol;
+      children.push_back(c);
+    }
+    else
+    {
+      childrenChanged = true;
+      if (it->second != pol)
+      {
+        return false;
+      }
+    }
+  }
+  else
+  {
+    children.push_back(c);
+  }
+  return true;
+}
+
+Node TheoryBoolRewriter::computeNnfNorm(NodeManager* nm,
+                                        const Node& n,
+                                        TConvProofGenerator* pg)
+{
+  Trace("compute-nnf") << "Compute NNF norm " << n << std::endl;
+  // at pre-order traversal, we store preKind and preChildren, which
+  // determine the Kind and the children for the node to reconstruct.
+  std::unordered_map<TNode, Kind> preKind;
+  std::unordered_map<TNode, std::vector<Node>> preChildren;
+  std::unordered_map<TNode, Node> visited;
+  std::unordered_map<TNode, Node>::iterator it;
+  std::vector<TNode> visit;
+  TNode cur;
+  visit.push_back(n);
+  do
+  {
+    cur = visit.back();
+    visit.pop_back();
+    it = visited.find(cur);
+    if (it == visited.end())
+    {
+      Kind k = cur.getKind();
+      bool negAllCh = false;
+      bool negCh1 = false;
+      // the new formula we should traverse
+      TNode ncur = cur;
+      // the result of rewriting cur after pre-rewrite
+      Node preCur;
+      if (k == Kind::IMPLIES)
+      {
+        k = Kind::OR;
+        negCh1 = true;
+      }
+      else if (k == Kind::XOR)
+      {
+        k = Kind::EQUAL;
+        negCh1 = true;
+      }
+      else if (k == Kind::NOT)
+      {
+        if (cur[0].getKind() == Kind::NOT)
+        {
+          // double negation cancels
+          preCur = cur[0][0];
+          visited[cur] = preCur;
+        }
+        else if (cur[0].getKind() == Kind::OR
+                 || cur[0].getKind() == Kind::IMPLIES)
+        {
+          k = Kind::AND;
+          negAllCh = true;
+          negCh1 = cur[0].getKind() == Kind::IMPLIES;
+        }
+        else if (cur[0].getKind() == Kind::AND)
+        {
+          k = Kind::OR;
+          negAllCh = true;
+        }
+        else if (cur[0].getKind() == Kind::XOR
+                 || (cur[0].getKind() == Kind::EQUAL
+                     && cur[0][0].getType().isBoolean()))
+        {
+          k = Kind::EQUAL;
+          negCh1 = cur[0].getKind() == Kind::EQUAL;
+        }
+        else if (cur[0].getKind() == Kind::ITE)
+        {
+          k = cur[0].getKind();
+          negAllCh = true;
+          negCh1 = true;
+        }
+        else
+        {
+          visited[cur] = cur;
+          continue;
+        }
+        ncur = cur[0];
+      }
+      else if ((k != Kind::EQUAL || !cur[0].getType().isBoolean())
+               && k != Kind::ITE && k != Kind::AND && k != Kind::OR)
+      {
+        // a literal
+        visited[cur] = cur;
+        continue;
+      }
+      if (preCur.isNull())
+      {
+        preKind[cur] = k;
+        visited[cur] = Node::null();
+        visit.push_back(cur);
+        std::vector<Node>& pc = preChildren[cur];
+        for (size_t i = 0, nchild = ncur.getNumChildren(); i < nchild; ++i)
+        {
+          Node c =
+              (i == 0 && negCh1) != negAllCh ? ncur[i].negate() : Node(ncur[i]);
+          pc.push_back(c);
+          visit.push_back(c);
+        }
+        if (pg != nullptr)
+        {
+          preCur = nm->mkNode(k, pc);
+        }
+      }
+      // if proof producing, possibly add a pre-rewrite step
+      if (pg != nullptr)
+      {
+        if (preCur != cur)
+        {
+          pg->addRewriteStep(
+              cur, preCur, nullptr, true, TrustId::MACRO_THEORY_REWRITE_RCONS_SIMPLE);
+        }
+      }
+    }
+    else if (it->second.isNull())
+    {
+      Kind ok = cur.getKind();
+      Assert(preKind.find(cur) != preKind.end());
+      Kind k = preKind[cur];
+      Assert(cur.getMetaKind() != kind::metakind::PARAMETERIZED);
+      bool childChanged = false;
+      std::vector<Node> children;
+      std::vector<Node>& pc = preChildren[cur];
+      std::map<Node, bool> lit_pol;
+      bool success = true;
+      for (const Node& cn : pc)
+      {
+        it = visited.find(cn);
+        Assert(it != visited.end());
+        Assert(!it->second.isNull());
+        Node c = it->second;
+        if (c.getKind() == k && (k == Kind::OR || k == Kind::AND))
+        {
+          // flatten
+          childChanged = true;
+          for (const Node& cc : c)
+          {
+            if (!addNnfNormChild(children, cc, k, lit_pol, childChanged))
+            {
+              success = false;
+              break;
+            }
+          }
+        }
+        else
+        {
+          success = addNnfNormChild(children, c, k, lit_pol, childChanged);
+        }
+        if (!success)
+        {
+          // tautology
+          break;
+        }
+        childChanged = childChanged || c != cn;
+      }
+      Node ret = cur;
+      if (!success)
+      {
+        Assert(k == Kind::OR || k == Kind::AND);
+        ret = nm->mkConst(k == Kind::OR);
+      }
+      else if (childChanged || k != ok)
+      {
+        ret = (children.size() == 1 && k != Kind::NOT)
+                  ? children[0]
+                  : nm->mkNode(k, children);
+      }
+      // if proof producing, possibly add a post-rewrite step
+      if (pg != nullptr)
+      {
+        std::vector<Node> pcc;
+        for (const Node& cn : pc)
+        {
+          it = visited.find(cn);
+          Assert(it != visited.end());
+          Assert(!it->second.isNull());
+          pcc.push_back(it->second);
+        }
+        Node pcpc = nm->mkNode(k, pcc);
+        if (pcpc != ret)
+        {
+          pg->addRewriteStep(
+              pcpc, ret, nullptr, false, TrustId::MACRO_THEORY_REWRITE_RCONS_SIMPLE);
+        }
+      }
+      visited[cur] = ret;
+    }
+  } while (!visit.empty());
+  Assert(visited.find(n) != visited.end());
+  Assert(!visited.find(n)->second.isNull());
+  return visited[n];
+}
+
+Node TheoryBoolRewriter::getBvInvertSolve(
+    NodeManager* nm,
+    const Node& lit,
+    const Node& var,
+    std::unordered_set<Kind>& disallowedKinds,
+    CDProof* cdp)
+{
+  quantifiers::BvInverter binv;
+  // solve for the variable on this path using the inverter
+  std::vector<uint32_t> path;
+  Node slit = binv.getPathToPv(lit, var, path);
+  // check if the path had a kind that does not preserve equivalence of the
+  // overall literal
+  if (!disallowedKinds.empty())
+  {
+    Node curr = lit;
+    for (size_t i = 0, npath = path.size(); i < npath; i++)
+    {
+      Trace("quant-velim-bv") << "On path: " << curr << std::endl;
+      if (disallowedKinds.find(curr.getKind()) != disallowedKinds.end())
+      {
+        slit = Node::null();
+        break;
+      }
+      uint32_t p = path[npath - i - 1];
+      curr = curr[p];
+    }
+    Assert(slit.isNull() || curr == var);
+  }
+  if (slit.isNull())
+  {
+    return Node::null();
+  }
+  std::vector<Node> ts;
+  if (cdp != nullptr)
+  {
+    Node curr = lit;
+    for (size_t i = 0, npath = path.size(); i < npath; i++)
+    {
+      uint32_t p = path[npath - i - 1];
+      curr = curr[p];
+      ts.push_back(curr);
+    }
+    Assert(ts.back() == var);
+    ts.pop_back();
+    std::reverse(ts.begin(), ts.end());
+  }
+  Node ret = binv.solveBvLit(var, lit, path, nullptr);
+  if (cdp != nullptr)
+  {
+    Node slvEq = var.eqNode(ret);
+    Trace("quant-velim-bv") << "Prove source: " << lit << std::endl;
+    Trace("quant-velim-bv") << "Prove target: " << slvEq << std::endl;
+    Trace("quant-velim-bv") << "Terms: " << ts << std::endl;
+    Node curr = slvEq;
+    // Each of the steps below can either be handled by BV_POLY_NORM_EQ,
+    // or the RARE rules bv-eq-xor-solve or bv-eq-not-solve.
+    std::vector<Node> transEq;
+    for (const Node& t : ts)
+    {
+      Node next = t.eqNode(curr[1][0]);
+      Trace("quant-velim-bv") << "- " << next << " == " << curr << std::endl;
+      Node eqc = next.eqNode(curr);
+      if (t.getKind() == Kind::BITVECTOR_XOR && curr[0] != t[0])
+      {
+        // flip to match the expected pattern of RARE rule bv-eq-xor-solve.
+        Node tf = nm->mkNode(Kind::BITVECTOR_XOR, t[1], t[0]);
+        Node nextf = tf.eqNode(curr[1][0]);
+        Node eqcf = nextf.eqNode(curr);
+        transEq.push_back(eqcf);
+        cdp->addTrustedStep(
+            eqcf, TrustId::MACRO_THEORY_REWRITE_RCONS_SIMPLE, {}, {});
+        eqc = next.eqNode(nextf);
+      }
+      transEq.push_back(eqc);
+      cdp->addTrustedStep(
+          eqc, TrustId::MACRO_THEORY_REWRITE_RCONS_SIMPLE, {}, {});
+      curr = next;
+    }
+    if (curr != lit)
+    {
+      // likely symmetry
+      Node eqc = lit.eqNode(curr);
+      transEq.push_back(eqc);
+      cdp->addTrustedStep(
+          eqc, TrustId::MACRO_THEORY_REWRITE_RCONS_SIMPLE, {}, {});
+    }
+    Node eqf = lit.eqNode(slvEq);
+    if (transEq.size() > 1)
+    {
+      std::reverse(transEq.begin(), transEq.end());
+      cdp->addStep(eqf, ProofRule::TRANS, transEq, {});
+    }
+    else
+    {
+      Assert(transEq[0] == eqf);
+    }
+  }
+  return ret;
 }
 
 RewriteResponse TheoryBoolRewriter::postRewrite(TNode node) {
@@ -99,7 +473,7 @@ RewriteResponse TheoryBoolRewriter::flattenNode(TNode n,
     Assert(childList.size()
            < static_cast<size_t>(expr::NodeValue::MAX_CHILDREN)
                  * static_cast<size_t>(expr::NodeValue::MAX_CHILDREN));
-    NodeBuilder nb(k);
+    NodeBuilder nb(nodeManager(), k);
     ChildList::iterator cur = childList.begin(), next, en = childList.end();
     while (cur != en)
     {

@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -40,8 +40,7 @@ int main()
   Solver slv(tm);
   slv.setOption("produce-models", "true");  // Produce Models
   slv.setOption("dag-thresh", "0"); // Disable dagifying the output
-  slv.setOption("output-language", "smt2"); // use smt-lib v2 as output language
-  slv.setLogic(string("QF_UFLIRA"));
+  slv.setLogic("QF_UFLIRA");
 
   // Sorts
   Sort u = tm.mkUninterpretedSort("u");
@@ -84,15 +83,14 @@ int main()
   cout << "Given the following assertions:" << endl
        << assertions << endl << endl;
 
-  cout << "Prove x /= y is entailed. " << endl
+  cout << "Prove x /= y is entailed." << endl
        << "cvc5: " << slv.checkSatAssuming(tm.mkTerm(Kind::EQUAL, {x, y}))
        << "." << endl
        << endl;
 
-  cout << "Call checkSat to show that the assertions are satisfiable. "
-       << endl
-       << "cvc5: "
-       << slv.checkSat() << "."<< endl << endl;
+  cout << "Call checkSat to show that the assertions are satisfiable." << endl
+       << "cvc5: " << slv.checkSat() << "." << endl
+       << endl;
 
   cout << "Call slv.getValue(...) on terms of interest."
        << endl;

@@ -1,10 +1,10 @@
 ###############################################################################
 # Top contributors (to current version):
-#   Aina Niemetz, Andrew Reynolds
+#   Aina Niemetz, Jeff Trull, Andrew Reynolds
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -16,6 +16,7 @@
 # Add unit tests.
 cvc5_add_unit_test_black(attribute_black node)
 cvc5_add_unit_test_white(attribute_white node)
+cvc5_add_unit_test_white(attrhash_white node)
 cvc5_add_unit_test_black(kind_black node)
 cvc5_add_unit_test_black(kind_map_black node)
 cvc5_add_unit_test_black(node_black node)

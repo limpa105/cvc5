@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -30,10 +30,8 @@ namespace cvc5::internal {
 namespace theory {
 namespace strings {
 
-StringsEntail::StringsEntail(Rewriter* r,
-                             ArithEntail& aent,
-                             SequencesRewriter& rewriter)
-    : d_rr(r), d_arithEntail(aent), d_rewriter(rewriter)
+StringsEntail::StringsEntail(Rewriter* r, ArithEntail& aent)
+    : d_rr(r), d_arithEntail(aent)
 {
 }
 
@@ -123,7 +121,7 @@ bool StringsEntail::stripSymbolicLength(std::vector<Node>& n1,
 {
   Assert(dir == 1 || dir == -1);
   Assert(nr.empty());
-  NodeManager* nm = NodeManager::currentNM();
+  NodeManager* nm = curr.getNodeManager();
   Node zero = nm->mkConstInt(cvc5::internal::Rational(0));
   bool ret = false;
   bool success = true;
@@ -136,7 +134,8 @@ bool StringsEntail::stripSymbolicLength(std::vector<Node>& n1,
     if (n1[sindex_use].isConst())
     {
       // could strip part of a constant
-      Node lowerBound = d_arithEntail.getConstantBound(d_rr->rewrite(curr));
+      Node lowerBound =
+          d_arithEntail.getConstantBound(d_arithEntail.rewriteArith(curr));
       if (!lowerBound.isNull())
       {
         Assert(lowerBound.isConst());
@@ -148,12 +147,12 @@ bool StringsEntail::stripSymbolicLength(std::vector<Node>& n1,
           size_t slen = Word::getLength(s);
           Node ncl = nm->mkConstInt(cvc5::internal::Rational(slen));
           Node next_s = nm->mkNode(Kind::SUB, lowerBound, ncl);
-          next_s = d_rr->rewrite(next_s);
+          next_s = d_arithEntail.rewriteArith(next_s);
           Assert(next_s.isConst());
           // we can remove the entire constant
           if (next_s.getConst<Rational>().sgn() >= 0)
           {
-            curr = d_rr->rewrite(nm->mkNode(Kind::SUB, curr, ncl));
+            curr = d_arithEntail.rewriteArith(nm->mkNode(Kind::SUB, curr, ncl));
             success = true;
             sindex++;
           }
@@ -163,7 +162,8 @@ bool StringsEntail::stripSymbolicLength(std::vector<Node>& n1,
             // lower bound minus the length of a concrete string is negative,
             // hence lowerBound cannot be larger than long max
             Assert(lbr < Rational(String::maxSize()));
-            curr = d_rr->rewrite(nm->mkNode(Kind::SUB, curr, lowerBound));
+            curr = d_arithEntail.rewriteArith(
+                nm->mkNode(Kind::SUB, curr, lowerBound));
             uint32_t lbsize = lbr.getNumerator().toUnsignedInt();
             Assert(lbsize < slen);
             if (dir == 1)
@@ -190,12 +190,11 @@ bool StringsEntail::stripSymbolicLength(std::vector<Node>& n1,
     }
     else
     {
-      Node next_s = NodeManager::currentNM()->mkNode(
+      Node next_s = NodeManager::mkNode(
           Kind::SUB,
           curr,
-          NodeManager::currentNM()->mkNode(Kind::STRING_LENGTH,
-                                           n1[sindex_use]));
-      next_s = d_rr->rewrite(next_s);
+          NodeManager::mkNode(Kind::STRING_LENGTH, n1[sindex_use]));
+      next_s = d_arithEntail.rewriteArith(next_s);
       if (d_arithEntail.check(next_s))
       {
         success = true;
@@ -233,9 +232,33 @@ int StringsEntail::componentContains(std::vector<Node>& n1,
                                      bool computeRemainder,
                                      int remainderDir)
 {
+  return componentContainsInternal(
+      false, n1, n2, nb, ne, computeRemainder, remainderDir);
+}
+
+int StringsEntail::componentContainsExt(std::vector<Node>& n1,
+                                        std::vector<Node>& n2,
+                                        std::vector<Node>& nb,
+                                        std::vector<Node>& ne,
+                                        bool computeRemainder,
+                                        int remainderDir)
+{
+  return componentContainsInternal(
+      true, n1, n2, nb, ne, computeRemainder, remainderDir);
+}
+
+int StringsEntail::componentContainsInternal(bool isExt,
+                                             std::vector<Node>& n1,
+                                             std::vector<Node>& n2,
+                                             std::vector<Node>& nb,
+                                             std::vector<Node>& ne,
+                                             bool computeRemainder,
+                                             int remainderDir)
+{
   Assert(nb.empty());
   Assert(ne.empty());
   Trace("strings-entail") << "Component contains: " << std::endl;
+  Trace("strings-entail") << "isExt = " << isExt << std::endl;
   Trace("strings-entail") << "n1 = " << n1 << std::endl;
   Trace("strings-entail") << "n2 = " << n2 << std::endl;
   // if n2 is a singleton, we can do optimized version here
@@ -245,7 +268,8 @@ int StringsEntail::componentContains(std::vector<Node>& n1,
     {
       Node n1rb;
       Node n1re;
-      if (componentContainsBase(n1[i], n2[0], n1rb, n1re, 0, computeRemainder))
+      if (componentContainsBase(
+              isExt, n1[i], n2[0], n1rb, n1re, 0, computeRemainder))
       {
         if (computeRemainder)
         {
@@ -261,8 +285,7 @@ int StringsEntail::componentContains(std::vector<Node>& n1,
           }
           else if (!n1re.isNull())
           {
-            n1[i] = NodeManager::currentNM()->mkNode(
-                Kind::STRING_CONCAT, n1[i], n1re);
+            n1[i] = NodeManager::mkNode(Kind::STRING_CONCAT, n1[i], n1re);
           }
           if (remainderDir != 1)
           {
@@ -275,8 +298,7 @@ int StringsEntail::componentContains(std::vector<Node>& n1,
           }
           else if (!n1rb.isNull())
           {
-            n1[i] = NodeManager::currentNM()->mkNode(
-                Kind::STRING_CONCAT, n1rb, n1[i]);
+            n1[i] = NodeManager::mkNode(Kind::STRING_CONCAT, n1rb, n1[i]);
           }
         }
         return i;
@@ -291,7 +313,8 @@ int StringsEntail::componentContains(std::vector<Node>& n1,
       Node n1rb_first;
       Node n1re_first;
       // first component of n2 must be a suffix
-      if (componentContainsBase(n1[i],
+      if (componentContainsBase(isExt,
+                                n1[i],
                                 n2[0],
                                 n1rb_first,
                                 n1re_first,
@@ -307,7 +330,8 @@ int StringsEntail::componentContains(std::vector<Node>& n1,
             Node n1rb_last;
             Node n1re_last;
             // last component of n2 must be a prefix
-            if (componentContainsBase(n1[i + j],
+            if (componentContainsBase(isExt,
+                                      n1[i + j],
                                       n2[j],
                                       n1rb_last,
                                       n1re_last,
@@ -363,13 +387,16 @@ int StringsEntail::componentContains(std::vector<Node>& n1,
   return -1;
 }
 
-bool StringsEntail::componentContainsBase(
-    Node n1, Node n2, Node& n1rb, Node& n1re, int dir, bool computeRemainder)
+bool StringsEntail::componentContainsBase(bool isExt,
+                                          Node n1,
+                                          Node n2,
+                                          Node& n1rb,
+                                          Node& n1re,
+                                          int dir,
+                                          bool computeRemainder)
 {
   Assert(n1rb.isNull());
   Assert(n1re.isNull());
-
-  NodeManager* nm = NodeManager::currentNM();
 
   if (n1 == n2)
   {
@@ -426,7 +453,7 @@ bool StringsEntail::componentContainsBase(
         }
       }
     }
-    else if (computeRemainder)
+    else if (!isExt || computeRemainder)
     {
       // Note the cases below would require constructing new terms
       // as part of the remainder components. Thus, this is only checked
@@ -443,8 +470,8 @@ bool StringsEntail::componentContainsBase(
         {
           bool success = true;
           Node start_pos = n2[1];
-          Node end_pos = nm->mkNode(Kind::ADD, n2[1], n2[2]);
-          Node len_n2s = nm->mkNode(Kind::STRING_LENGTH, n2[0]);
+          Node end_pos = NodeManager::mkNode(Kind::ADD, n2[1], n2[2]);
+          Node len_n2s = NodeManager::mkNode(Kind::STRING_LENGTH, n2[0]);
           if (dir == 1)
           {
             // To be a suffix, start + length must be greater than
@@ -670,26 +697,25 @@ bool StringsEntail::stripConstantEndpoints(std::vector<Node>& n1,
   return changed;
 }
 
-Node StringsEntail::checkContains(Node a, Node b, bool fullRewriter)
+Node StringsEntail::checkContains(Node a, Node b)
 {
-  NodeManager* nm = NodeManager::currentNM();
-  Node ctn = nm->mkNode(Kind::STRING_CONTAINS, a, b);
+  Node ctn = NodeManager::mkNode(Kind::STRING_CONTAINS, a, b);
 
-  if (fullRewriter)
+  if (d_rr != nullptr)
   {
     ctn = d_rr->rewrite(ctn);
   }
   else
   {
+    if (d_rewriter == nullptr)
+    {
+      return Node::null();
+    }
     Node prev;
     do
     {
       prev = ctn;
-      ctn = d_rewriter.rewriteContains(ctn);
-      if (ctn != prev)
-      {
-        ctn = d_rewriter.postProcessRewrite(prev, ctn);
-      }
+      ctn = d_rewriter->rewriteContains(ctn);
     } while (prev != ctn && ctn.getKind() == Kind::STRING_CONTAINS);
   }
 
@@ -699,17 +725,26 @@ Node StringsEntail::checkContains(Node a, Node b, bool fullRewriter)
 
 bool StringsEntail::checkNonEmpty(Node a)
 {
-  Node len = NodeManager::currentNM()->mkNode(Kind::STRING_LENGTH, a);
-  len = d_rr->rewrite(len);
+  if (a.isConst())
+  {
+    return Word::getLength(a) != 0;
+  }
+  Node len = NodeManager::mkNode(Kind::STRING_LENGTH, a);
+  len = d_arithEntail.rewriteArith(len);
   return d_arithEntail.check(len, true);
 }
 
 bool StringsEntail::checkLengthOne(Node s, bool strict)
 {
-  NodeManager* nm = NodeManager::currentNM();
+  if (s.isConst())
+  {
+    size_t len = Word::getLength(s);
+    return strict ? (len == 1) : (len <= 1);
+  }
+  NodeManager* nm = s.getNodeManager();
   Node one = nm->mkConstInt(Rational(1));
   Node len = nm->mkNode(Kind::STRING_LENGTH, s);
-  len = d_rr->rewrite(len);
+  len = d_arithEntail.rewriteArith(len);
   return d_arithEntail.check(one, len)
          && (!strict || d_arithEntail.check(len, true));
 }
@@ -836,19 +871,19 @@ Node StringsEntail::checkHomogeneousString(Node a)
 
 Node StringsEntail::getMultisetApproximation(Node a)
 {
-  NodeManager* nm = NodeManager::currentNM();
-  if (a.getKind() == Kind::STRING_SUBSTR)
+  NodeManager* nm = a.getNodeManager();
+  while (a.getKind() == Kind::STRING_SUBSTR)
   {
-    return a[0];
+    a = a[0];
   }
-  else if (a.getKind() == Kind::STRING_REPLACE)
+  if (a.getKind() == Kind::STRING_REPLACE)
   {
     return getMultisetApproximation(
         nm->mkNode(Kind::STRING_CONCAT, a[0], a[2]));
   }
   else if (a.getKind() == Kind::STRING_CONCAT)
   {
-    NodeBuilder nb(Kind::STRING_CONCAT);
+    NodeBuilder nb(nm, Kind::STRING_CONCAT);
     for (const Node& ac : a)
     {
       nb << getMultisetApproximation(ac);
@@ -909,7 +944,7 @@ Node StringsEntail::getStringOrEmpty(Node n)
 
 Node StringsEntail::inferEqsFromContains(Node x, Node y)
 {
-  NodeManager* nm = NodeManager::currentNM();
+  NodeManager* nm = x.getNodeManager();
   Node emp = Word::mkEmptyWord(x.getType());
   Assert(x.getType() == y.getType());
   TypeNode stype = x.getType();
@@ -979,21 +1014,110 @@ Node StringsEntail::inferEqsFromContains(Node x, Node y)
     cs.push_back(yiLen[0]);
   }
 
-  NodeBuilder nb(Kind::AND);
   // (= x (str.++ y1' ... ym'))
-  if (!cs.empty())
-  {
-    nb << nm->mkNode(Kind::EQUAL, x, utils::mkConcat(cs, stype));
-  }
+  std::vector<Node> eqs;
+  Node mainEq = nm->mkNode(Kind::EQUAL, x, utils::mkConcat(cs, stype));
+  eqs.push_back(mainEq);
   // (= y1'' "") ... (= yk'' "")
   for (const Node& zeroLen : zeroLens)
   {
     Assert(std::find(y.begin(), y.end(), zeroLen[0]) != y.end());
-    nb << nm->mkNode(Kind::EQUAL, zeroLen[0], emp);
+    eqs.push_back(nm->mkNode(Kind::EQUAL, zeroLen[0], emp));
+  }
+  // (and (= x (str.++ y1' ... ym')) (= y1'' "") ... (= yk'' ""))
+  return nm->mkAnd(eqs);
+}
+
+Node StringsEntail::rewriteViaMacroSubstrStripSymLength(const Node& node,
+                                                        Rewrite& rule,
+                                                        std::vector<Node>& ch1,
+                                                        std::vector<Node>& ch2)
+{
+  Assert(node.getKind() == Kind::STRING_SUBSTR);
+  NodeManager* nm = node.getNodeManager();
+  utils::getConcat(node[0], ch1);
+  TypeNode stype = node[0].getType();
+  Node zero = nm->mkConstInt(Rational(0));
+  // definite inclusion
+  if (node[1] == zero)
+  {
+    Node curr = node[2];
+    if (stripSymbolicLength(ch1, ch2, 1, curr))
+    {
+      std::vector<Node> chr = ch2;
+      if (curr != zero && !ch1.empty())
+      {
+        // make the length explicitly, which helps proof reconstruction
+        Node cpulled = utils::mkConcat(ch2, stype);
+        Node resultLen = nm->mkNode(
+            Kind::SUB, node[2], nm->mkNode(Kind::STRING_LENGTH, cpulled));
+        chr.push_back(nm->mkNode(Kind::STRING_SUBSTR,
+                                 utils::mkConcat(ch1, stype),
+                                 node[1],
+                                 resultLen));
+      }
+      Node ret = utils::mkConcat(chr, stype);
+      rule = Rewrite::SS_LEN_INCLUDE;
+      return ret;
+    }
+  }
+  for (unsigned r = 0; r < 2; r++)
+  {
+    // the amount of characters we can strip
+    Node curr;
+    if (r == 0)
+    {
+      if (node[1] != zero)
+      {
+        // strip up to start point off the start of the string
+        curr = node[1];
+      }
+    }
+    else if (r == 1)
+    {
+      Node tot_len = nm->mkNode(Kind::STRING_LENGTH, node[0]);
+      if (node[2] != tot_len)
+      {
+        Node end_pt = nm->mkNode(Kind::ADD, node[1], node[2]);
+        // strip up to ( str.len(node[0]) - end_pt ) off the end of the string
+        curr = nm->mkNode(Kind::SUB, tot_len, end_pt);
+        curr = d_arithEntail.rewriteArith(curr);
+      }
+    }
+    if (!curr.isNull())
+    {
+      // strip off components while quantity is entailed positive
+      int dir = r == 0 ? 1 : -1;
+      ch2.clear();
+      if (stripSymbolicLength(ch1, ch2, dir, curr))
+      {
+        if (r == 0)
+        {
+          // make the length explicitly, which helps proof reconstruction
+          Node cskipped = utils::mkConcat(ch2, stype);
+          Node resultStart = nm->mkNode(
+              Kind::SUB, node[1], nm->mkNode(Kind::STRING_LENGTH, cskipped));
+          Node ret = nm->mkNode(Kind::STRING_SUBSTR,
+                                utils::mkConcat(ch1, stype),
+                                resultStart,
+                                node[2]);
+          rule = Rewrite::SS_STRIP_START_PT;
+          return ret;
+        }
+        else
+        {
+          Node ret = nm->mkNode(Kind::STRING_SUBSTR,
+                                utils::mkConcat(ch1, stype),
+                                node[1],
+                                node[2]);
+          rule = Rewrite::SS_STRIP_END_PT;
+          return ret;
+        }
+      }
+    }
   }
 
-  // (and (= x (str.++ y1' ... ym')) (= y1'' "") ... (= yk'' ""))
-  return nb.constructNode();
+  return Node::null();
 }
 
 }  // namespace strings

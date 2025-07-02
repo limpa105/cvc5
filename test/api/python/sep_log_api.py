@@ -4,7 +4,7 @@
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -64,7 +64,7 @@ def validate_exception():
 
     # The exception message we expect to obtain
     expected = \
-        "Cannot obtain separation logic expressions if not using the separation " \
+        "cannot obtain separation logic expressions if not using the separation " \
         "logic theory."
 
     # test the heap expression
@@ -97,7 +97,7 @@ def validate_exception():
 # obtaining the heap/nil expressions when using separation logic.
 def validate_getters():
     tm  = cvc5.TermManager()
-    slv = cvc5.Solver()
+    slv = cvc5.Solver(tm)
 
     # Setup some options for cvc5
     slv.setLogic("QF_ALL")

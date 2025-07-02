@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -213,10 +213,16 @@ Term Smt2TermParser::parseTerm()
               {
                 d_lex.parseError("Expected non-empty sorted variable list");
               }
-              // We set fresh to false here. This means that (x Int) appearing
-              // in a quantified formula always constructs the same variable.
-              std::vector<Term> vs =
-                  d_state.bindBoundVars(sortedVarNames, false);
+              bool freshBinders = d_state.usingFreshBinders();
+              // If freshBinders is false, we set fresh to false here. This
+              // means that (x Int) appearing in a quantified formula always
+              // constructs the same variable.
+              // We use the context-dependent version of this method since we
+              // may have to account for variables that have appeared in let
+              // binders to ensure our let bindings do not lead to variable
+              // capturing.
+              std::vector<Term> vs = d_state.bindBoundVarsCtx(
+                  sortedVarNames, letBinders, freshBinders);
               Term vl = tm.mkTerm(Kind::VARIABLE_LIST, vs);
               args.push_back(vl);
               xstack.emplace_back(ParseCtx::CLOSURE_NEXT_ARG);
@@ -384,8 +390,6 @@ Term Smt2TermParser::parseTerm()
             {
               d_state.defineVar(b.first, b.second);
             }
-            // done with the binders
-            letBinders.pop_back();
           }
         }
         break;
@@ -397,6 +401,10 @@ Term Smt2TermParser::parseTerm()
           tstack.pop_back();
           // pop scope
           d_state.popScope();
+          // Done with the binders now. We clear this only at this point since
+          // the let binders may to pertinent to avoid illegal substitutions
+          // from lets.
+          letBinders.pop_back();
         }
         break;
         // ------------------------- match terms
@@ -696,6 +704,11 @@ Term Smt2TermParser::parseSymbolicExpr()
         ret = tm.mkTerm(Kind::SEXPR, sstack.back());
         // pop the stack
         sstack.pop_back();
+      }
+      break;
+      case Token::EOF_TOK:
+      {
+        d_lex.parseError("Expected SMT-LIBv2 s-expression");
       }
       break;
       // ------------------- base case
@@ -1002,17 +1015,21 @@ uint32_t Smt2TermParser::parseIntegerNumeral()
 uint32_t Smt2TermParser::tokenStrToUnsigned()
 {
   // forbid leading zeroes if in strict mode
+  std::string token = d_lex.tokenStr();
   if (d_lex.isStrict())
   {
-    std::string token = d_lex.tokenStr();
     if (token.size() > 1 && token[0] == '0')
     {
-      d_lex.parseError("Numeral with leading zeroes are forbidden");
+      d_lex.parseError("Numerals with leading zeroes are forbidden");
     }
+  }
+  if (token.size() > 1 && token[0] == '-')
+  {
+    d_lex.parseError("Negative numerals are forbidden in indices");
   }
   uint32_t result;
   std::stringstream ss;
-  ss << d_lex.tokenStr();
+  ss << token;
   ss >> result;
   return result;
 }
@@ -1239,6 +1256,9 @@ ParseOp Smt2TermParser::continueParseIndexedIdentifier(bool isOperator)
       case Token::HEX_LITERAL:
         // (_ char <hex_literal>) expects a hex literal
         symbols.push_back(d_lex.tokenStr());
+        break;
+      case Token::QUOTED_SYMBOL:
+        symbols.push_back(tokenStrToSymbol(tok));
         break;
       default:
         d_lex.unexpectedTokenError(

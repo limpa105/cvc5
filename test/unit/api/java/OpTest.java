@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Andres Noetzli, Mudathir Mohamed, Gereon Kremer
+ *   Andres Noetzli, Aina Niemetz, Mudathir Mohamed
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -40,6 +40,16 @@ class OpTest
   void tearDown()
   {
     Context.deletePointers();
+  }
+
+  @Test
+  void hash() throws CVC5ApiException
+  {
+    Op ext1 = d_tm.mkOp(BITVECTOR_EXTRACT, 31, 1);
+    Op ext2 = d_tm.mkOp(BITVECTOR_EXTRACT, 31, 2);
+    assertEquals(ext1.hashCode(), ext1.hashCode());
+    assertNotEquals(ext1.hashCode(), ext2.hashCode());
+    assertNotEquals(ext1.hashCode(), (new Op()).hashCode());
   }
 
   @Test

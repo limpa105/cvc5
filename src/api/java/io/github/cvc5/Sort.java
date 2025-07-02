@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -50,9 +50,13 @@ public class Sort extends AbstractPointer implements Comparable<Sort>
   public boolean equals(Object s)
   {
     if (this == s)
+    {
       return true;
+    }
     if (s == null || getClass() != s.getClass())
+    {
       return false;
+    }
     Sort sort = (Sort) s;
     if (this.pointer == sort.pointer)
     {
@@ -81,7 +85,7 @@ public class Sort extends AbstractPointer implements Comparable<Sort>
   /**
    * @return The kind of this sort.
    * @api.note This method is experimental and may change in future versions.
-   * @throws CVC5ApiException
+   * @throws CVC5ApiException on error
    */
   public SortKind getKind() throws CVC5ApiException
   {
@@ -739,7 +743,7 @@ public class Sort extends AbstractPointer implements Comparable<Sort>
   /**
    * @return The sort kind of an abstract sort, which denotes the kind of
    * sorts that this abstract sort denotes.
-   * @throws CVC5ApiException
+   * @throws CVC5ApiException on error
    *
    * @api.note This method is experimental and may change in future versions.
    */
@@ -854,4 +858,16 @@ public class Sort extends AbstractPointer implements Comparable<Sort>
   }
 
   private native long getNullableElementSort(long pointer);
+
+  /**
+   * Get the hash value of a sort.
+   * @return The hash value.
+   */
+  @Override
+  public int hashCode()
+  {
+    return hashCode(pointer);
+  }
+
+  private native int hashCode(long pointer);
 }

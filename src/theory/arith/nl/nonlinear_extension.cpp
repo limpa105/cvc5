@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -58,7 +58,8 @@ NonlinearExtension::NonlinearExtension(Env& env, TheoryArith& containing)
       d_covSlv(d_env, d_im, d_model),
       d_icpSlv(d_env, d_im),
       d_iandSlv(env, d_im, d_model),
-      d_pow2Slv(env, d_im, d_model)
+      d_pow2Slv(env, d_im, d_model),
+      d_rangeSlv(env, d_im)
 {
   d_extTheory.addFunctionKind(Kind::NONLINEAR_MULT);
   d_extTheory.addFunctionKind(Kind::EXPONENTIAL);
@@ -66,6 +67,7 @@ NonlinearExtension::NonlinearExtension(Env& env, TheoryArith& containing)
   d_extTheory.addFunctionKind(Kind::PI);
   d_extTheory.addFunctionKind(Kind::IAND);
   d_extTheory.addFunctionKind(Kind::POW2);
+  d_extTheory.addFunctionKind(Kind::MM_MOD);
   d_true = nodeManager()->mkConst(true);
 }
 
@@ -73,6 +75,9 @@ NonlinearExtension::~NonlinearExtension() {}
 
 void NonlinearExtension::preRegisterTerm(TNode n)
 {
+   if (options().arith.modularRangeSolver){
+      d_rangeSlv.preRegisterTerm(n);
+    }
   // register terms with extended theory, to find extended terms that can be
   // eliminated by context-depedendent simplification.
   if (d_extTheory.hasFunctionKind(n.getKind()))
@@ -482,6 +487,8 @@ void NonlinearExtension::runStrategy(Theory::Effort effort,
         d_pow2Slv.initLastCall(assertions, false_asserts, xts);
         break;
       case InferStep::POW2_FULL: d_pow2Slv.checkFullRefine(); break;
+      case InferStep::MM_MOD_FULL: 
+        d_rangeSlv.initLastCall(assertions, false_asserts, xts); break;
       case InferStep::POW2_INITIAL: d_pow2Slv.checkInitialRefine(); break;
       case InferStep::ICP:
         d_icpSlv.reset(assertions);

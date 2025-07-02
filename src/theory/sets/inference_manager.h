@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -19,6 +19,7 @@
 #define CVC5__THEORY__SETS__INFERENCE_MANAGER_H
 
 #include "theory/inference_manager_buffered.h"
+#include "theory/sets/infer_proof_cons.h"
 #include "theory/sets/solver_state.h"
 
 namespace cvc5::internal {
@@ -91,14 +92,14 @@ class InferenceManager : public InferenceManagerBuffered
   /** constants */
   Node d_true;
   Node d_false;
-  Node d_tid;
-  Node d_tsid;
   /**
    * Reference to the state object for the theory of sets. We store the
    * (derived) state here, since it has additional methods required in this
    * class.
    */
   SolverState& d_state;
+  /** The inference to proof converter */
+  std::unique_ptr<InferProofCons> d_ipc;
   /** Assert fact recursive
    *
    * This is a helper function for assertInference, which calls assertFact

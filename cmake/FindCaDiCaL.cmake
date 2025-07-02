@@ -4,7 +4,7 @@
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -66,7 +66,9 @@ if(CaDiCaL_INCLUDE_DIR AND CaDiCaL_LIBRARIES)
   endif()
 
   # Minimum supported version
-  set(CaDiCaL_FIND_VERSION "1.6.0")
+  set(CaDiCaL_FIND_VERSION "2.1.0")
+  # Maximum supported version
+  set(CaDiCaL_FIND_VERSION_MAX "2.1.3")
 
   # Set FOUND_SYSTEM to true; check_system_version will unset this if the
   # version is less than the minimum required
@@ -85,27 +87,32 @@ if(NOT CaDiCaL_FOUND_SYSTEM)
   include(CheckSymbolExists)
   include(ExternalProject)
 
-  set(CaDiCaL_VERSION "rel-1.7.4")
-  set(CaDiCaL_CHECKSUM "9cc70c65c80f40c0c13b57cb43ea2a6804cae4eb")
+  set(CaDiCaL_VERSION "rel-2.1.3")
+  set(CaDiCaL_CHECKSUM "abfe890aa4ccda7b8449c7ad41acb113cfb8e7e8fbf5e49369075f9b00d70465")
 
   # avoid configure script and instantiate the makefile manually the configure
   # scripts unnecessarily fails for cross compilation thus we do the bare
   # minimum from the configure script here
-  set(CXXFLAGS "-fPIC -O3 -DNDEBUG -DQUIET -std=c++11")
+  set(CaDiCaL_CXXFLAGS "-fPIC -O3 -DNDEBUG -DQUIET -std=c++11")
   if(CMAKE_CROSSCOMPILING_MACOS)
-    set(CXXFLAGS "${CXXFLAGS} -arch ${CMAKE_OSX_ARCHITECTURES}")
+    set(CaDiCaL_CXXFLAGS "${CaDiCaL_CXXFLAGS} -arch ${CMAKE_OSX_ARCHITECTURES}")
   endif()
 
   # check for getc_unlocked
   check_symbol_exists("getc_unlocked" "cstdio" HAVE_UNLOCKED_IO)
   if(NOT HAVE_UNLOCKED_IO)
-    string(APPEND CXXFLAGS " -DNUNLOCKED")
+    string(APPEND CaDiCaL_CXXFLAGS " -DNUNLOCKED")
+  endif()
+  # check for closefrom
+  check_symbol_exists("closefrom" "fcntl.h" HAVE_CLOSEFROM)
+  if(NOT HAVE_CLOSEFROM)
+    string(APPEND CaDiCaL_CXXFLAGS " -DNCLOSEFROM")
   endif()
 
   # On macOS, we have to set `-isysroot` to make sure that include headers are
   # found because they are not necessarily installed at /usr/include anymore.
   if(CMAKE_OSX_SYSROOT)
-    string(APPEND CXXFLAGS " ${CMAKE_CXX_SYSROOT_FLAG} ${CMAKE_OSX_SYSROOT}")
+    string(APPEND CaDiCaL_CXXFLAGS " ${CMAKE_CXX_SYSROOT_FLAG} ${CMAKE_OSX_SYSROOT}")
   endif()
 
   if("${CMAKE_GENERATOR}" STREQUAL "Unix Makefiles")
@@ -116,19 +123,26 @@ if(NOT CaDiCaL_FOUND_SYSTEM)
     set(make_cmd "make")
   endif()
 
+  set(USE_EMAR "")
+  if(NOT(WASM STREQUAL "OFF"))
+    set(USE_EMAR  "-e s,ar rc,emar rc,")
+  endif()
+
+  set(CaDiCaL_SOURCE_DIR <SOURCE_DIR>)
   ExternalProject_Add(
     CaDiCaL-EP
     ${COMMON_EP_CONFIG}
     BUILD_IN_SOURCE ON
     URL https://github.com/arminbiere/cadical/archive/${CaDiCaL_VERSION}.tar.gz
-    URL_HASH SHA1=${CaDiCaL_CHECKSUM}
+    URL_HASH SHA256=${CaDiCaL_CHECKSUM}
     CONFIGURE_COMMAND mkdir -p <SOURCE_DIR>/build
     # avoid configure script, prepare the makefile manually
     COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/makefile.in
             <SOURCE_DIR>/build/makefile
     COMMAND
       sed -i.orig -e "s,@CXX@,${CMAKE_CXX_COMPILER}," -e
-      "s,@CXXFLAGS@,${CXXFLAGS}," -e "s,@MAKEFLAGS@,,"
+      "s,@CXXFLAGS@,${CaDiCaL_CXXFLAGS}," -e
+      "s,@ROOT@,${CaDiCaL_SOURCE_DIR}," -e "s,@CONTRIB@,no," ${USE_EMAR}
       <SOURCE_DIR>/build/makefile
     BUILD_COMMAND ${make_cmd} -C <SOURCE_DIR>/build libcadical.a
     INSTALL_COMMAND ${CMAKE_COMMAND} -E copy <SOURCE_DIR>/build/libcadical.a

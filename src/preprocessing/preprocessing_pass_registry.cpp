@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -59,6 +59,8 @@
 #include "preprocessing/passes/theory_preprocess.h"
 #include "preprocessing/passes/static_rewrite.h"
 #include "preprocessing/passes/unconstrained_simplifier.h"
+#include "preprocessing/passes/nia_intro_mm_mod.h"
+#include "preprocessing/passes/int_range_or.h"
 #include "preprocessing/preprocessing_pass.h"
 
 namespace cvc5::internal {
@@ -68,7 +70,8 @@ using namespace cvc5::internal::preprocessing::passes;
 
 PreprocessingPassRegistry& PreprocessingPassRegistry::getInstance()
 {
-  static PreprocessingPassRegistry* ppReg = new PreprocessingPassRegistry();
+  static thread_local PreprocessingPassRegistry* ppReg =
+      new PreprocessingPassRegistry();
   return *ppReg;
 }
 
@@ -159,6 +162,10 @@ PreprocessingPassRegistry::PreprocessingPassRegistry()
   registerPassInfo("fun-def-fmf", callCtor<FunDefFmf>);
   registerPassInfo("static-rewrite", callCtor<StaticRewrite>);
   registerPassInfo("strings-eager-pp", callCtor<StringsEagerPp>);
+  registerPassInfo("nia-intro-mm-mod", callCtor<NIAIntroMmMod>);
+  registerPassInfo("int-range-or", callCtor<IntRangeOr>);
+
+
 }
 
 }  // namespace preprocessing

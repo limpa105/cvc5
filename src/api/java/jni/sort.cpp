@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -1113,5 +1113,20 @@ JNIEXPORT jlong JNICALL Java_io_github_cvc5_Sort_getNullableElementSort(
   Sort* current = reinterpret_cast<Sort*>(pointer);
   Sort* retPointer = new Sort(current->getNullableElementSort());
   return (jlong)retPointer;
+  CVC5_JAVA_API_TRY_CATCH_END_RETURN(env, 0);
+}
+
+/*
+ * Class:     io_github_cvc5_Sort
+ * Method:    hashCode
+ * Signature: (J)I
+ */
+JNIEXPORT jint JNICALL Java_io_github_cvc5_Sort_hashCode(JNIEnv* env,
+                                                         jobject,
+                                                         jlong pointer)
+{
+  CVC5_JAVA_API_TRY_CATCH_BEGIN;
+  Sort* result = reinterpret_cast<Sort*>(pointer);
+  return static_cast<jint>(std::hash<cvc5::Sort>()(*result));
   CVC5_JAVA_API_TRY_CATCH_END_RETURN(env, 0);
 }

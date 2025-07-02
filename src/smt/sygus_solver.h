@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -230,6 +230,11 @@ class SygusSolver : protected EnvObj
   NodeList d_sygusFunSymbols;
   /** The current sygus conjecture */
   Node d_conj;
+  /**
+   * The list of synthesis functions that were trivial (not contained in the
+   * conjecture but were specified via synth-fun).
+   */
+  std::vector<Node> d_trivialFuns;
   /**
    * Whether we need to reconstruct the sygus conjecture.
    *

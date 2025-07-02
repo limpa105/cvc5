@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -21,9 +21,6 @@
  ****************************************************************************/
 
 #include <cvc5/cvc5.h>
-
-#include <iostream>
-#include <sstream>
 
 using namespace cvc5;
 using namespace std;
@@ -78,7 +75,7 @@ int validate_exception(void)
 
   /* The exception message we expect to obtain */
   std::string expected(
-      "Cannot obtain separation logic expressions if not using the separation "
+      "cannot obtain separation logic expressions if not using the separation "
       "logic theory.");
 
   /* test the heap expression */

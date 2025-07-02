@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Mudathir Mohamed, Andrew Reynolds
+ *   Mudathir Mohamed, Andrew Reynolds, Aina Niemetz
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -29,12 +29,12 @@ public class Command extends AbstractPointer
   protected native void deletePointer(long pointer);
 
   /**
-   * Invoke the command on the solver and symbol manager sm, prints the result
-   * to output stream out.
+   * Invoke the command on the solver and symbol manager sm and return any
+   * resulting output as a string.
    *
    * @param solver The solver to invoke the command on.
    * @param symbolManager The symbol manager to invoke the command on.
-   * @return the output of invoking the command.
+   * @return The output of invoking the command.
    */
   public String invoke(Solver solver, SymbolManager symbolManager)
   {

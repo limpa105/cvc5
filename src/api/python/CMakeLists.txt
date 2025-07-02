@@ -1,10 +1,10 @@
 ###############################################################################
 # Top contributors (to current version):
-#   Daniel Larraz, Mathias Preiner, Andres Noetzli
+#   Daniel Larraz, Andres Noetzli, Mathias Preiner
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -14,9 +14,18 @@
 ##
 
 if(NOT ONLY_PYTHON_EXT_SRC)
-  # Python modules for building and installing
-  check_python_module("setuptools")
+  # Python modules for building:
+  # v68.0.0 is the last version of setuptools that is
+  # compatible with Python 3.7
+  find_package(Setuptools 66.1.0 REQUIRED)
   find_package(Cython 3.0.0 REQUIRED)
+  # Python modules for installing:
+  find_package(Pip 23.0 REQUIRED)
+  # Repairwheel copies the required shared libraries to
+  # a directory within the Python wheel package so that
+  # the package is self-contained. It works on Linux,
+  # macOS, and Windows.
+  find_package(Repairwheel 0.3.1 REQUIRED)
 endif()
 
 configure_file(genenums.py.in genenums.py)
@@ -103,15 +112,24 @@ add_custom_target(cvc5types DEPENDS ${GENERATED_TYPES_FILES})
 copy_file_from_src(cvc5.pxi)
 copy_file_from_src(cvc5.pxd)
 copy_file_from_src(cvc5_python_base.pyx)
+copy_file_from_src(py_plugin.h)
+copy_file_from_src(py_plugin.cpp)
 copy_file_from_src(pyproject.toml)
+
+# Get python extension filename
+execute_process(COMMAND
+  ${Python_EXECUTABLE} -c
+    "import sysconfig;\
+     print('cvc5_python_base' + sysconfig.get_config_var('EXT_SUFFIX'))"
+  OUTPUT_VARIABLE PYTHON_EXT_FILENAME
+  OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 # Set include_dirs and library_dirs variables that are used in setup.cfg.in
 if (WIN32)
-  set(PYTHON_EXT "pyd")
   set(SETUP_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/include;${CMAKE_BINARY_DIR}/include")
   set(SETUP_LIBRARY_DIRS "${CMAKE_BINARY_DIR}/src;${CMAKE_BINARY_DIR}/src/parser")
+  set(SETUP_COMPILER "[build]\ncompiler=mingw32")
 else()
-  set(PYTHON_EXT "so")
   set(SETUP_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}/include:${CMAKE_BINARY_DIR}/include")
   set(SETUP_LIBRARY_DIRS "${CMAKE_BINARY_DIR}/src:${CMAKE_BINARY_DIR}/src/parser")
   # On Linux and macOS, set rpath variable too
@@ -132,6 +150,8 @@ set(PYTHON_EXT_SRC_FILES
   ${CMAKE_CURRENT_BINARY_DIR}/cvc5.pxi
   ${CMAKE_CURRENT_BINARY_DIR}/cvc5.pxd
   ${CMAKE_CURRENT_BINARY_DIR}/cvc5_python_base.pyx
+  ${CMAKE_CURRENT_BINARY_DIR}/py_plugin.h
+  ${CMAKE_CURRENT_BINARY_DIR}/py_plugin.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/pyproject.toml
   ${CMAKE_CURRENT_BINARY_DIR}/setup.cfg
   ${CMAKE_CURRENT_BINARY_DIR}/setup.py
@@ -139,20 +159,20 @@ set(PYTHON_EXT_SRC_FILES
 
 if(NOT ONLY_PYTHON_EXT_SRC)
   set(CVC5_PYTHON_BASE_LIB
-    "${CMAKE_CURRENT_BINARY_DIR}/cvc5/cvc5_python_base.${PYTHON_EXT}")
+    "${CMAKE_CURRENT_BINARY_DIR}/cvc5/${PYTHON_EXT_FILENAME}")
 
   add_custom_command(
     OUTPUT
       ${CVC5_PYTHON_BASE_LIB}
     COMMAND
       # Force a new build if any dependency has changed
-      ${CMAKE_COMMAND} -E remove cvc5_python_base.cpp cvc5/cvc5_python_base.${PYTHON_EXT}
+      ${CMAKE_COMMAND} -E remove cvc5_python_base.cpp cvc5/${PYTHON_EXT_FILENAME}
     COMMAND
       "${Python_EXECUTABLE}" setup.py build_ext --inplace
     DEPENDS
       cvc5 cvc5parser
       ${PYTHON_EXT_SRC_FILES}
-    COMMENT "Generating cvc5_python_base.${PYTHON_EXT}"
+    COMMENT "Generating ${PYTHON_EXT_FILENAME}"
   )
 endif()
 
@@ -162,6 +182,7 @@ endif()
 find_package(CVC5PythonicAPI)
 
 set(LICENSE_FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/AUTHORS"
   "${CMAKE_CURRENT_BINARY_DIR}/COPYING"
   "${CMAKE_CURRENT_BINARY_DIR}/licenses/lgpl-3.0.txt"
   "${CMAKE_CURRENT_BINARY_DIR}/licenses/pythonic-LICENSE"
@@ -170,6 +191,10 @@ set(LICENSE_FILES
 add_custom_command(
   OUTPUT
     ${LICENSE_FILES}
+  COMMAND
+    ${CMAKE_COMMAND} -E copy
+    "${PROJECT_SOURCE_DIR}/AUTHORS"
+    "${CMAKE_CURRENT_BINARY_DIR}/AUTHORS"
   COMMAND
     ${CMAKE_COMMAND} -E copy
     "${PROJECT_SOURCE_DIR}/COPYING"
@@ -225,18 +250,27 @@ else()
   )
 
   set(INSTALL_CMD
-      "${Python_BASE_EXECUTABLE} -m pip install ${CMAKE_CURRENT_BINARY_DIR}")
+      "${Python_BASE_EXECUTABLE} -m pip install")
 
   # If the user does not set a prefix, install the Python bindings in
   # the default location designated by the Python interpreter used to
   # build them. Otherwise, install them in the specified prefix.
   if(NOT CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-    set(INSTALL_CMD "${INSTALL_CMD} --prefix ${CMAKE_INSTALL_PREFIX}")
+    # We escape the CMAKE_INSTALL_PREFIX variable so that
+    # it is evaluated at installation time.
+    # This is important for component-specific installations
+    # where the prefix may change (e.g., using
+    # 'cmake --install build --component python-api --prefix ./new-prefix').
+    set(INSTALL_CMD "${INSTALL_CMD} --prefix \${CMAKE_INSTALL_PREFIX}")
   endif()
 
-  message("Python bindings install command: ${INSTALL_CMD}")
-
-  install(CODE "execute_process(COMMAND ${INSTALL_CMD})"
-          FILE_PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ)
+  install(CODE "execute_process(COMMAND \${CMAKE_COMMAND}
+    -DPython_EXECUTABLE=${Python_EXECUTABLE}
+    -DRepairwheel_EXECUTABLE=${Repairwheel_EXECUTABLE}
+    -DBUILD_DIR=${CMAKE_BINARY_DIR}
+    -DDEPS_BASE=${DEPS_BASE}
+    -DINSTALL_CMD=\"${INSTALL_CMD}\"
+    -P ${CMAKE_SOURCE_DIR}/cmake/install_python_wheel.cmake)"
+    COMPONENT python-api)
 
 endif()

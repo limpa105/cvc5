@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "expr/node.h"
+#include "proof/proof.h"
 #include "proof/proof_node.h"
 
 namespace cvc5::internal {
@@ -41,8 +42,33 @@ namespace arith {
  * This method ensures we do not spuriously introduce mixed arithmetic, which
  * the proof checker for MACRO_ARITH_SCALE_SUM_UB requires.
  */
-std::vector<Node> getMacroSumUbCoeff(const std::vector<Pf>& pfs,
+std::vector<Node> getMacroSumUbCoeff(NodeManager* nm,
+                                     const std::vector<Pf>& pfs,
                                      const std::vector<Node>& coeffs);
+/**
+ * Same as above, but with proven formulas.
+ */
+std::vector<Node> getMacroSumUbCoeff(NodeManager* nm,
+                                     const std::vector<Node>& premises,
+                                     const std::vector<Node>& coeffs);
+
+/**
+ * Expand an instance of ProofRule::MACRO_ARITH_SCALE_SUM_UB.
+ * This adds steps to cdp that prove the same as an application of this rule,
+ * assuming that children are free assumptions.
+ *
+ * This method assumes that children and args are valid parameters to
+ * MACRO_ARITH_SCALE_SUM_UB.
+ *
+ * @param children The children of MACRO_ARITH_SCALE_SUM_UB.
+ * @param args The arguments of MACRO_ARITH_SCALE_SUM_UB.
+ * @param cdp The proof to add steps to.
+ * @return The conclusion of the proof rule.
+ */
+Node expandMacroSumUb(NodeManager* nm,
+                      const std::vector<Node>& children,
+                      const std::vector<Node>& args,
+                      CDProof* cdp);
 
 }  // namespace arith
 }  // namespace theory

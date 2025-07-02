@@ -1,10 +1,10 @@
 ###############################################################################
 # Top contributors (to current version):
-#   Mudathir Mohamed, Gereon Kremer, Alex Ozdemir
+#   Mudathir Mohamed, Gereon Kremer, Aina Niemetz
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -89,4 +89,4 @@ cvc5_add_java_api_test(ProofTest)
 set_source_files_properties(UncoveredTest.cpp
   PROPERTIES COMPILE_OPTIONS
   "-Wno-deprecated-declarations;-Wno-error=deprecated-declarations")
-cvc5_add_unit_test_white(UncoveredTest api/java)
+cvc5_add_unit_test_black(UncoveredTest api/java)

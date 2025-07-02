@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Andrew Reynolds, Aina Niemetz, Gereon Kremer
+ *   Andrew Reynolds, Gereon Kremer, Aina Niemetz
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -31,18 +31,18 @@ InferenceManager::InferenceManager(Env& env,
                                    Theory& t,
                                    TheorySetsRewriter* tr,
                                    SolverState& s)
-    : InferenceManagerBuffered(env, t, s, "theory::sets::"), d_state(s)
+    : InferenceManagerBuffered(env, t, s, "theory::sets::"),
+      d_state(s),
+      d_ipc(isProofEnabled() ? new InferProofCons(env, tr) : nullptr)
 {
   d_true = nodeManager()->mkConst(true);
   d_false = nodeManager()->mkConst(false);
-  d_tid = mkTrustId(TrustId::THEORY_INFERENCE);
-  d_tsid = builtin::BuiltinProofRuleChecker::mkTheoryIdNode(THEORY_SETS);
 }
 
 bool InferenceManager::assertFactRec(Node fact, InferenceId id, Node exp, int inferType)
 {
   // should we send this fact out as a lemma?
-  if ((options().sets.setsInferAsLemmas && inferType != -1) || inferType == 1)
+  if (inferType != -1)
   {
     if (d_state.isEntailed(fact, true))
     {
@@ -109,7 +109,12 @@ bool InferenceManager::assertFactRec(Node fact, InferenceId id, Node exp, int in
 
 void InferenceManager::assertSetsConflict(const Node& conf, InferenceId id)
 {
-  conflict(conf, id);
+  if (d_ipc)
+  {
+    d_ipc->notifyConflict(conf, id);
+  }
+  TrustNode trn = TrustNode::mkTrustConflict(conf, d_ipc.get());
+  trustedConflict(trn, id);
 }
 
 bool InferenceManager::assertSetsFact(Node atom,
@@ -118,8 +123,13 @@ bool InferenceManager::assertSetsFact(Node atom,
                                       Node exp)
 {
   Node conc = polarity ? atom : atom.notNode();
-  return assertInternalFact(
-      atom, polarity, id, ProofRule::TRUST, {exp}, {d_tid, conc, d_tsid});
+  // notify before asserting below, since that call may induce a conflict which
+  // needs immediate explanation.
+  if (d_ipc)
+  {
+    d_ipc->notifyFact(conc, exp, id);
+  }
+  return assertInternalFact(atom, polarity, id, {exp}, d_ipc.get());
 }
 
 void InferenceManager::assertInference(Node fact,
@@ -193,7 +203,11 @@ void InferenceManager::setupAndAddPendingLemma(const Node& exp,
 {
   if (conc == d_false)
   {
-    TrustNode trn = TrustNode::mkTrustConflict(exp);
+    if (d_ipc)
+    {
+      d_ipc->notifyConflict(exp, id);
+    }
+    TrustNode trn = TrustNode::mkTrustConflict(exp, d_ipc.get());
     trustedConflict(trn, id);
     return;
   }
@@ -202,7 +216,11 @@ void InferenceManager::setupAndAddPendingLemma(const Node& exp,
   {
     lem = nodeManager()->mkNode(Kind::IMPLIES, exp, conc);
   }
-  addPendingLemma(lem, id, LemmaProperty::NONE);
+  if (d_ipc)
+  {
+    d_ipc->notifyLemma(lem, id);
+  }
+  addPendingLemma(lem, id, LemmaProperty::NONE, d_ipc.get());
 }
 
 }  // namespace sets

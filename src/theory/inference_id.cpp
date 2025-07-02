@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -114,6 +114,8 @@ const char* toString(InferenceId i)
     case InferenceId::ARITH_NL_ICP_CONFLICT: return "ARITH_NL_ICP_CONFLICT";
     case InferenceId::ARITH_NL_ICP_PROPAGATION:
       return "ARITH_NL_ICP_PROPAGATION";
+    case InferenceId::ARITH_NL_MOD_RANGE_SOLVER:
+      return "ARITH_NL_MOD_RANGE_SOLVER";
     case InferenceId::FF_LEMMA: return "FF_LEMMA";
 
     case InferenceId::ARRAYS_EXT: return "ARRAYS_EXT";
@@ -248,6 +250,8 @@ const char* toString(InferenceId i)
     case InferenceId::QUANTIFIERS_INST_CEGQI: return "QUANTIFIERS_INST_CEGQI";
     case InferenceId::QUANTIFIERS_INST_SYQI: return "QUANTIFIERS_INST_SYQI";
     case InferenceId::QUANTIFIERS_INST_MBQI: return "QUANTIFIERS_INST_MBQI";
+    case InferenceId::QUANTIFIERS_INST_MBQI_ENUM:
+      return "QUANTIFIERS_INST_MBQI_ENUM";
     case InferenceId::QUANTIFIERS_INST_ENUM: return "QUANTIFIERS_INST_ENUM";
     case InferenceId::QUANTIFIERS_INST_POOL: return "QUANTIFIERS_INST_POOL";
     case InferenceId::QUANTIFIERS_INST_POOL_TUPLE:
@@ -330,6 +334,8 @@ const char* toString(InferenceId i)
       return "QUANTIFIERS_SYGUS_COMPLETE_ENUM";
     case InferenceId::QUANTIFIERS_SYGUS_SC_INFEASIBLE:
       return "QUANTIFIERS_SYGUS_SC_INFEASIBLE";
+    case InferenceId::QUANTIFIERS_SYGUS_NO_WF_GRAMMAR:
+      return "QUANTIFIERS_SYGUS_NO_WF_GRAMMAR";
     case InferenceId::QUANTIFIERS_DSPLIT: return "QUANTIFIERS_DSPLIT";
     case InferenceId::QUANTIFIERS_CONJ_GEN_SPLIT:
       return "QUANTIFIERS_CONJ_GEN_SPLIT";
@@ -346,6 +352,8 @@ const char* toString(InferenceId i)
     case InferenceId::QUANTIFIERS_GT_PURIFY: return "QUANTIFIERS_GT_PURIFY";
     case InferenceId::QUANTIFIERS_TDB_DEQ_CONG:
       return "QUANTIFIERS_TDB_DEQ_CONG";
+    case InferenceId::QUANTIFIERS_CEGQI_WITNESS:
+      return "QUANTIFIERS_CEGQI_WITNESS";
 
     case InferenceId::SEP_PTO_NEG_PROP: return "SEP_PTO_NEG_PROP";
     case InferenceId::SEP_PTO_PROP: return "SEP_PTO_PROP";
@@ -556,6 +564,7 @@ const char* toString(InferenceId i)
       return "UF_HO_MODEL_EXTENSIONALITY";
     case InferenceId::UF_HO_LAMBDA_UNIV_EQ: return "HO_LAMBDA_UNIV_EQ";
     case InferenceId::UF_HO_LAMBDA_APP_REDUCE: return "HO_LAMBDA_APP_REDUCE";
+    case InferenceId::UF_HO_LAMBDA_LAZY_LIFT: return "UF_HO_LAMBDA_LAZY_LIFT";
     case InferenceId::UF_ARITH_BV_CONV_REDUCTION:
       return "UF_ARITH_BV_CONV_REDUCTION";
     case InferenceId::UF_ARITH_BV_CONV_VALUE_REFINE:
@@ -577,10 +586,9 @@ std::ostream& operator<<(std::ostream& out, InferenceId i)
   return out;
 }
 
-Node mkInferenceIdNode(InferenceId i)
+Node mkInferenceIdNode(NodeManager* nm, InferenceId i)
 {
-  return NodeManager::currentNM()->mkConstInt(
-      Rational(static_cast<uint32_t>(i)));
+  return nm->mkConstInt(Rational(static_cast<uint32_t>(i)));
 }
 
 bool getInferenceId(TNode n, InferenceId& i)

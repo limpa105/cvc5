@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -198,10 +198,16 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   {
     applyPass("foreign-theory-rewrite", ap);
   }
+    if (options().arith.modularRangeSolver && options().arith.intRangeOr)
+  {
+    applyPass("int-range-or", ap);
+  }
+
+ 
+
 
   // Assertions MUST BE guaranteed to be rewritten by this point
   applyPass("rewrite", ap);
-
   // Convert non-top-level Booleans to bit-vectors of size 1
   if (options().bv.boolToBitvector != options::BoolToBVMode::OFF)
   {
@@ -222,6 +228,13 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
     if (options().quantifiers.fmfFunWellDefined)
     {
       applyPass("fun-def-fmf", ap);
+    }
+    if (options().quantifiers.preSkolemQuant
+        != options::PreSkolemQuantMode::OFF)
+    {
+      // needed since quantifier preprocessing may introduce skolems that were
+      // solved for already
+      applyPass("apply-substs", ap);
     }
   }
   if (!options().strings.stringLazyPreproc)
@@ -262,6 +275,10 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   dumpAssertions("assertions::post-simplify", ap);
   Trace("assertions::post-simplify") << std::endl;
 
+   if (options().arith.modularRangeSolver && options().arith.niaIntroMmMod)
+  {
+    applyPass("nia-intro-mm-mod", ap);
+  }
   if (options().smt.staticLearning)
   {
     applyPass("static-learning", ap);
@@ -316,7 +333,7 @@ bool ProcessAssertions::apply(AssertionPipeline& ap)
   Trace("smt") << " assertions     : " << ap.size() << endl;
 
   // ff
-  if (options().ff.ffDisjunctiveBit)
+  if (options().ff.ffElimDisjunctiveBit)
   {
     applyPass("ff-disjunctive-bit", ap);
   }
@@ -464,7 +481,7 @@ void ProcessAssertions::dumpAssertions(const std::string& key,
 void ProcessAssertions::dumpAssertionsToStream(std::ostream& os,
                                                const AssertionPipeline& ap)
 {
-  PrintBenchmark pb(Printer::getPrinter(os));
+  PrintBenchmark pb(nodeManager(), Printer::getPrinter(os));
   std::vector<Node> assertions;
   // Notice that users may define ordinary and recursive functions. The latter
   // get added to the list of assertions as quantified formulas. Since we are

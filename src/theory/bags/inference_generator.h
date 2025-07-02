@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -35,7 +35,7 @@ class SolverState;
 class InferenceGenerator
 {
  public:
-  InferenceGenerator(SolverState* state, InferenceManager* im);
+  InferenceGenerator(NodeManager* nm, SolverState* state, InferenceManager* im);
 
   /**
    * @param n a node of the form (bag.count e A)
@@ -243,18 +243,17 @@ class InferenceGenerator
    *                  (or
    *                   (not (and (< i j) (<= j size)))
    *                   (not (= (u i) (u j)))))
+   *          (>= count_u_i 1)
    *          (or
    *           (and
-   *            (= (f u_i) e)
-   *            (>= count_u_i 1)
+   *            (= (f u_i) e)            
    *            (= (sum i) (+ (sum (- i 1)) count_u_i))
    *            (forall ((j Int))
    *                    (or
    *                     (not (and (< i j) (<= j size)))
    *                     (not (= (u i) (u j))))))
    *           (and
-   *            (distinct (f u_i) e)
-   *            (= count_u_i 0)
+   *            (distinct (f u_i) e)   
    *            (= (sum i) (sum (- i 1)))))))))))
    * where uf: Int -> E is an uninterpreted function from integers to the
    * type of the elements of A,

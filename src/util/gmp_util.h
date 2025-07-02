@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -35,7 +35,7 @@ inline size_t gmpz_hash(const mpz_t toHash) {
   for (int i = 0, n = mpz_size(toHash); i < n; ++i){
     mp_limb_t limb = mpz_getlimbn(toHash, i);
     hash = hash * 2;
-    hash = hash xor limb;
+    hash = hash ^ limb;
   }
   return hash;
 }/* gmpz_hash() */

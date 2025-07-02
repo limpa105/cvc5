@@ -46,7 +46,12 @@ runs:
       shell: ${{ inputs.shell }}
       run: |
         if [[ "${{ inputs.check-python-bindings }}" != "true" ]]; then exit 0; fi
-        export PYTHONPATH="$PYTHONPATH:$(dirname $(dirname $(find ${{ inputs.build-dir }}/install -name 'cvc5_python_base*')))"
+        PYTHON_MODULE_PATH="$(dirname $(dirname $(find ${{ inputs.build-dir }}/install -name 'cvc5_python_base*')))"
+        if [[ "$RUNNER_OS" == "Windows" ]]; then
+          export PYTHONPATH="$PYTHONPATH;$(cygpath -w $PYTHON_MODULE_PATH)"
+        else
+          export PYTHONPATH="$PYTHONPATH:$PYTHON_MODULE_PATH"
+        fi
         python3 -c "import cvc5"
 
     - name: Check Examples
@@ -59,6 +64,8 @@ runs:
           export PATH="${{ inputs.build-dir }}/install/bin:$PATH"
           export CMAKE_GENERATOR="MSYS Makefiles"
         fi
+        export CFLAGS=-Werror
+        export CXXFLAGS=-Werror
         cmake .. -DCMAKE_PREFIX_PATH=${{ inputs.build-dir }}/install/lib/cmake \
           -DPython_EXECUTABLE=$(command -v python3)
         make -j${{ env.num_proc }}

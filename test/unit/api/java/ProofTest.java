@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Hans-Jörg Schurr, Mudathir Mohamed, Aina Niemetz
+ *   Abdalrhman Mohamed, Hans-Joerg Schurr, Aina Niemetz
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -47,7 +47,7 @@ class ProofTest
     Context.deletePointers();
   }
 
-  Proof create_proof() throws CVC5ApiException
+  Proof createProof() throws CVC5ApiException
   {
     d_solver.setOption("produce-proofs", "true");
 
@@ -84,18 +84,43 @@ class ProofTest
     d_solver.setOption("proof-granularity", "dsl-rewrite");
     Sort intSort = d_tm.getIntegerSort();
     Term x = d_tm.mkConst(intSort, "x");
-    Term twoX = d_tm.mkTerm(Kind.MULT, new Term[]{d_tm.mkInteger(2), x});
-    Term xPlusX = d_tm.mkTerm(Kind.ADD, new Term[]{x, x});
+    Term zero = d_tm.mkInteger(0);
+    Term geq = d_tm.mkTerm(Kind.GEQ, new Term[]{x, zero});
+    Term leq = d_tm.mkTerm(Kind.LEQ, new Term[]{zero, x});
     d_solver.assertFormula(
-        d_tm.mkTerm(Kind.DISTINCT, new Term[]{twoX, xPlusX}));
+        d_tm.mkTerm(Kind.DISTINCT, new Term[]{geq, leq}));
     d_solver.checkSat();
     return d_solver.getProof()[0];
   }
 
   @Test
+  void nullProof() throws CVC5ApiException
+  {
+    Proof proof = new Proof();
+    assertEquals(proof.getRule(), ProofRule.UNKNOWN);
+    assertEquals(ProofRule.UNKNOWN.hashCode(), ProofRule.UNKNOWN.hashCode());
+    assertTrue(proof.getResult().isNull());
+    assertTrue(proof.getChildren().length == 0);
+    assertTrue(proof.getArguments().length == 0);
+  }
+
+  @Test
+  void equalHash() throws CVC5ApiException
+  {
+    Proof x = createProof();
+    Proof y = x.getChildren()[0];
+    Proof n = new Proof();
+    assertTrue(x.equals(x));
+    assertFalse(x.equals(y));
+    assertFalse(x.equals(n));
+
+    assertTrue(x.hashCode() == x.hashCode());
+  }
+
+  @Test
   void getRule() throws CVC5ApiException
   {
-    Proof proof = create_proof();
+    Proof proof = createProof();
     assertEquals(ProofRule.SCOPE, proof.getRule());
   }
 
@@ -123,14 +148,14 @@ class ProofTest
   @Test
   void getResult() throws CVC5ApiException
   {
-    Proof proof = create_proof();
+    Proof proof = createProof();
     assertDoesNotThrow(() -> proof.getResult());
   }
 
   @Test
   void getChildren() throws CVC5ApiException
   {
-    Proof proof = create_proof();
+    Proof proof = createProof();
     Proof[] children = proof.getChildren();
     assertNotEquals(0, children.length);
   }
@@ -138,8 +163,21 @@ class ProofTest
   @Test
   void getArguments() throws CVC5ApiException
   {
-    Proof proof = create_proof();
+    Proof proof = createProof();
     assertDoesNotThrow(() -> proof.getArguments());
   }
 
+  @Test
+  void eq() throws CVC5ApiException
+  {
+    Proof x = createProof();
+    Proof y = x.getChildren()[0];
+    Proof z = new Proof();
+
+    assertTrue(x.equals(x));
+    assertFalse(x.equals(y));
+    assertFalse(x.equals(z));
+
+    assertTrue(x.hashCode() == x.hashCode());
+  }
 }

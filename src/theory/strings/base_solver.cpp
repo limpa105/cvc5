@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -22,6 +22,7 @@
 #include "theory/rewriter.h"
 #include "theory/strings/theory_strings_utils.h"
 #include "theory/strings/word.h"
+#include "util/cardinality.h"
 #include "util/rational.h"
 #include "util/string.h"
 
@@ -534,7 +535,7 @@ void BaseSolver::checkConstantEquivalenceClasses(TermIndex* ti,
             bei.d_base = n;
             if (!exp.empty())
             {
-              bei.d_exp = utils::mkAnd(exp);
+              bei.d_exp = utils::mkAnd(nodeManager(), exp);
             }
             Trace("strings-debug")
                 << "Set eqc best content " << n << " to " << nct
@@ -555,7 +556,7 @@ void BaseSolver::checkConstantEquivalenceClasses(TermIndex* ti,
         {
           bei.d_bestContent = c;
           bei.d_base = n;
-          bei.d_exp = utils::mkAnd(exp);
+          bei.d_exp = utils::mkAnd(nodeManager(), exp);
           Trace("strings-debug")
               << "Set eqc const " << n << " to " << c
               << ", explanation = " << bei.d_exp << std::endl;

@@ -1,10 +1,10 @@
 ###############################################################################
 # Top contributors (to current version):
-#   Andres Noetzli, Alex Ozdemir, Vinícius Camillo
+#   Andres Noetzli, Daniel Larraz, Alex Ozdemir
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -35,6 +35,7 @@ set(EXAMPLES_API_PYTHON
   sygus-fun
   sygus-inv
   transcendentals
+  uf
 )
 
 find_package(Python ${CVC5_BINDINGS_PYTHON_VERSION} EXACT REQUIRED)
@@ -51,8 +52,8 @@ if(NOT (PYTHON_CVC5_RC EQUAL 0))
   # Lookup Python module directory and store path in PYTHON_MODULE_PATH.
   execute_process(COMMAND
   ${Python_EXECUTABLE} -c
-    "import sysconfig;\
-     print('${CMAKE_PREFIX_PATH}/../..'+\
+    "import os.path; import sysconfig;\
+     print(os.path.dirname(os.path.dirname('${CMAKE_PREFIX_PATH}'))+\
      sysconfig.get_paths()['platlib'].split(sysconfig.get_config_var('platbase'))[1])"
   OUTPUT_VARIABLE PYTHON_MODULE_PATH
   OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -67,7 +68,7 @@ function(create_python_example example)
   )
   set_tests_properties(${example_test} PROPERTIES
     LABELS "example"
-    ENVIRONMENT PYTHONPATH=${PYTHON_MODULE_PATH}:${CMAKE_SOURCE_DIR}/api/python)
+    ENVIRONMENT PYTHONPATH=${PYTHON_MODULE_PATH})
 endfunction()
 
 foreach(example ${EXAMPLES_API_PYTHON})

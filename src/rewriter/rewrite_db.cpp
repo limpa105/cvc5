@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Andrew Reynolds, Hans-Jörg Schurr, Aina Niemetz
+ *   Andrew Reynolds, Abdalrhman Mohamed, Aina Niemetz
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -29,12 +29,11 @@ uint32_t IsListTypeClassCallback::getTypeClass(TNode v)
   return expr::isListVar(v) ? 1 : 0;
 }
 
-RewriteDb::RewriteDb() : d_canonCb(), d_canon(&d_canonCb)
+RewriteDb::RewriteDb(NodeManager* nm) : d_canonCb(), d_canon(&d_canonCb)
 {
-  NodeManager* nm = NodeManager::currentNM();
   d_true = nm->mkConst(true);
   d_false = nm->mkConst(false);
-  rewriter::addRules(*this);
+  rewriter::addRules(nm, *this);
 
   if (TraceIsOn("rewrite-db"))
   {
@@ -50,24 +49,35 @@ void RewriteDb::addRule(ProofRewriteRule id,
                         Node a,
                         Node b,
                         Node cond,
-                        Node context)
+                        Node context,
+                        Level _level)
 {
-  NodeManager* nm = NodeManager::currentNM();
+  NodeManager* nm = a.getNodeManager();
   std::vector<Node> fvsf = fvs;
   std::vector<Node> condsn;
   Node eq = a.eqNode(b);
   // we canonize left-to-right, hence we should traverse in the opposite
   // order, since we index based on conclusion, we make a dummy node here
-  Node tmp = nm->mkNode(Kind::IMPLIES, eq, cond);
+  std::vector<Node> tmpArgs;
+  tmpArgs.push_back(eq);
+  tmpArgs.push_back(cond);
+  if (!context.isNull())
+  {
+    tmpArgs.push_back(context);
+  }
+  Node tmp = nm->mkNode(Kind::SEXPR, tmpArgs);
 
   // must canonize
   Trace("rewrite-db") << "Add rule " << id << ": " << cond << " => " << a
                       << " == " << b << std::endl;
   Assert(a.getType().isComparableTo(b.getType()));
-  Node cr = d_canon.getCanonicalTerm(tmp, false, false);
-  context = d_canon.getCanonicalTerm(context, false, false);
+  Node ctmp = d_canon.getCanonicalTerm(tmp, false, false);
+  if (!context.isNull())
+  {
+    context = ctmp[2];
+  }
 
-  Node condC = cr[1];
+  Node condC = ctmp[1];
   std::vector<Node> conds;
   if (condC.getKind() == Kind::AND)
   {
@@ -102,7 +112,7 @@ void RewriteDb::addRule(ProofRewriteRule id,
   }
   // register side conditions?
 
-  Node eqC = cr[0];
+  Node eqC = ctmp[0];
   Assert(eqC.getKind() == Kind::EQUAL);
 
   // add to discrimination tree
@@ -141,7 +151,7 @@ void RewriteDb::addRule(ProofRewriteRule id,
   }
 
   // initialize rule
-  d_rewDbRule[id].init(id, ofvs, cfvs, conds, eqC, context);
+  d_rewDbRule[id].init(id, ofvs, cfvs, conds, eqC, context, _level);
   d_concToRules[eqC].push_back(id);
   d_headToRules[eqC[0]].push_back(id);
 }
@@ -185,6 +195,12 @@ const std::vector<ProofRewriteRule>& RewriteDb::getRuleIdsForHead(
 const std::unordered_set<Node>& RewriteDb::getAllFreeVariables() const
 {
   return d_allFv;
+}
+
+const std::map<ProofRewriteRule, RewriteProofRule>& RewriteDb::getAllRules()
+    const
+{
+  return d_rewDbRule;
 }
 
 }  // namespace rewriter

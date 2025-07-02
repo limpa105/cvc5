@@ -1,15 +1,17 @@
 Java API
 ========
 
-The Java API for cvc5 mostly mirrors the :doc:`C++ API <../cpp/cpp>` and supports operator
-overloading, iterators, and exceptions.
-There are a few differences from the C++ API, such as using arbitrary-precision integer pairs,
-specifically, pairs of Java `BigInteger` objects, to represent rational numbers.
+The Java API of cvc5 mostly mirrors the :doc:`C++ API <../cpp/cpp>` and
+supports operator overloading, iterators, and exceptions.
+There are a few differences from the C++ API, such as using arbitrary-precision
+integer pairs, specifically, pairs of Java `BigInteger` objects, to represent
+rational numbers.
 The :doc:`quickstart guide <quickstart>` gives a short introduction,
 and more examples can be found `here <../../examples/examples.html>`_.
 
 
-For most applications, the `Solver <io/github/cvc5/Solver.html>`_ class is the main entry point to cvc5.
+For most applications, the `Solver <io/github/cvc5/Solver.html>`_ class is the
+main entry point to cvc5.
 The class hierarchy of `cvc5 package <io/github/cvc5/package-summary.html>`_
 provides more details on the individual classes.
 
@@ -17,7 +19,45 @@ provides more details on the individual classes.
     :hidden:
 
     quickstart
-    API documentation <index>
+
+----
+
+Using Self-Contained cvc5 Java API JAR
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Starting from version 1.2.1, a JAR file containing the cvc5 Java API and
+all required native libraries is available on the release page for each version.
+To use it, download the appropriate JAR file for your platform. For example,
+if your computer runs Linux x86_64, download `cvc5-Linux-x86_64-java-api.jar` to
+a working directory.
+
+To compile the `QuickStart.java` example provided in
+the :doc:`quickstart guide <quickstart>`, ensure the file is in
+the same directory as the JAR. Then, run:
+
+.. code-block:: bash
+
+    $ javac -cp "cvc5-Linux-x86_64-java-api.jar" ./QuickStart.java -d .
+
+After compilation, execute the example with:
+
+.. code-block:: bash
+
+     $ java -cp "cvc5-Linux-x86_64-java-api.jar:." QuickStart # Replace : with ; on Windows
+       expected: sat
+       result: sat
+       value for x: 1/6
+       value for y: 1/6
+       value for x - y: 0/1
+       computed correctly
+       expected: unsat
+       result: unsat
+       unsat core size: 3
+       unsat core:
+       (< 0 a)
+       (< 0 b)
+       (< (+ a b) 1)
+
 
 Building cvc5 Java API
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -55,9 +95,15 @@ Building cvc5 Java API
        (< 0 b)
        (< (+ a b) 1)
 
-`Package io.github.cvc5 <io/github/cvc5/package-summary.html>`_
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+----
 
+`Javadoc API Documentation <index.html>`_
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`Package io.github.cvc5 <io/github/cvc5/package-summary.html>`_
+...............................................................
+
+  * class `AbstractPlugin <io/github/cvc5/AbstractPlugin.html>`_
   * class `Command <io/github/cvc5/Command.html>`_
   * class `Datatype <io/github/cvc5/Datatype.html>`_
   * class `DatatypeConstructor <io/github/cvc5/DatatypeConstructor.html>`_
@@ -69,6 +115,7 @@ Building cvc5 Java API
   * class `Op <io/github/cvc5/Op.html>`_
   * class `OptionInfo <io/github/cvc5/OptionInfo.html>`_
   * class `Pair<K,V> <io/github/cvc5/Pair.html>`_
+  * class `Proof <io/github/cvc5/Proof.html>`_
   * class `Result <io/github/cvc5/Result.html>`_
   * class `Solver <io/github/cvc5/Solver.html>`_
   * class `Sort <io/github/cvc5/Sort.html>`_
@@ -89,12 +136,13 @@ Building cvc5 Java API
   * exception `CVC5ApiRecoverableException <io/github/cvc5/CVC5ApiRecoverableException.html>`_
 
 
-
 `Package io.github.cvc5.modes <io/github/cvc5/modes/package-summary.html>`_
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+...........................................................................
 
   * enum `BlockModelsMode <io/github/cvc5/modes/BlockModelsMode.html>`_
   * enum `FindSynthTarget <io/github/cvc5/modes/FindSynthTarget.html>`_
   * enum `InputLanguage <io/github/cvc5/modes/InputLanguage.html>`_
   * enum `LearnedLitType <io/github/cvc5/modes/LearnedLitType.html>`_
   * enum `ProofComponent <io/github/cvc5/modes/ProofComponent.html>`_
+  * enum `ProofFormat <io/github/cvc5/modes/ProofFormat.html>`_
+

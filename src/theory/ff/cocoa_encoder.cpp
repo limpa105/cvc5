@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Alex Ozdemir
+ *   Alex Ozdemir, Daniel Larraz
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -76,7 +76,10 @@ CoCoA::symbol cocoaSym(const std::string& varName, std::optional<size_t> index)
   return index.has_value() ? CoCoA::symbol(s, *index) : CoCoA::symbol(s);
 }
 
-CocoaEncoder::CocoaEncoder(const FfSize& size) : FieldObj(size) {}
+CocoaEncoder::CocoaEncoder(NodeManager* nm, const FfSize& size)
+    : FieldObj(nm, size)
+{
+}
 
 CoCoA::symbol CocoaEncoder::freshSym(const std::string& varName,
                                      std::optional<size_t> index)
@@ -318,6 +321,12 @@ void CocoaEncoder::encodeFact(const Node& f)
     encodeTerm(f[0][1]);
     Poly diff = d_cache.at(f[0][0]) - d_cache.at(f[0][1]);
     p = diff * symPoly(d_diseqSyms.at(f)) - 1;
+  }
+  if (!CoCoA::IsZero(p))
+  {
+    // normalize; if we don't do it, CoCoA will in GB input, confusing our
+    // tracer.
+    p = p / CoCoA::LC(p);
   }
   d_cache.insert({f, p});
   d_polyFacts.insert({extractStr(p), f});

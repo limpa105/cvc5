@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Mudathir Mohamed
+ *   Mudathir Mohamed, Aina Niemetz
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -33,7 +33,7 @@ class ParserTest
     d_tm = new TermManager();
     d_solver = new Solver(d_tm);
     d_solver.setOption("parse-only", "true");
-    d_symman = new SymbolManager(d_solver);
+    d_symman = new SymbolManager(d_tm);
   }
 
   @AfterEach

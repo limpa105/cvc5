@@ -1,0 +1,640 @@
+/******************************************************************************
+ * Top contributors (to current version):
+ *   Alex Ozdemir
+ *
+ * This file is part of the cvc5 project.
+ *
+ * Copyright (c) 2009-2023 by the authors listed in the file AUTHORS
+ * in the top-level source directory and their institutional affiliations.
+ * All rights reserved.  See the file COPYING in the top-level source
+ * directory for licensing information.
+ * ****************************************************************************
+ *
+ * encoding Nodes as cocoa ring elements.
+ */
+
+
+
+
+
+// external includes
+#include <CoCoA/BigInt.H>
+#include <CoCoA/QuotientRing.H>
+#include <CoCoA/SparsePolyIter.H>
+#include <CoCoA/SparsePolyOps-RingElem.H>
+#include <CoCoA/SparsePolyRing.H>
+#include <CoCoA/RingZZ.H>
+#include <CoCoA/RingQQ.H>
+#include <CoCoA/matrix.H>
+#include <CoCoA/DenseMatrix.H>
+#include <CoCoA/error.H>
+#include <CoCoA/PPOrdering.H>
+#include <CoCoA/ideal.H>
+#include <CoCoA/PPOrdering.H>
+
+// std includes
+#include <sstream>
+#include <list>
+#include <algorithm>
+#include <string>
+
+// internal includes
+#include "expr/node_traversal.h"
+#include "theory/arith/nl/modular_ext/int_cocoa_encoder.h"
+#include "theory/arith/nl/modular_ext/utils.h"
+#include "expr/type_node.h"
+#include "theory/type_enumerator.h"
+#include "expr/node_builder.h"
+#include "theory/arith/arith_preprocess.h"
+#include "theory/arith/theory_arith.h"
+#include "theory/theory.h"
+#include "expr/node.h"
+#include "util/rational.h"
+#include "expr/node_manager.h"
+
+namespace cvc5::internal {
+namespace theory {
+namespace arith {
+namespace nl {
+
+#define LETTER(c) (('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z'))
+
+
+
+
+CocoaEncoder::CocoaEncoder(std::optional<Integer> m) : d_modulus(m) {}
+// CoCoA symbols must start with a letter and contain only letters, numbers, and
+// underscores.
+//
+// Our encoding is described within
+CoCoA::symbol cocoaSym(const std::string& varName, std::optional<size_t> index)
+{
+  std::ostringstream o;
+  for (const auto c : varName)
+  {
+    // letters and numbers as themselves
+    uint8_t code = c;
+    if (LETTER(c) || ('0' <= c && c <= '9'))
+    {
+      o << c;
+    }
+    // _ as __
+    else if ('_' == c)
+    {
+      o << "__";
+    }
+    // other as _xXX (XX is hex)
+    else
+    {
+      o << "_x"
+        << "0123456789abcdef"[code & 0x0f]
+        << "0123456789abcdef"[(code >> 4) & 0x0f];
+    }
+  }
+  // if we're starting with something bad, prepend u__; note that the above
+  // never produces __.
+  std::string s = o.str();
+  if (!LETTER(s[0]))
+  {
+    s.insert(0, "u__");
+  }
+  return index.has_value() ? CoCoA::symbol(s, *index) : CoCoA::symbol(s);
+}
+
+CoCoA::symbol CocoaEncoder::freshSym(const std::string& varName,
+                                     std::optional<size_t> index)
+{
+  Trace("ff::cocoa::sym") << "CoCoA sym for " << varName;
+  if (index.has_value())
+  {
+    Trace("ff::cocoa::sym") << "[" << *index << "]";
+  }
+  Trace("ff::cocoa::sym") << std::endl;
+  Assert(d_stage == Stage::Scan);
+  std::optional<size_t> suffix = {};
+  CoCoA::symbol sym("dummy");
+  std::string symString;
+  do
+  {
+    std::string n = suffix.has_value()
+                        ? varName + "_" + std::to_string(suffix.value())
+                        : varName;
+    sym = cocoaSym(n, index);
+    symString = extractStr(sym);
+    if (suffix.has_value())
+    {
+      *suffix += 1;
+    }
+    else
+    {
+      suffix = std::make_optional(0);
+    }
+  } while (d_vars.count(symString));
+  d_vars.insert(symString);
+  d_syms.push_back(sym);
+  return sym;
+}
+
+void CocoaEncoder::endScanIntegers(std::vector<long> weights) {
+  Assert(d_stage == Stage::Scan);
+  d_stage = Stage::Encode;
+
+  Trace("intgb") << "Entered endScanIntegers\n";
+  Trace("intgb") << "Number of weights: " << weights.size() << "\n";
+  Trace("intgb") << "Number of d_syms: " << d_syms.size() << "\n";
+
+  std::vector<std::vector<long>> k = grevlexWeighted(weights);
+  Trace("intgb") << "Computed weighted grevlex order:\n";
+  for (const auto& row : k) {
+    Trace("intgb") << "[";
+    for (long w : row) {
+      Trace("intgb") << w << " ";
+    }
+    Trace("intgb") << "]\n";
+  }
+
+  //CoCoA::matrix m = CoCoA::NewDenseMat(CoCoA::RingQQ());
+  // Trace("intgb") << "Constructed matrix of orderings with "
+  //                << CoCoA::NumRows(m) << " rows and "
+  //                << CoCoA::NumCols(m) << " columns\n";
+
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::RingQQ(), d_syms,
+                                   CoCoA::StdDegRevLex(d_syms.size()));
+
+  Trace("intgb") << "Constructed new polynomial ring\n";
+
+  for (size_t i = 0, n = d_syms.size(); i < n; ++i)
+  {
+    std::string name = extractStr(d_syms[i]);
+    d_symPolys.insert({name, CoCoA::indet(*d_polyRing, i)});
+    Trace("intgb") << "Mapped variable '" << name << "' to CoCoA indet index " << i << "\n";
+  }
+
+  Trace("intgb") << "Finished endScanIntegers\n";
+}
+
+
+void CocoaEncoder::endScanModulo()
+{
+  Assert(d_stage == Stage::Scan);
+  d_stage = Stage::Encode;
+  Assert(d_modulus.has_value());
+  Assert(d_modulus.isPrime());
+  d_polyRing = CoCoA::NewPolyRing(CoCoA::NewZZmod(intToCocoa(d_modulus.value())), d_syms,  CoCoA::StdDegRevLex(d_syms.size()));
+  for (size_t i = 0, n = d_syms.size(); i < n; ++i)
+  {
+    d_symPolys.insert({extractStr(d_syms[i]), CoCoA::indet(*d_polyRing, i)});
+  }
+}
+
+std::vector<Node> CocoaEncoder::getCurVars(){
+  std::vector<Node> answer;
+  for (auto i: d_syms){
+    answer.push_back(d_symNodes[extractStr(i)]);
+  }
+  return answer;
+}
+
+
+void CocoaEncoder::addFact(const Node& fact)
+{
+  //std::cout << fact << "\n";
+  AlwaysAssert(isFfFact(fact));
+  if (d_stage == Stage::Scan)
+  {
+    for (const auto& node :
+         NodeDfsIterable(fact, VisitOrder::POSTORDER, [this](TNode nn) {
+           return d_scanned.count(nn);
+         }))
+    {
+      if (!d_scanned.insert(node).second)
+      {
+        continue;
+      }
+      if (isFfLeaf(node) && !node.isConst())
+      {
+        //std::cout << "CoCoA var sym for " << node << std::endl;
+        CoCoA::symbol sym = freshSym(node.getName());
+        AlwaysAssert(!d_varSyms.count(node));
+        AlwaysAssert(!d_symNodes.count(extractStr(sym)));
+        d_varSyms.insert({node, sym});
+        d_symNodes.insert({extractStr(sym), node});
+      }
+      else if (node.getKind() == Kind::NOT && isFfFact(node))
+      {
+        std::cout << "CoCoA != sym for " << node << std::endl;
+        CoCoA::symbol sym = freshSym("diseq", d_diseqSyms.size());
+        d_diseqSyms.insert({node, sym});
+      }
+    }
+  }
+  else
+  {
+    AlwaysAssert(d_stage == Stage::Encode);
+    encodeFact(fact);
+    d_polys.push_back(d_cache.at(fact));
+  }
+}
+
+
+const Node& CocoaEncoder::symNode(CoCoA::symbol s) const
+{
+  Assert(d_symNodes.count(extractStr(s)));
+  return d_symNodes.at(extractStr(s));
+}
+
+bool CocoaEncoder::hasNode(CoCoA::symbol s) const
+{
+  return d_symNodes.count(extractStr(s));
+}
+
+std::vector<std::pair<size_t, Node>> CocoaEncoder::nodeIndets() const
+{
+  //std::cout << "We are here" << d_syms.size()<<"\n";
+  std::vector<std::pair<size_t, Node>> out;
+  for (size_t i = 0, end = d_syms.size(); i < end; ++i)
+  {
+    if (hasNode(d_syms[i]))
+    {
+      //std::cout << "We are here??\n";
+      //std::cout << d_syms[i] << "\n";
+      Node n = symNode(d_syms[i]);
+      // skip indets for !=
+      if (isFfLeaf(n))
+      {
+        out.emplace_back(i, n);
+      }
+    }
+  }
+  //std::cout << "return\n";
+  return out;
+}
+
+const Poly& CocoaEncoder::symPoly(CoCoA::symbol s) const
+{
+  Assert(d_symPolys.count(extractStr(s)));
+  return d_symPolys.at(extractStr(s));
+}
+
+void CocoaEncoder::encodeTerm(const Node& t)
+{
+  Assert(d_stage == Stage::Encode);
+
+  Trace("encode") << "Starting encodeTerm on: " << t << "\n";
+
+  // for all un-encoded descendents:
+  for (const auto& node :
+       NodeDfsIterable(t, VisitOrder::POSTORDER, [this](TNode nn) {
+         return d_cache.count(nn);
+       }))
+  {
+    Trace("encode") << "Visiting node: " << node << " [kind: " << node.getKind() << "]\n";
+
+    Poly elem;
+
+    if (isFfFact(node) || isFfTerm(node))
+    {
+      if (isFfLeaf(node) && !node.isConst())
+      {
+        Trace("encode") << "  Leaf variable: " << node << "\n";
+        elem = symPoly(d_varSyms.at(node));
+      }
+      else if (node.getKind() == Kind::ADD)
+      {
+        Trace("encode") << "  Encoding ADD term: " << node << "\n";
+        elem = CoCoA::zero(*d_polyRing);
+        for (const auto& c : node)
+        {
+          Trace("encode") << "    + child: " << c << " = " << d_cache[c] << "\n";
+          elem += d_cache[c];
+        }
+      }
+      else if (node.getKind() == Kind::MULT || node.getKind() == Kind::NONLINEAR_MULT)
+      {
+        Trace("encode") << "  Encoding MULT term: " << node << "\n";
+        elem = CoCoA::one(*d_polyRing);
+        for (const auto& c : node)
+        {
+          Trace("encode") << "    * child: " << c << " = " << d_cache[c] << "\n";
+          elem *= d_cache[c];
+        }
+      }
+      else if (node.getKind() == Kind::CONST_INTEGER)
+      {
+        Trace("encode") << "  Encoding CONST_INTEGER: " << node << "\n";
+        elem = CoCoA::one(*d_polyRing)
+               * intToCocoa(node.getConst<Rational>().getNumerator());
+      }
+      else if (node.getKind()== Kind::SUB){
+         Trace("encode") << "  Encoding SUB term: " << node << "\n";
+          AlwaysAssert(node.getNumChildren() == 2);
+
+          const Node& left = node[0];
+          const Node& right = node[1];
+
+          // Ensure both sides are encoded
+          AlwaysAssert(d_cache.count(left)) << "Left child not encoded: " << left;
+          AlwaysAssert(d_cache.count(right)) << "Right child not encoded: " << right;
+
+          Poly lhs = d_cache.at(left);
+          Poly rhs = d_cache.at(right);
+
+          elem = lhs - rhs;
+      }
+      else
+      {
+        Trace("encode") << "  Unhandled kind: " << node.getKind() << "\n";
+        AlwaysAssert(false) << node.getKind();
+        Unimplemented() << node;
+      }
+    }
+    else
+    {
+      Trace("encode") << "  Skipping non-ff term/fact: " << node << "\n";
+    }
+
+    Trace("encode") << "  Caching: " << node << " ↦ " << elem << "\n";
+    d_cache.insert({node, elem});
+  }
+
+  Trace("encode") << "Finished encodeTerm on: " << t << "\n";
+}
+
+
+void CocoaEncoder::encodeFact(const Node& f)
+{
+  Assert(d_stage == Stage::Encode);
+  Assert(isFfFact(f));
+  // ==
+  if (f.getKind() == Kind::EQUAL)
+  {
+    encodeTerm(f[0]);
+    encodeTerm(f[1]);
+    d_cache.insert({f, d_cache.at(f[0]) - d_cache.at(f[1])});
+  }
+  // !=
+  else
+  {
+    encodeTerm(f[0][0]);
+    encodeTerm(f[0][1]);
+    Poly diff = d_cache.at(f[0][0]) - d_cache.at(f[0][1]);
+    d_cache.insert({f, diff * symPoly(d_diseqSyms.at(f)) - 1});
+  }
+}
+
+std::optional<Poly> CocoaEncoder::tryEncodeFact(const Node& f)
+{
+  Assert(d_stage == Stage::Encode);
+
+  if (f.getKind() != Kind::EQUAL)
+  {
+    Trace("intgb") << "Skipping non-equality fact: " << f << "\n";
+    return std::nullopt;
+  }
+
+  std::unordered_set<Node> vars;
+  collectVars(f[0], vars);
+  collectVars(f[1], vars);
+
+  for (const Node& v : vars)
+  {
+    if (d_varSyms.find(v) == d_varSyms.end())
+    {
+      Trace("intgb") << "Unknown variable in equality: " << v << "\n";
+      return std::nullopt;
+    }
+  }
+
+  try
+  {
+    encodeTerm(f[0]);
+    encodeTerm(f[1]);
+
+    if (!d_cache.count(f[0]))
+      Trace("debug") << "d_cache missing f[0]: " << f[0] << "\n";
+    if (!d_cache.count(f[1]))
+      Trace("debug") << "d_cache missing f[1]: " << f[1] << "\n";
+
+
+    const Poly& lhs = d_cache.at(f[0]);
+    const Poly& rhs = d_cache.at(f[1]);
+    return lhs - rhs;
+  }
+  catch (const std::exception& e)
+  {
+    Trace("intgb") << "Failed to encode equality: " << f << " with error: " << e.what() << "\n";
+    return std::nullopt;
+  }
+}
+
+
+
+Integer CocoaEncoder::cocoaToVal(CoCoA::RingElem elem) {
+  //CoCoA::SparsePolyIter iter=CoCoA::BeginIter(elem);
+  //std::cout << "We are here\n";
+  return Integer(extractStr(elem), 10);
+}
+
+Node CocoaEncoder::cocoaToNodeOne(CoCoA::RingElem RingPolynomial, NodeManager* nm){
+  //std::cout << "I am the issue\n";
+std::vector<Node> LHS;
+    //LHS.push_back(nm->mkConst(0));
+    std::vector<Node> RHS;
+    //RHS.push_back(nm->mkConst(0));
+    //std::cout << RingPolynomial << "\n";
+    Integer ComDenom;
+    try {
+     ComDenom =  Integer(extractStr(CommonDenom(RingPolynomial)));
+    } catch (const CoCoA::ErrorInfo& e) {
+      ComDenom = Integer(1);
+    }
+    //if extractStr()
+    Node randVar = d_symNodes.begin()->second;
+    for (CoCoA::SparsePolyIter iter=CoCoA::BeginIter(RingPolynomial); !CoCoA::IsEnded(iter); ++iter)
+      {
+        Integer IntCoef;
+        if (extractStr(coeff(iter)).find('/') != std::string::npos){
+          std::string fraction = extractStr(coeff(iter));
+          size_t pos = fraction.find('/');
+          //std::cout << fraction.substr(0, pos) << "\n";
+          Integer Overflow = ComDenom.ceilingDivideQuotient(Integer(fraction.substr(pos+1)));
+          IntCoef = Integer(fraction.substr(0, pos)) * Overflow;
+        } else {
+          IntCoef = Integer(extractStr(coeff(iter))) * ComDenom;
+        }
+        bool positive = IntCoef > 0;
+        if (!positive) {
+          IntCoef = IntCoef *-1;
+        }
+        //Node randVar = d_symNodes.begin()->second;
+        Node Coeff = nm->mkConstInt(IntCoef);
+        //std::cout << "coeff: " << coeff(iter)  << "\tPP: " << PP(iter)  << "\n";
+        CoCoA::RingElem tempMonomial = CoCoA::monomial(d_polyRing.value(), PP(iter));
+        int degree = deg(tempMonomial);
+        if (degree == 0) {
+          if(positive){
+            LHS.push_back(Coeff);
+          } else {
+            RHS.push_back(Coeff);
+          }
+        }
+        // TODO NEED TO ADD A CHECK IF ITS A CONSTANT!!!!
+        else if (CoCoA::IsIndet(tempMonomial)) {
+          //std::cout << tempMonomial << "\n";
+          // we just have one variable
+          if(positive){
+            LHS.push_back(nm->mkNode(Kind::MULT, Coeff, d_symNodes[extractStr(tempMonomial)]));
+          } else{
+            RHS.push_back(nm->mkNode(Kind::MULT, Coeff, d_symNodes[extractStr(tempMonomial)]));
+          }
+        }
+        else if (IsIndetPosPower(tempMonomial)){
+          // we have one variable to a power:
+          size_t pos = extractStr(tempMonomial).find('^');
+          std::string variable = extractStr(tempMonomial).substr(0,pos);
+          Node mult =  Coeff;
+          while (degree > 0){
+            mult = nm->mkNode(Kind::MULT, mult,d_symNodes[variable]);
+            degree = degree - 1;
+          }
+          if (positive){
+            LHS.push_back(mult);
+          } else {
+            RHS.push_back(mult);
+          }
+        } else {
+          std::istringstream tokenStream(extractStr(PP(iter)));
+          Node mult = Coeff;
+          std::string token;
+          while(std::getline(tokenStream, token, '*') ){
+            //std::cout << "We are here\n";
+            if (token.find('^') != std::string::npos){ 
+            //std::cout << "entered x*y^2 part\n";
+            std::istringstream token_ss(token);
+            int count = 0;
+            std::string tok;
+            Node symbol;
+            while (std::getline(token_ss, tok, '^')) {
+              if (count == 0){
+                symbol = d_symNodes[tok];
+                mult = nm->mkNode(Kind::MULT, mult,symbol);
+                count +=1;
+              }
+              else {
+                int deg = std::stoi(tok);
+                while (deg > 0){
+                  mult =  nm->mkNode(Kind::MULT, mult, symbol);
+                  deg = deg-1;
+
+                }
+              }
+            }
+            } else {
+            //std::cout << "did not enter the bad part\n";
+            mult = nm->mkNode(Kind::MULT, mult, d_symNodes[token]);
+            }
+          }
+          //AlwaysAssert(false);
+         if (positive){
+            LHS.push_back(mult);
+          } else {
+            RHS.push_back(mult);
+          }
+        }
+      }
+  
+      Node LHS_node;
+      Node RHS_node;
+
+      if (LHS.size() > 1){
+        LHS_node = nm->mkNode(Kind::ADD, LHS);
+      } else if (LHS.size()>0) {
+        LHS_node = LHS[0];
+      }
+
+      if (RHS.size() > 1){
+        RHS_node = nm->mkNode(Kind::ADD, RHS);
+      } else if (RHS.size()>0) {
+        RHS_node = RHS[0];
+      }
+
+
+      if (LHS.size()>0 && RHS.size()>0){
+        return nm->mkNode(
+          Kind::EQUAL, 
+              LHS_node,
+              RHS_node);
+        }
+        else if(LHS.size()>0){
+          return nm->mkNode(
+          Kind::EQUAL,  
+              LHS_node,
+          nm->mkConstInt(0));
+        } else if(RHS.size()>0){
+          return nm->mkNode(
+          Kind::EQUAL, 
+          nm->mkConstInt(0),
+              RHS_node);
+        }
+        else {
+          AlwaysAssert(false);
+        }
+
+}
+
+std::vector<Node> CocoaEncoder::cocoaToNode(std::vector<CoCoA::RingElem> basis, NodeManager* nm){
+  std::vector<Node> result;
+  for (CoCoA::RingElem RingPolynomial: basis){
+    //std::vector<Node> NodePolynomial;
+      result.push_back(cocoaToNodeOne(RingPolynomial, nm));
+      //next_iteration: ;
+    }
+    return result;
+
+  }
+
+
+std::optional<CoCoA::RingElem> CocoaEncoder::tryEncodeTerm(const Node& t)
+{
+  Assert(d_stage == Stage::Encode);
+
+  // Extract variables from the node recursively
+  std::unordered_set<Node> vars;
+  collectVars(t, vars);
+
+  for (const Node& v : vars)
+  {
+    if (d_varSyms.find(v) == d_varSyms.end())
+    {
+      //Trace("intgb") << "Cannot encode node: " << t << " because variable " << v << " is unknown\n";
+      return std::nullopt;
+    }
+  }
+
+  try
+  {
+    // If already encoded, reuse from cache
+    auto it = d_cache.find(t);
+    if (it != d_cache.end())
+    {
+      return it->second;
+    }
+
+    // Otherwise, encode it
+    encodeTerm(t);
+    return d_cache.at(t);
+  }
+  catch (const std::exception& e)
+  {
+    Trace("intgb") << "Exception while encoding node " << t << ": " << e.what() << "\n";
+    return std::nullopt;
+  }
+}
+
+
+}
+}  // namespace nl
+}  // namespace theory
+}  // namespace cvc5::internal
+
+

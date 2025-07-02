@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Andrew Reynolds, Aina Niemetz, Mathias Preiner
+ *   Andrew Reynolds, Daniel Larraz, Mathias Preiner
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -35,9 +35,16 @@ Node SubtypeElimNodeConverter::postConvert(Node n)
 {
   Kind k = n.getKind();
   bool convertToRealChildren = false;
-  if (k == Kind::ADD || k == Kind::MULT || k == Kind::NONLINEAR_MULT)
+  if (k == Kind::ADD || k == Kind::MULT || k == Kind::NONLINEAR_MULT
+      || k == Kind::SUB)
   {
     convertToRealChildren = isRealTypeStrict(n.getType());
+  }
+  else if (k == Kind::DIVISION || k == Kind::DIVISION_TOTAL
+           || k == Kind::TO_INTEGER || k == Kind::IS_INTEGER)
+  {
+    // always ensure that the arguments of these operators are Real
+    convertToRealChildren = true;
   }
   else if (k == Kind::GEQ || k == Kind::GT || k == Kind::LEQ || k == Kind::LT)
   {
@@ -47,21 +54,22 @@ Node SubtypeElimNodeConverter::postConvert(Node n)
   // note that EQUAL is strictly typed so we don't need to handle it here
   if (convertToRealChildren)
   {
-    NodeManager* nm = NodeManager::currentNM();
     std::vector<Node> children;
+    bool childChanged = false;
     for (const Node& nc : n)
     {
       if (nc.getType().isInteger())
       {
+        childChanged = true;
         if (nc.isConst())
         {
           // we convert constant integers to constant reals
-          children.push_back(nm->mkConstReal(nc.getConst<Rational>()));
+          children.push_back(d_nm->mkConstReal(nc.getConst<Rational>()));
         }
         else
         {
           // otherwise, use TO_REAL
-          children.push_back(nm->mkNode(Kind::TO_REAL, nc));
+          children.push_back(d_nm->mkNode(Kind::TO_REAL, nc));
         }
       }
       else
@@ -69,13 +77,17 @@ Node SubtypeElimNodeConverter::postConvert(Node n)
         children.push_back(nc);
       }
     }
-    return nm->mkNode(k, children);
+    if (!childChanged)
+    {
+      return n;
+    }
+    return d_nm->mkNode(k, children);
   }
   // convert skolems as well, e.g. the purify skolem for (> 1 0.0) becomes the
   // purify skolem for (> 1.0 0.0).
   if (n.isVar())
   {
-    SkolemManager* skm = NodeManager::currentNM()->getSkolemManager();
+    SkolemManager* skm = d_nm->getSkolemManager();
     SkolemId id;
     Node cacheVal;
     if (skm->isSkolemFunction(n, id, cacheVal))

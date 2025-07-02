@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -18,10 +18,13 @@
 
 #include "base/output.h"
 #include "options/arith_options.h"
+#include "proof/conv_proof_generator.h"
+#include "proof/proof_checker.h"
 #include "proof/proof_node.h"
 #include "proof/proof_node_manager.h"
 #include "smt/env.h"
 #include "theory/arith/arith_proof_utilities.h"
+#include "theory/arith/arith_subs.h"
 #include "theory/arith/arith_utilities.h"
 #include "theory/arith/linear/constraint.h"
 #include "theory/arith/linear/partial_model.h"
@@ -36,9 +39,8 @@ namespace cvc5::internal {
 namespace theory {
 namespace arith::linear {
 
-std::vector<Node> andComponents(TNode an)
+std::vector<Node> andComponents(NodeManager* nm, TNode an)
 {
-  auto nm = NodeManager::currentNM();
   if (an == nm->mkConst(true))
   {
     return {};
@@ -181,10 +183,10 @@ void ArithCongruenceManager::watchedVariableIsZero(ConstraintCP lb, ConstraintCP
   TNode eq = d_watchedEqualities[s];
   ConstraintCP eqC = d_constraintDatabase.getConstraint(
       s, ConstraintType::Equality, lb->getValue());
-  NodeBuilder reasonBuilder(Kind::AND);
+  NodeBuilder reasonBuilder(nodeManager(), Kind::AND);
   auto pfLb = lb->externalExplainByAssertions(reasonBuilder);
   auto pfUb = ub->externalExplainByAssertions(reasonBuilder);
-  Node reason = mkAndFromBuilder(reasonBuilder);
+  Node reason = mkAndFromBuilder(nodeManager(), reasonBuilder);
   std::shared_ptr<ProofNode> pf{};
   if (isProofEnabled())
   {
@@ -214,7 +216,7 @@ void ArithCongruenceManager::watchedVariableIsZero(ConstraintCP eq){
   //Explain for conflict is correct as these proofs are generated
   //and stored eagerly
   //These will be safe for propagation later as well
-  NodeBuilder nb(Kind::AND);
+  NodeBuilder nb(nodeManager(), Kind::AND);
   // An open proof of eq from literals now in reason.
   if (TraceIsOn("arith::cong"))
   {
@@ -226,7 +228,7 @@ void ArithCongruenceManager::watchedVariableIsZero(ConstraintCP eq){
     pf = d_pnm->mkNode(
         ProofRule::MACRO_SR_PRED_TRANSFORM, {pf}, {d_watchedEqualities[s]});
   }
-  Node reason = mkAndFromBuilder(nb);
+  Node reason = mkAndFromBuilder(nodeManager(), nb);
 
   d_keepAlive.push_back(reason);
   assertionToEqualityEngine(true, s, reason, pf);
@@ -242,7 +244,7 @@ void ArithCongruenceManager::watchedVariableCannotBeZero(ConstraintCP c){
 
   //Explain for conflict is correct as these proofs are generated and stored eagerly
   //These will be safe for propagation later as well
-  NodeBuilder nb(Kind::AND);
+  NodeBuilder nb(nodeManager(), Kind::AND);
   // An open proof of eq from literals now in reason.
   auto pf = c->externalExplainByAssertions(nb);
   if (TraceIsOn("arith::cong::notzero"))
@@ -251,7 +253,7 @@ void ArithCongruenceManager::watchedVariableCannotBeZero(ConstraintCP c){
     pf->printDebug(Trace("arith::cong::notzero"));
     Trace("arith::cong::notzero") << std::endl;
   }
-  Node reason = mkAndFromBuilder(nb);
+  Node reason = mkAndFromBuilder(nodeManager(), nb);
   if (isProofEnabled())
   {
     if (c->getType() == ConstraintType::Disequality)
@@ -277,12 +279,12 @@ void ArithCongruenceManager::watchedVariableCannotBeZero(ConstraintCP c){
       TNode isZero = d_watchedEqualities[s];
       TypeNode type = isZero[0].getType();
       const auto isZeroPf = d_pnm->mkAssume(isZero);
-      const auto nm = NodeManager::currentNM();
+      const auto nm = nodeManager();
       std::vector<std::shared_ptr<ProofNode>> pfs{isZeroPf, pf};
       // Trick for getting correct, opposing signs.
       std::vector<Node> coeff{nm->mkConstInt(Rational(-1 * cSign)),
                               nm->mkConstInt(Rational(cSign))};
-      std::vector<Node> coeffUse = getMacroSumUbCoeff(pfs, coeff);
+      std::vector<Node> coeffUse = getMacroSumUbCoeff(nm, pfs, coeff);
       const auto sumPf =
           d_pnm->mkNode(ProofRule::MACRO_ARITH_SCALE_SUM_UB, pfs, coeffUse);
       const auto botPf = d_pnm->mkNode(
@@ -359,13 +361,101 @@ bool ArithCongruenceManager::propagate(TNode x){
     TrustNode texpC = explainInternal(x);
     Node expC = texpC.getNode();
     ConstraintCP negC = c->getNegation();
-    Node neg = Constraint::externalExplainByAssertions({negC});
+    Node neg = Constraint::externalExplainByAssertions(nodeManager(), {negC});
     Node conf = expC.andNode(neg);
-    Node final = flattenAnd(conf);
+    Node finalPf = flattenAnd(conf);
 
     ++(d_statistics.d_conflicts);
-    raiseConflict(final);
-    Trace("arith::congruenceManager") << "congruenceManager found a conflict " << final << std::endl;
+    if (isProofEnabled())
+    {
+      Trace("arith-cm-proof") << "Handle conflict " << finalPf << std::endl;
+      // we have a proof of (=> C L1) and need a proof of
+      // (not (and C L2)), where L1 and L2 are contradictory literals,
+      // stored in proven[1] and neg respectively below.
+      NodeManager* nm = nodeManager();
+      std::vector<Node> conj(finalPf.begin(), finalPf.end());
+      CDProof cdp(d_env);
+      Node falsen = nm->mkConst(false);
+      Node finalPfNeg = finalPf.notNode();
+      cdp.addProof(texpC.toProofNode());
+      Node proven = texpC.getProven();
+      Trace("arith-cm-proof") << "Proven was " << proven << std::endl;
+      Node antec = proven[0];
+      std::vector<Node> antecc;
+      if (antec.getKind() == Kind::AND)
+      {
+        antecc.insert(antecc.end(), antec.begin(), antec.end());
+        cdp.addStep(antec, ProofRule::AND_INTRO, antecc, {});
+      }
+      else
+      {
+        antecc.push_back(antec);
+      }
+      cdp.addStep(proven[1], ProofRule::MODUS_PONENS, {antec, proven}, {});
+      std::shared_ptr<ProofNode> pf;
+      bool success = false;
+      if (neg.getKind() == Kind::NOT && neg[0] == proven[1])
+      {
+        // L1 and L2 are negation of one another, just use CONTRA
+        cdp.addStep(falsen, ProofRule::CONTRA, {proven[1], neg}, {});
+        success = true;
+      }
+      else if (proven[1].getKind() == Kind::EQUAL)
+      {
+        // otherwise typically proven[1] is of the form (= t c) or (= c t) where
+        // neg is the (negation of) a relation involving t.
+        Node peq = proven[1][0].isConst() ? proven[1][1].eqNode(proven[1][0])
+                                          : proven[1];
+        ProofChecker* pc = d_env.getProofNodeManager()->getChecker();
+        // We substitute t -> c within the arithmetic context of neg.
+        // In particular using an arithmetic context ensures that this rewrite
+        // should be locally handled as an ARITH_POLY_NORM step.
+        // Otherwise, we may require the full rewriter. For example:
+        // (= x f(x)) => (not (>= (+ x (* -1 f(x))) 0)) would otherwise fail if
+        // we applied at general substitution
+        // (not (>= (+ f(x) (* -1 f(f(x)))) 0)),
+        // whereas since x in f(x) is not in an arithmetic context, we want
+        // (not (>= (+ f(x) (* -1 f(x))) 0)).
+        ArithSubsTermContext astc;
+        TConvProofGenerator tcnv(d_env,
+                                 nullptr,
+                                 TConvPolicy::FIXPOINT,
+                                 TConvCachePolicy::NEVER,
+                                 "ArithRConsTConv",
+                                 &astc);
+        tcnv.addRewriteStep(peq[0], peq[1], &cdp);
+        std::shared_ptr<ProofNode> pfna = tcnv.getProofForRewriting(neg);
+        Node negr = pfna->getResult()[1];
+        Node res = pc->checkDebug(
+            ProofRule::MACRO_SR_PRED_TRANSFORM, {negr}, {falsen}, falsen);
+        Assert(!res.isNull());
+        if (!res.isNull())
+        {
+          cdp.addStep(
+              falsen, ProofRule::MACRO_SR_PRED_TRANSFORM, {negr}, {falsen});
+          success = true;
+          if (negr != neg)
+          {
+            cdp.addProof(pfna);
+            cdp.addStep(
+                negr, ProofRule::EQ_RESOLVE, {neg, pfna->getResult()}, {});
+          }
+        }
+      }
+      if (success)
+      {
+        cdp.addStep(finalPfNeg, ProofRule::SCOPE, {falsen}, conj);
+        pf = cdp.getProofFor(finalPfNeg);
+      }
+      Assert(pf != nullptr) << "Failed from " << neg << " " << proven[1];
+      raiseConflict(finalPf, pf);
+    }
+    else
+    {
+      raiseConflict(finalPf);
+    }
+    Trace("arith::congruenceManager")
+        << "congruenceManager found a conflict " << finalPf << std::endl;
     return false;
   }
 
@@ -438,7 +528,7 @@ TrustNode ArithCongruenceManager::explain(TNode external)
     Trace("arith-ee") << "tweaking proof to prove " << external << " not "
                       << trn.getProven()[1] << std::endl;
     std::vector<std::shared_ptr<ProofNode>> assumptionPfs;
-    std::vector<Node> assumptions = andComponents(trn.getNode());
+    std::vector<Node> assumptions = andComponents(nodeManager(), trn.getNode());
     assumptionPfs.push_back(trn.toProofNode());
     for (const auto& a : assumptions)
     {
@@ -559,7 +649,7 @@ void ArithCongruenceManager::equalsConstant(ConstraintCP c){
 
   ArithVar x = c->getVariable();
   Node xAsNode = d_avariables.asNode(x);
-  NodeManager* nm = NodeManager::currentNM();
+  NodeManager* nm = nodeManager();
   Node asRational = nm->mkConstRealOrInt(
       xAsNode.getType(), c->getValue().getNoninfinitesimalPart());
 
@@ -568,9 +658,9 @@ void ArithCongruenceManager::equalsConstant(ConstraintCP c){
   Node eq = xAsNode.eqNode(asRational);
   d_keepAlive.push_back(eq);
 
-  NodeBuilder nb(Kind::AND);
+  NodeBuilder nb(nodeManager(), Kind::AND);
   auto pf = c->externalExplainByAssertions(nb);
-  Node reason = mkAndFromBuilder(nb);
+  Node reason = mkAndFromBuilder(nodeManager(), nb);
   d_keepAlive.push_back(reason);
 
   Trace("arith-ee") << "Assert equalsConstant " << eq << ", reason " << reason << std::endl;
@@ -587,13 +677,13 @@ void ArithCongruenceManager::equalsConstant(ConstraintCP lb, ConstraintCP ub){
                           << ub << std::endl;
 
   ArithVar x = lb->getVariable();
-  NodeBuilder nb(Kind::AND);
+  NodeManager* nm = nodeManager();
+  NodeBuilder nb(nm, Kind::AND);
   auto pfLb = lb->externalExplainByAssertions(nb);
   auto pfUb = ub->externalExplainByAssertions(nb);
-  Node reason = mkAndFromBuilder(nb);
+  Node reason = mkAndFromBuilder(nodeManager(), nb);
 
   Node xAsNode = d_avariables.asNode(x);
-  NodeManager* nm = NodeManager::currentNM();
   Node asRational = nm->mkConstRealOrInt(
       xAsNode.getType(), lb->getValue().getNoninfinitesimalPart());
 

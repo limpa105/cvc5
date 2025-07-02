@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -446,7 +446,7 @@ void RelevantDomain::computeRelevantDomainLit( Node q, bool hasPol, bool pol, No
     // Ensure that rAdd has the same type as the variable. This is necessary
     // since GEQ may mix Int and Real, as well as the equality solving above
     // may introduce mixed Int and Real.
-    rAdd = Instantiate::ensureType(rAdd, rVar.getType());
+    rAdd = TermUtil::ensureType(rAdd, rVar.getType());
   }
   if (!rAdd.isNull() && !TermUtil::hasInstConstAttr(rAdd))
   {

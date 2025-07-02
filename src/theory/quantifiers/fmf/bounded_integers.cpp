@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -32,6 +32,7 @@
 #include "theory/quantifiers/term_util.h"
 #include "theory/rep_set_iterator.h"
 #include "theory/rewriter.h"
+#include "theory/sets/normal_form.h"
 #include "util/rational.h"
 
 using namespace cvc5::internal::kind;
@@ -46,10 +47,11 @@ BoundedIntegers::IntRangeDecisionHeuristic::IntRangeDecisionHeuristic(
       d_range(r),
       d_ranges_proxied(userContext())
 {
-  if (options().quantifiers.fmfBoundLazy)
+  // we require a proxy if the term is set.card
+  if (options().quantifiers.fmfBoundLazy || r.getKind() == Kind::SET_CARD)
   {
-    SkolemManager* sm = NodeManager::currentNM()->getSkolemManager();
-    d_proxy_range = isProxy ? r : sm->mkDummySkolem("pbir", r.getType());
+    d_proxy_range =
+        isProxy ? r : NodeManager::mkDummySkolem("pbir", r.getType());
   }
   else
   {
@@ -61,7 +63,7 @@ BoundedIntegers::IntRangeDecisionHeuristic::IntRangeDecisionHeuristic(
 }
 Node BoundedIntegers::IntRangeDecisionHeuristic::mkLiteral(unsigned n)
 {
-  NodeManager* nm = NodeManager::currentNM();
+  NodeManager* nm = nodeManager();
   Node cn = nm->mkConstInt(Rational(n == 0 ? 0 : n - 1));
   return nm->mkNode(n == 0 ? Kind::LT : Kind::LEQ, d_proxy_range, cn);
 }
@@ -82,14 +84,32 @@ Node BoundedIntegers::IntRangeDecisionHeuristic::proxyCurrentRangeLemma()
     return Node::null();
   }
   d_ranges_proxied[curr] = true;
-  NodeManager* nm = NodeManager::currentNM();
+  NodeManager* nm = nodeManager();
   Node currLit = getLiteral(curr);
-  Node lem = nm->mkNode(
-      Kind::EQUAL,
-      currLit,
-      nm->mkNode(curr == 0 ? Kind::LT : Kind::LEQ,
-                 d_range,
-                 nm->mkConstInt(Rational(curr == 0 ? 0 : curr - 1))));
+  Node lit;
+  if (d_range.getKind() == Kind::SET_CARD)
+  {
+    // Instead of introducing (set.card s) < n, we introduce the literal
+    // s = characteristicSet(s, n-1) for n>0 and false for n=0. We do this
+    // to avoid introducing set.card.
+    if (curr == 0)
+    {
+      lit = nodeManager()->mkConst(false);
+    }
+    else
+    {
+      Node cset = sets::NormalForm::getCharacteristicSet(
+          nodeManager(), d_range[0], curr - 1);
+      lit = d_range[0].eqNode(cset);
+    }
+  }
+  else
+  {
+    lit = nm->mkNode(curr == 0 ? Kind::LT : Kind::LEQ,
+                     d_range,
+                     nm->mkConstInt(Rational(curr == 0 ? 0 : curr - 1)));
+  }
+  Node lem = nm->mkNode(Kind::EQUAL, currLit, lit);
   return lem;
 }
 
@@ -249,7 +269,7 @@ void BoundedIntegers::process( Node q, Node n, bool pol,
       std::map< Node, Node > msum;
       if (ArithMSum::getMonomialSumLit(n, msum))
       {
-        NodeManager* nm = NodeManager::currentNM();
+        NodeManager* nm = nodeManager();
         Trace("bound-int-debug") << "literal (polarity = " << pol << ") " << n << " is monomial sum : " << std::endl;
         ArithMSum::debugPrintMonomialSum(msum, "bound-int-debug");
         for( std::map< Node, Node >::iterator it = msum.begin(); it != msum.end(); ++it ){
@@ -376,8 +396,7 @@ void BoundedIntegers::checkOwnership(Node f)
     }
   }
 
-  NodeManager* nm = NodeManager::currentNM();
-  SkolemManager* sm = nm->getSkolemManager();
+  NodeManager* nm = nodeManager();
 
   bool success;
   do{
@@ -418,9 +437,8 @@ void BoundedIntegers::checkOwnership(Node f)
           d_setm_range[f][v] = bound_lit_map[2][v][1];
           d_setm_range_lit[f][v] = bound_lit_map[2][v];
           Node cardTerm = nm->mkNode(Kind::SET_CARD, d_setm_range[f][v]);
-          // Purify the cardinality term, since we don't want to introduce
-          // cardinality terms. We do minimization on this variable for
-          // consistency, although it will have no impact on the sets models.
+          // Note that we avoid reasoning about cardinality by eagerly
+          // eliminating set.card for literals as they are introduced.
           d_range[f][v] = cardTerm;
           Trace("bound-int") << "Variable " << v
                              << " is bound because of set membership literal "
@@ -546,18 +564,11 @@ void BoundedIntegers::checkOwnership(Node f)
         {
           // introduce a new bound
           Node new_range =
-              sm->mkDummySkolem("bir", r.getType(), "bound for term");
+              NodeManager::mkDummySkolem("bir", r.getType(), "bound for term");
           d_nground_range[f][v] = r;
           d_range[f][v] = new_range;
           r = new_range;
           isProxy = true;
-        }
-        if (r.getKind()==Kind::SET_CARD)
-        {
-          // Purify the cardinality term, since we don't want to introduce
-          // cardinality terms. We do minimization on this variable for
-          // consistency, although it will have no impact on the sets models.
-          r = nm->getSkolemManager()->mkPurifySkolem(r);
         }
         if( !r.isConst() ){
           if (d_rms.find(r) == d_rms.end())
@@ -705,61 +716,25 @@ Node BoundedIntegers::getSetRangeValue( Node q, Node v, RepSetIterator * rsi ) {
   {
     return sr;
   }
-  NodeManager* nm = NodeManager::currentNM();
-  TypeNode srt = sr.getType();
-  TypeNode tne = srt.getSetElementType();
-  Node nsr = nm->mkConst(EmptySet(srt));
-
   // we can use choice functions for canonical symbolic instantiations
   unsigned srCard = 0;
   while (sr.getKind() == Kind::SET_UNION)
   {
+    Assert(sr[0].getKind() == Kind::SET_SINGLETON);
     srCard++;
-    sr = sr[0];
+    sr = sr[1];
   }
   Assert(sr.getKind() == Kind::SET_SINGLETON);
   srCard++;
-  // choices[i] stores the canonical symbolic representation of the (i+1)^th
-  // element of sro
-  std::vector<Node> choices;
-  Node choice_i;
-  for (unsigned i = 0; i < srCard; i++)
-  {
-    if (i == d_setm_choice[sro].size())
-    {
-      choice_i = nm->mkBoundVar(tne);
-      choices.push_back(choice_i);
-      Node cBody = nm->mkNode(Kind::SET_MEMBER, choice_i, sro);
-      if (choices.size() > 1)
-      {
-        cBody =
-            nm->mkNode(Kind::AND, cBody, nm->mkNode(Kind::DISTINCT, choices));
-      }
-      choices.pop_back();
-      Node bvl = nm->mkNode(Kind::BOUND_VAR_LIST, choice_i);
-      choice_i = nm->mkNode(
-          Kind::WITNESS, bvl, nm->mkNode(Kind::OR, sro.eqNode(nsr), cBody));
-      d_setm_choice[sro].push_back(choice_i);
-    }
-    Assert(i < d_setm_choice[sro].size());
-    choice_i = d_setm_choice[sro][i];
-    choices.push_back(choice_i);
-    Node sChoiceI = nm->mkNode(Kind::SET_SINGLETON, choice_i);
-    if (nsr.getKind() == Kind::SET_EMPTY)
-    {
-      nsr = sChoiceI;
-    }
-    else
-    {
-      nsr = nm->mkNode(Kind::SET_UNION, nsr, sChoiceI);
-    }
-  }
-  // turns the concrete model value of sro into a canonical representation
+  Trace("bound-int-rsi") << "...cardinality is " << srCard << std::endl;
+  // get the characteristic set
+  Node nsr = sets::NormalForm::getCharacteristicSet(nodeManager(), sro, srCard);
+  // turns the concrete set value of sro into a canonical representation
   //   e.g.
   // singleton(0) union singleton(1)
   //   becomes
-  // C1 union (witness y. S =(set.singleton C1) OR (y in S AND distinct(y, C1)))
-  // where C1 = (witness x. S=empty OR x in S).
+  // C1 union (set.singleton (set.choose (set.minus S C1)))
+  // where C1 = (set.singleton (set.choose S)).
   Trace("bound-int-rsi") << "...reconstructed " << nsr << std::endl;
   return nsr;
 }
@@ -804,7 +779,7 @@ bool BoundedIntegers::getRsiSubsitution( Node q, Node v, std::vector< Node >& va
       //must add the lemma
       Node nn = d_nground_range[q][v];
       nn = nn.substitute( vars.begin(), vars.end(), subs.begin(), subs.end() );
-      Node lem = NodeManager::currentNM()->mkNode(Kind::LEQ, nn, d_range[q][v]);
+      Node lem = nodeManager()->mkNode(Kind::LEQ, nn, d_range[q][v]);
       Trace("bound-int-lemma") << "*** Add lemma to minimize instantiated non-ground term " << lem << std::endl;
       d_qim.lemma(lem, InferenceId::QUANTIFIERS_BINT_MIN_NG);
     }
@@ -860,7 +835,7 @@ bool BoundedIntegers::getBoundElements( RepSetIterator * rsi, bool initial, Node
         //failed, abort the iterator
         return false;
       }else{
-        NodeManager* nm = NodeManager::currentNM();
+        NodeManager* nm = nodeManager();
         Trace("bound-int-rsi") << "Can limit bounds of " << v << " to " << l << "..." << u << std::endl;
         Node range = rewrite(nm->mkNode(Kind::SUB, u, l));
         if (!range.isConst())
@@ -992,9 +967,8 @@ struct QInternalVarAttributeId
 };
 typedef expr::Attribute<QInternalVarAttributeId, Node> QInternalVarAttribute;
 
-Node BoundedIntegers::mkBoundedForall(Node bvl, Node body)
+Node BoundedIntegers::mkBoundedForall(NodeManager* nm, Node bvl, Node body)
 {
-  NodeManager* nm = NodeManager::currentNM();
   QInternalVarAttribute qiva;
   Node qvar;
   if (bvl.hasAttribute(qiva))
@@ -1003,8 +977,7 @@ Node BoundedIntegers::mkBoundedForall(Node bvl, Node body)
   }
   else
   {
-    SkolemManager* sm = nm->getSkolemManager();
-    qvar = sm->mkDummySkolem("qinternal", nm->booleanType());
+    qvar = NodeManager::mkDummySkolem("qinternal", nm->booleanType());
     // this dummy variable marks that the quantified formula is internal
     qvar.setAttribute(BoundedQuantAttribute(), true);
     // remember the dummy variable

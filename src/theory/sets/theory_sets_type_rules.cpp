@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -559,6 +559,53 @@ TypeNode SetFilterTypeRule::computeType(NodeManager* nodeManager,
     }
   }
   return setType;
+}
+
+TypeNode SetAllSomeTypeRule::preComputeType(NodeManager* nm, TNode n)
+{
+  return nm->booleanType();
+}
+
+TypeNode SetAllSomeTypeRule::computeType(NodeManager* nodeManager,
+                                         TNode n,
+                                         bool check,
+                                         std::ostream* errOut)
+{
+  Assert(n.getKind() == Kind::SET_ALL || n.getKind() == Kind::SET_SOME);
+  std::string op = n.getKind() == Kind::SET_ALL ? "set.all" : "set.some";
+  TypeNode functionType = n[0].getTypeOrNull();
+  TypeNode setType = n[1].getTypeOrNull();
+  if (check)
+  {
+    if (!setType.isMaybeKind(Kind::SET_TYPE))
+    {
+      if (errOut)
+      {
+        (*errOut) << op
+                  << " operator expects a set in the second "
+                     "argument, a non-set is found";
+      }
+      return TypeNode::null();
+    }
+    if (!checkFunctionTypeFor(n, functionType, setType, errOut))
+    {
+      return TypeNode::null();
+    }
+    if (functionType.isFunction())
+    {
+      TypeNode rangeType = functionType.getRangeType();
+      if (!rangeType.isBoolean() && !rangeType.isFullyAbstract())
+      {
+        if (errOut)
+        {
+          (*errOut) << "Operator " << op
+                    << " expects a function returning Bool.";
+        }
+        return TypeNode::null();
+      }
+    }
+  }
+  return nodeManager->booleanType();
 }
 
 TypeNode SetFoldTypeRule::preComputeType(NodeManager* nm, TNode n)
@@ -1199,6 +1246,19 @@ TypeNode RelationProjectTypeRule::computeType(NodeManager* nm,
   return nm->mkSetType(retTupleType);
 }
 
+TypeNode SetEmptyOfTypeTypeRule::preComputeType(NodeManager* nm, TNode n)
+{
+  return TypeNode::null();
+}
+
+TypeNode SetEmptyOfTypeTypeRule::computeType(NodeManager* nm,
+                                             TNode n,
+                                             bool check,
+                                             std::ostream* errOut)
+{
+  return nm->mkAbstractType(Kind::SET_TYPE);
+}
+
 Cardinality SetsProperties::computeCardinality(TypeNode type)
 {
   Assert(type.getKind() == Kind::SET_TYPE);
@@ -1215,7 +1275,7 @@ bool SetsProperties::isWellFounded(TypeNode type)
 Node SetsProperties::mkGroundTerm(TypeNode type)
 {
   Assert(type.isSet());
-  return NodeManager::currentNM()->mkConst(EmptySet(type));
+  return type.getNodeManager()->mkConst(EmptySet(type));
 }
 
 }  // namespace sets

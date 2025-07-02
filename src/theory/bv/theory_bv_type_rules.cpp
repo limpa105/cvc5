@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -365,18 +365,18 @@ TypeNode BitVectorITETypeRule::computeType(NodeManager* nodeManager,
   return retType;
 }
 
-TypeNode BitVectorBitOfTypeRule::preComputeType(NodeManager* nm, TNode n)
+TypeNode BitVectorBitTypeRule::preComputeType(NodeManager* nm, TNode n)
 {
   return nm->booleanType();
 }
-TypeNode BitVectorBitOfTypeRule::computeType(NodeManager* nodeManager,
-                                             TNode n,
-                                             bool check,
-                                             std::ostream* errOut)
+TypeNode BitVectorBitTypeRule::computeType(NodeManager* nodeManager,
+                                           TNode n,
+                                           bool check,
+                                           std::ostream* errOut)
 {
   if (check)
   {
-    BitVectorBitOf info = n.getOperator().getConst<BitVectorBitOf>();
+    BitVectorBit info = n.getOperator().getConst<BitVectorBit>();
     TypeNode t = n[0].getTypeOrNull();
     if (!checkMaybeBitVector(t, errOut))
     {

@@ -96,7 +96,7 @@ name   = "SAT Layer"
 
 [[option]]
   name       = "preRegisterMode"
-  category   = "expert"
+  category   = "regular"
   long       = "preregister-mode=MODE"
   type       = "PreRegisterMode"
   default    = "EAGER"
@@ -108,11 +108,3 @@ name   = "SAT Layer"
 [[option.mode.LAZY]]
   name = "lazy"
   help = "Preregister literals when they are asserted by the SAT solver."
-
-[[option]]
-  name       = "pluginNotifySatClauseInSolve"
-  category   = "expert"
-  long       = "plugin-notify-sat-clause-in-solve"
-  type       = "bool"
-  default    = "true"
-  help       = "only inform plugins of SAT clauses when we are in the main solving loop of the SAT solver"

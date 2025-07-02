@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 ###############################################################################
 # Top contributors (to current version):
-#   Daniel Larraz, Andrew Reynolds
+#   Daniel Larraz, Aina Niemetz, Andrew Reynolds
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     tm = cvc5.TermManager()
     slv = cvc5.Solver(tm)
 
-    sm = cvc5.SymbolManager(slv)
+    sm = cvc5.SymbolManager(tm)
 
     # construct an input parser associated the solver above
     parser = cvc5.InputParser(slv, sm)

@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -86,7 +86,7 @@ class TestParserBlack : public TestInternal
   void tryGoodInput(const std::string goodInput)
   {
     d_solver.reset(new cvc5::Solver(d_tm));
-    d_symman.reset(new SymbolManager(d_solver.get()));
+    d_symman.reset(new SymbolManager(d_tm));
     InputParser parser(d_solver.get(), d_symman.get());
     std::stringstream ss;
     ss << goodInput;
@@ -113,7 +113,7 @@ class TestParserBlack : public TestInternal
   {
     d_solver.reset(new cvc5::Solver(d_tm));
     d_solver->setOption("strict-parsing", strictMode ? "true" : "false");
-    d_symman.reset(new SymbolManager(d_solver.get()));
+    d_symman.reset(new SymbolManager(d_tm));
     InputParser parser(d_solver.get(), d_symman.get());
     std::stringstream ss;
     ss << badInput;
@@ -140,7 +140,7 @@ class TestParserBlack : public TestInternal
   void tryGoodExpr(const std::string goodExpr)
   {
     d_solver.reset(new cvc5::Solver(d_tm));
-    d_symman.reset(new SymbolManager(d_solver.get()));
+    d_symman.reset(new SymbolManager(d_tm));
     InputParser parser(d_solver.get(), d_symman.get());
     setupContext(parser);
 
@@ -169,7 +169,7 @@ class TestParserBlack : public TestInternal
   {
     d_solver.reset(new cvc5::Solver(d_tm));
     d_solver->setOption("strict-parsing", strictMode ? "true" : "false");
-    d_symman.reset(new SymbolManager(d_solver.get()));
+    d_symman.reset(new SymbolManager(d_tm));
     InputParser parser(d_solver.get(), d_symman.get());
     setupContext(parser);
     std::stringstream ss;

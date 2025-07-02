@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -181,6 +181,8 @@ enum class InferenceId
   ARITH_NL_ICP_CONFLICT,
   // propagation / contraction of variable bounds from icp
   ARITH_NL_ICP_PROPAGATION,
+
+  ARITH_NL_MOD_RANGE_SOLVER,
   //-------------------- ff inference
   // ---------------------------------- end arith theory
 
@@ -364,6 +366,8 @@ enum class InferenceId
   QUANTIFIERS_INST_SYQI,
   // instantiations from model-based instantiation
   QUANTIFIERS_INST_MBQI,
+  // instantiations from model-based instantiation (mbqi-enum)
+  QUANTIFIERS_INST_MBQI_ENUM,
   // instantiations from enumerative instantiation
   QUANTIFIERS_INST_ENUM,
   // instantiations from pool instantiation
@@ -461,6 +465,8 @@ enum class InferenceId
   QUANTIFIERS_SYGUS_COMPLETE_ENUM,
   // infeasible due to side condition (e.g. for abduction)
   QUANTIFIERS_SYGUS_SC_INFEASIBLE,
+  // infeasible due to non-well-founded grammar
+  QUANTIFIERS_SYGUS_NO_WF_GRAMMAR,
   //-------------------- dynamic splitting
   // a dynamic split from quantifiers
   QUANTIFIERS_DSPLIT,
@@ -486,6 +492,9 @@ enum class InferenceId
   // when term indexing discovers disequal congruent terms in the master
   // equality engine
   QUANTIFIERS_TDB_DEQ_CONG,
+  // An existential corresponding to a witness term generated based on BV
+  // invertibility conditions.
+  QUANTIFIERS_CEGQI_WITNESS,
   //-------------------------------------- end quantifiers theory
 
   // ---------------------------------- sep theory
@@ -966,6 +975,8 @@ enum class InferenceId
   // This is applied when lamda function f and ordinary function h are in the
   // same eq class.
   UF_HO_LAMBDA_APP_REDUCE,
+  // Lazy lambda lifting
+  UF_HO_LAMBDA_LAZY_LIFT,
   //-------------------- end model-construction specific part
   //-------------------- end HO extension to UF
   //-------------------- UF arith/bv conversions solver
@@ -1005,7 +1016,7 @@ const char* toString(InferenceId i);
 std::ostream& operator<<(std::ostream& out, InferenceId i);
 
 /** Make node from inference id */
-Node mkInferenceIdNode(InferenceId i);
+Node mkInferenceIdNode(NodeManager* nm, InferenceId i);
 
 /** get an inference identifier from a node, return false if we fail */
 bool getInferenceId(TNode n, InferenceId& i);

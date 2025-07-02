@@ -5,7 +5,7 @@
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     slv = cvc5.Solver(tm)
     slv.setOption("produce-models", "true")
     slv.setOption("output-language", "smtlib")
-    slv.setLogic("QF_AUFBV")
+    slv.setLogic("QF_ABV")
 
     # Consider the following code (where size is some previously defined constant):
     #

@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -72,7 +72,7 @@ ICPSolver::ICPSolver(Env& env, InferenceManager& im)
 
 std::vector<Node> ICPSolver::collectVariables(const Node& n) const
 {
-  std::unordered_set<TNode> tmp;
+  std::unordered_set<Node> tmp;
   expr::getVariables(n, tmp);
   std::vector<Node> res;
   for (const auto& t : tmp)
@@ -98,7 +98,7 @@ std::vector<Candidate> ICPSolver::constructCandidates(const Node& n)
   auto poly = std::get<0>(comp);
 
   std::vector<Candidate> result;
-  std::unordered_set<TNode> vars;
+  std::unordered_set<Node> vars;
   expr::getVariables(n, vars);
   for (const auto& v : vars)
   {

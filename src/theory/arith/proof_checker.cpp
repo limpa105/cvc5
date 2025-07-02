@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Alex Ozdemir, Andrew Reynolds, Gereon Kremer
+ *   Alex Ozdemir, Andrew Reynolds, Abdalrhman Mohamed
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -48,10 +48,11 @@ void ArithProofRuleChecker::registerTo(ProofChecker* pc)
   pc->registerChecker(ProofRule::ARITH_TRICHOTOMY, this);
   pc->registerChecker(ProofRule::INT_TIGHT_UB, this);
   pc->registerChecker(ProofRule::INT_TIGHT_LB, this);
-  pc->registerChecker(ProofRule::ARITH_OP_ELIM_AXIOM, this);
+  pc->registerChecker(ProofRule::ARITH_REDUCTION, this);
   pc->registerChecker(ProofRule::ARITH_MULT_POS, this);
   pc->registerChecker(ProofRule::ARITH_MULT_NEG, this);
   pc->registerChecker(ProofRule::ARITH_POLY_NORM, this);
+  pc->registerChecker(ProofRule::ARITH_POLY_NORM_REL, this);
   // register the extended proof checkers
   d_extChecker.registerTo(pc);
   d_trChecker.registerTo(pc);
@@ -127,8 +128,8 @@ Node ArithProofRuleChecker::checkInternal(ProofRule id,
 
       // Whether a strict inequality is in the sum.
       bool strict = false;
-      NodeBuilder leftSum(Kind::ADD);
-      NodeBuilder rightSum(Kind::ADD);
+      NodeBuilder leftSum(nm, Kind::ADD);
+      NodeBuilder rightSum(nm, Kind::ADD);
       for (size_t i = 0; i < children.size(); ++i)
       {
         // Adjust strictness
@@ -191,8 +192,8 @@ Node ArithProofRuleChecker::checkInternal(ProofRule id,
 
       // Whether a strict inequality is in the sum.
       bool strict = false;
-      NodeBuilder leftSum(Kind::ADD);
-      NodeBuilder rightSum(Kind::ADD);
+      NodeBuilder leftSum(nm, Kind::ADD);
+      NodeBuilder rightSum(nm, Kind::ADD);
       for (size_t i = 0; i < children.size(); ++i)
       {
         Rational scalar = args[i].getConst<Rational>();
@@ -277,8 +278,17 @@ Node ArithProofRuleChecker::checkInternal(ProofRule id,
                 << "Bad kind: " << children[i].getKind() << std::endl;
           }
         }
-        leftSum << nm->mkNode(Kind::MULT, args[i], children[i][0]);
-        rightSum << nm->mkNode(Kind::MULT, args[i], children[i][1]);
+        // if multiplying by one, don't introduce MULT
+        if (scalar == 1)
+        {
+          leftSum << children[i][0];
+          rightSum << children[i][1];
+        }
+        else
+        {
+          leftSum << nm->mkNode(Kind::MULT, args[i], children[i][0]);
+          rightSum << nm->mkNode(Kind::MULT, args[i], children[i][1]);
+        }
       }
       Node r = nm->mkNode(strict ? Kind::LT : Kind::LEQ,
                           leftSum.constructNode(),
@@ -378,17 +388,18 @@ Node ArithProofRuleChecker::checkInternal(ProofRule id,
       }
       // Check that all have the same constant:
     }
-    case ProofRule::ARITH_OP_ELIM_AXIOM:
+    case ProofRule::ARITH_REDUCTION:
     {
       Assert(children.empty());
       Assert(args.size() == 1);
-      return OperatorElim::getAxiomFor(args[0]);
+      return OperatorElim::getAxiomFor(nm, args[0]);
     }
     case ProofRule::ARITH_POLY_NORM:
     {
       Assert(children.empty());
       Assert(args.size() == 1);
-      if (args[0].getKind() != Kind::EQUAL)
+      if (args[0].getKind() != Kind::EQUAL
+          || !args[0][0].getType().isRealOrInt())
       {
         return Node::null();
       }
@@ -397,6 +408,63 @@ Node ArithProofRuleChecker::checkInternal(ProofRule id,
         return Node::null();
       }
       return args[0];
+    }
+    case ProofRule::ARITH_POLY_NORM_REL:
+    {
+      Assert(children.size() == 1);
+      Assert(args.size() == 1);
+      if (args[0].getKind() != Kind::EQUAL)
+      {
+        return Node::null();
+      }
+      Kind k = args[0][0].getKind();
+      if (k != Kind::LT && k != Kind::LEQ && k != Kind::EQUAL && k != Kind::GT
+          && k != Kind::GEQ)
+      {
+        return Node::null();
+      }
+      if (children[0].getKind() != Kind::EQUAL)
+      {
+        return Node::null();
+      }
+      Node l = children[0][0];
+      Node r = children[0][1];
+      if (l.getKind() != Kind::MULT || r.getKind() != Kind::MULT)
+      {
+        return Node::null();
+      }
+      Node lr = l[1];
+      lr = lr.getKind() == Kind::TO_REAL ? lr[0] : lr;
+      Node rr = r[1];
+      rr = rr.getKind() == Kind::TO_REAL ? rr[0] : rr;
+      if (lr.getKind() != Kind::SUB || rr.getKind() != Kind::SUB)
+      {
+        return Node::null();
+      }
+      Node cx = l[0];
+      Node x1 = lr[0];
+      Node x2 = lr[1];
+      Node cy = r[0];
+      Node y1 = rr[0];
+      Node y2 = rr[1];
+      if ((cx.getKind() == Kind::CONST_INTEGER
+           || cx.getKind() == Kind::CONST_RATIONAL)
+          && (cy.getKind() == Kind::CONST_INTEGER
+              || cy.getKind() == Kind::CONST_RATIONAL))
+      {
+        Rational c1 = cx.getConst<Rational>();
+        Rational c2 = cy.getConst<Rational>();
+        if (k != Kind::EQUAL && c1.sgn() != c2.sgn())
+        {
+          return Node::null();
+        }
+      }
+      Node ret = nm->mkNode(k, x1, x2).eqNode(nm->mkNode(k, y1, y2));
+      if (ret != args[0])
+      {
+        return Node::null();
+      }
+      return ret;
     }
     default: return Node::null();
   }

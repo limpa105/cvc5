@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -169,6 +169,7 @@ enum RewriteRuleId
   UltOne,
   UltOnes,
   SltZero,
+  SltSelf,
   ZeroUlt,
   MergeSignExtend,
   SignExtendEqConst,
@@ -209,7 +210,7 @@ enum RewriteRuleId
   UltAddOne,
   ConcatToMult,
   MultSltMult,
-  BitOfConst,
+  BitConst,
 };
 
 inline std::ostream& operator << (std::ostream& out, RewriteRuleId ruleId) {
@@ -340,7 +341,13 @@ inline std::ostream& operator << (std::ostream& out, RewriteRuleId ruleId) {
   case SubEliminate :            out << "SubEliminate";             return out;
   case CompEliminate :            out << "CompEliminate";             return out;
   case XnorEliminate :            out << "XnorEliminate";             return out;
-  case SignExtendEliminate :            out << "SignExtendEliminate";             return out;
+  case SignExtendEliminate: out << "SignExtendEliminate"; return out;
+  case UaddoEliminate:            out << "UaddoEliminate";             return out;
+  case SaddoEliminate:            out << "SaddoEliminate";             return out;
+  case UmuloEliminate:            out << "UmuloEliminate";             return out;
+  case SmuloEliminate:            out << "SmuloEliminate";             return out;
+  case UsuboEliminate:            out << "SsuboEliminate";             return out;
+  case SsuboEliminate: out << "SsuboEliminate"; return out;
   case NotIdemp :                  out << "NotIdemp"; return out;
   case UleSelf:                    out << "UleSelf"; return out; 
   case FlattenAssocCommut:     out << "FlattenAssocCommut"; return out;
@@ -378,7 +385,7 @@ inline std::ostream& operator << (std::ostream& out, RewriteRuleId ruleId) {
   case ConcatToMult: out << "ConcatToMult"; return out;
   case MultSltMult: out << "MultSltMult"; return out;
   case NormalizeEqAddNeg: out << "NormalizeEqAddNeg"; return out;
-  case BitOfConst: out << "BitOfConst"; return out;
+  case BitConst: out << "BitConst"; return out;
   default:
     Unreachable();
   }
@@ -618,6 +625,12 @@ struct AllRewriteRules {
   RewriteRule<SmodEliminate> rule145;
   RewriteRule<UgtUrem> rule146;
   RewriteRule<UltOnes> rule147;
+  RewriteRule<UaddoEliminate> rule148;
+  RewriteRule<SaddoEliminate> rule149;
+  RewriteRule<UmuloEliminate> rule150;
+  RewriteRule<SmuloEliminate> rule151;
+  RewriteRule<UsuboEliminate> rule152;
+  RewriteRule<SsuboEliminate> rule153;
 };
 
 template<> inline
@@ -639,7 +652,7 @@ struct ApplyRuleToChildren {
     if (node.getKind() != kind) {
       return RewriteRule<rule>::template run<true>(node);
     }
-    NodeBuilder result(kind);
+    NodeBuilder result(node.getNodeManager(), kind);
     for (unsigned i = 0, end = node.getNumChildren(); i < end; ++ i) {
       result << RewriteRule<rule>::template run<true>(node[i]);
     }
@@ -706,60 +719,6 @@ struct LinearRewriteStrategy {
     if (R18::applies(current)) current = R18::template run<false>(current);
     if (R19::applies(current)) current = R19::template run<false>(current);
     if (R20::applies(current)) current = R20::template run<false>(current);
-    return current;
-  }
-};
-
-template <
-  typename R1,
-  typename R2  = RewriteRule<EmptyRule>,
-  typename R3  = RewriteRule<EmptyRule>,
-  typename R4  = RewriteRule<EmptyRule>,
-  typename R5  = RewriteRule<EmptyRule>,
-  typename R6  = RewriteRule<EmptyRule>,
-  typename R7  = RewriteRule<EmptyRule>,
-  typename R8  = RewriteRule<EmptyRule>,
-  typename R9  = RewriteRule<EmptyRule>,
-  typename R10 = RewriteRule<EmptyRule>,
-  typename R11 = RewriteRule<EmptyRule>,
-  typename R12 = RewriteRule<EmptyRule>,
-  typename R13 = RewriteRule<EmptyRule>,
-  typename R14 = RewriteRule<EmptyRule>,
-  typename R15 = RewriteRule<EmptyRule>,
-  typename R16 = RewriteRule<EmptyRule>,
-  typename R17 = RewriteRule<EmptyRule>,
-  typename R18 = RewriteRule<EmptyRule>,
-  typename R19 = RewriteRule<EmptyRule>,
-  typename R20 = RewriteRule<EmptyRule>
-  >
-struct FixpointRewriteStrategy {
-  static Node apply(TNode node) {
-    Node previous = node; 
-    Node current = node;
-    do {
-      previous = current;
-      if (R1::applies(current)) current  = R1::template run<false>(current);
-      if (R2::applies(current)) current  = R2::template run<false>(current);
-      if (R3::applies(current)) current  = R3::template run<false>(current);
-      if (R4::applies(current)) current  = R4::template run<false>(current);
-      if (R5::applies(current)) current  = R5::template run<false>(current);
-      if (R6::applies(current)) current  = R6::template run<false>(current);
-      if (R7::applies(current)) current  = R7::template run<false>(current);
-      if (R8::applies(current)) current  = R8::template run<false>(current);
-      if (R9::applies(current)) current  = R9::template run<false>(current);
-      if (R10::applies(current)) current = R10::template run<false>(current);
-      if (R11::applies(current)) current = R11::template run<false>(current);
-      if (R12::applies(current)) current = R12::template run<false>(current);
-      if (R13::applies(current)) current = R13::template run<false>(current);
-      if (R14::applies(current)) current = R14::template run<false>(current);
-      if (R15::applies(current)) current = R15::template run<false>(current);
-      if (R16::applies(current)) current = R16::template run<false>(current);
-      if (R17::applies(current)) current = R17::template run<false>(current);
-      if (R18::applies(current)) current = R18::template run<false>(current);
-      if (R19::applies(current)) current = R19::template run<false>(current);
-      if (R20::applies(current)) current = R20::template run<false>(current);
-    } while (previous != current);
-
     return current;
   }
 };

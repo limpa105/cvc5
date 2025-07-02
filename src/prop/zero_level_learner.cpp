@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -239,14 +239,15 @@ modes::LearnedLitType ZeroLevelLearner::computeLearnedLiteralType(
     const Node& input)
 {
   // literal was learned, determine its type
-  // apply substitutions first
-  Node lit = d_tsmap.apply(input, d_env.getRewriter());
-  TNode aatom = lit.getKind() == Kind::NOT ? lit[0] : lit;
+  // compute whether internal prior to substitution
+  TNode aatom = input.getKind() == Kind::NOT ? input[0] : input;
   bool internal = d_ppnAtoms.find(aatom) == d_ppnAtoms.end();
+  // apply substitutions now
+  Node lit = d_tsmap.apply(input, d_env.getRewriter());
   modes::LearnedLitType ltype =
       internal ? modes::LearnedLitType::INTERNAL : modes::LearnedLitType::INPUT;
-  // compute if solvable
-  if (internal || d_trackSimplifications)
+  // we don't try to solve for literals that simplify to constants
+  if ((internal || d_trackSimplifications) && !lit.isConst())
   {
     Subs ss;
     bool processed = false;
@@ -279,7 +280,7 @@ modes::LearnedLitType ZeroLevelLearner::computeLearnedLiteralType(
             processed = true;
             Trace("lemma-inprocess-subs")
                 << "Add subs: " << v << " -> " << ss.d_subs[i] << std::endl;
-            d_tsmap.addSubstitution(v, ss.d_subs[i]);
+            addSimplification(v, ss.d_subs[i]);
           }
         }
       }
@@ -305,7 +306,7 @@ modes::LearnedLitType ZeroLevelLearner::computeLearnedLiteralType(
             {
               Trace("lemma-inprocess-subs")
                   << "Add cp: " << lit[1 - i] << " -> " << lit[i] << std::endl;
-              d_tsmap.addSubstitution(lit[1 - i], lit[i]);
+              addSimplification(lit[1 - i], lit[i]);
               processed = true;
             }
             break;
@@ -315,7 +316,7 @@ modes::LearnedLitType ZeroLevelLearner::computeLearnedLiteralType(
           {
             Trace("lemma-inprocess-subs") << "Add cp subterm: " << lit[1 - i]
                                           << " -> " << lit[i] << std::endl;
-            d_tsmap.addSubstitution(lit[1 - i], lit[i]);
+            addSimplification(lit[1 - i], lit[i]);
             processed = true;
             break;
           }
@@ -337,6 +338,20 @@ theory::TrustSubstitutionMap& ZeroLevelLearner::getSimplifications()
 {
   Assert(d_trackSimplifications);
   return d_tsmap;
+}
+
+void ZeroLevelLearner::addSimplification(const Node& t, const Node& s)
+{
+  // in rare cases we may already have a substitution for v, e.g. 
+  // if x -> 0, (f y) ---> a, and we learn (f (+ x y)) = b, we
+  // would substitute+rewrite to get (f y) --> b despite already
+  // having a substitution for (f y). We could avoid this by applying
+  // substitution+rewriting until fixed point at the beginning of
+  // computeLearnedLiteralType, but this may be expensive.
+  if (!d_tsmap.get().hasSubstitution(t))
+  {
+    d_tsmap.addSubstitution(t, s);
+  }
 }
 
 void ZeroLevelLearner::processLearnedLiteral(const Node& lit,
@@ -417,8 +432,8 @@ bool ZeroLevelLearner::getSolved(const Node& lit, Subs& subs)
   context::Context dummyContext;
   theory::TrustSubstitutionMap subsOut(d_env, &dummyContext);
   TrustNode tlit = TrustNode::mkTrustLemma(lit);
-  theory::Theory::PPAssertStatus status = d_theoryEngine->solve(tlit, subsOut);
-  if (status == theory::Theory::PP_ASSERT_STATUS_SOLVED)
+  bool status = d_theoryEngine->solve(tlit, subsOut);
+  if (status)
   {
     Trace("level-zero-debug") << lit << " is solvable" << std::endl;
     // extract the substitution

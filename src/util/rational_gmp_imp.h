@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -298,7 +298,7 @@ class Rational
     size_t numeratorHash = gmpz_hash(d_value.get_num_mpz_t());
     size_t denominatorHash = gmpz_hash(d_value.get_den_mpz_t());
 
-    return numeratorHash xor denominatorHash;
+    return numeratorHash ^ denominatorHash;
   }
 
   uint32_t complexity() const

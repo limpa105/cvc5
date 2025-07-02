@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Andrew Reynolds, Vinícius Braga Freire, Hans-Jörg Schurr
+ *   Andrew Reynolds, Vinícius Braga Freire, Hans-Joerg Schurr
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -59,7 +59,7 @@ void ProofNode::setValue(
 void ProofNode::printDebug(std::ostream& os, bool printConclusion) const
 {
   // convert to sexpr and print
-  ProofNodeToSExpr pnts;
+  ProofNodeToSExpr pnts(d_proven.getNodeManager());
   Node ps = pnts.convertToSExpr(this, printConclusion);
   os << ps;
 }
@@ -145,5 +145,12 @@ size_t ProofNodeHashFunction::operator()(const ProofNode* pfn) const
 
   return static_cast<size_t>(ret);
 }
-
 }  // namespace cvc5::internal
+
+namespace std {
+size_t hash<cvc5::internal::ProofNode>::operator()(
+    const cvc5::internal::ProofNode& node) const
+{
+  return cvc5::internal::ProofNodeHashFunction{}(&node);
+}
+}  // namespace std

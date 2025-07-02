@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -116,7 +116,7 @@ void test(Solver& slv, Sort& consListSort)
 
   const Datatype& paramConsList = paramConsListSort.getDatatype();
 
-  std::cout << "parameterized datatype sort is " << std::endl;
+  std::cout << "parameterized datatype sort is" << std::endl;
   for (const DatatypeConstructor& ctor : paramConsList)
   {
     std::cout << "ctor: " << ctor << std::endl;

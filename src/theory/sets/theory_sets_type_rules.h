@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -221,6 +221,21 @@ struct SetFilterTypeRule
 }; /* struct SetFilterTypeRule */
 
 /**
+ * Type rule for (set.all p A) and (set.some p A) to make sure p is
+ * a unary predicate of type
+ * (-> T Bool) where A is a set of type (Set T)
+ */
+struct SetAllSomeTypeRule
+{
+  static TypeNode preComputeType(NodeManager* nm, TNode n);
+
+  static TypeNode computeType(NodeManager* nodeManager,
+                              TNode n,
+                              bool check,
+                              std::ostream* errOut);
+}; /* struct SetAllSomeTypeRule */
+
+/**
  * Type rule for (set.fold f t A) to make sure f is a binary operation of type
  * (-> T1 T2 T2), t of type T2, and A is a set of type (Set T1)
  */
@@ -380,6 +395,19 @@ struct RelationAggregateTypeRule
                               bool check,
                               std::ostream* errOut);
 }; /* struct RelationAggregateTypeRule */
+
+/**
+ * Type rule for set.empty_of_type
+ */
+struct SetEmptyOfTypeTypeRule
+{
+  static TypeNode preComputeType(NodeManager* nm, TNode n);
+
+  static TypeNode computeType(NodeManager* nodeManager,
+                              TNode n,
+                              bool check,
+                              std::ostream* errOut);
+};
 
 struct SetsProperties
 {

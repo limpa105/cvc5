@@ -29,6 +29,7 @@ operator POW 2 "arithmetic power"
 operator POW2 1 "arithmetic power of 2"
 operator INTS_ISPOW2 1 "test if an integer is a power of 2"
 operator INTS_LOG2 1 "integer logarithm base 2 (round down to power of 2)"
+operator MM_MOD 2 "mod indicating ring membership"
 
 operator EXPONENTIAL 1 "exponential"
 operator SINE 1 "sine"
@@ -56,13 +57,13 @@ constant DIVISIBLE_OP \
 sort REAL_TYPE \
     Cardinality::REALS \
     well-founded \
-        "NodeManager::currentNM()->mkConstReal(Rational(0))" \
+        "nm->mkConstReal(Rational(0))" \
         "expr/node_manager.h" \
     "real type"
 sort INTEGER_TYPE \
     Cardinality::INTEGERS \
     well-founded \
-        "NodeManager::currentNM()->mkConstInt(Rational(0))" \
+        "nm->mkConstInt(Rational(0))" \
         "expr/node_manager.h" \
     "integer type"
 
@@ -119,7 +120,7 @@ typerule NONLINEAR_MULT ::cvc5::internal::theory::arith::ArithOperatorTypeRule
 typerule SUB ::cvc5::internal::theory::arith::ArithOperatorTypeRule
 typerule NEG ::cvc5::internal::theory::arith::ArithOperatorTypeRule
 typerule DIVISION ::cvc5::internal::theory::arith::ArithOperatorTypeRule
-typerule POW ::cvc5::internal::theory::arith::ArithOperatorTypeRule
+typerule POW ::cvc5::internal::theory::arith::PowTypeRule
 
 typerule CONST_RATIONAL ::cvc5::internal::theory::arith::ArithConstantTypeRule
 typerule CONST_INTEGER ::cvc5::internal::theory::arith::ArithConstantTypeRule
@@ -165,6 +166,7 @@ typerule ARCCOTANGENT "SimpleTypeRule<RReal, AReal>"
 typerule POW2 "SimpleTypeRule<RInteger, AInteger>"
 typerule INTS_ISPOW2 "SimpleTypeRule<RBool, AInteger>"
 typerule INTS_LOG2 "SimpleTypeRule<RInteger, AInteger>"
+typerule MM_MOD "SimpleTypeRule<RInteger, AInteger>"
 
 typerule SQRT "SimpleTypeRule<RReal, AReal>"
 

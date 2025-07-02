@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Andrew Reynolds
+ *   Andrew Reynolds, Abdalrhman Mohamed
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -46,28 +46,72 @@ class RewriteDbProofCons : protected EnvObj
  public:
   RewriteDbProofCons(Env& env, RewriteDb* db);
   /**
-   * Prove (= a b) with recursion limit recLimit and step limit stepLimit.
+   * Prove a = b with recursion limit recLimit and step limit stepLimit.
    * If cdp is provided, we add a proof for this fact on it.
    *
-   * @param cdp The object to add the proof of (= a b) to
-   * @param a The left hand side of the equality
-   * @param b The right hand side of the equality
-   * @param tid The theory identifier responsible for the rewrite, if one
-   * exists.
-   * @param mid The method id (the kind of rewrite)
-   * @param recLimit The recursion limit for this call
+   * More specifically, the strategy used by this method is:
+   * 1. Try to prove a=b via THEORY_REWRITE in context TheoryRewriteCtx::PRE_DSL,
+   * 2. Try to prove a=b via a proof involving RARE rewrites,
+   * 3. Try to prove a'=b' via a proof involving RARE rewrites, where a' and b'
+   * are obtained by transforming a and b via RewriteDbNodeConverter.
+   * 4. Try to prove a=b via THEORY_REWRITE in context
+   * TheoryRewriteCtx::POST_DSL.
+   *
+   * The option --proof-granularity=dsl-rewrite-strict essentially moves step 1
+   * after step 3, that is, RARE rewrites are always preferred to
+   * THEORY_REWRITE.
+   *
+   * @param cdp The object to add the proof of (= a b) to.
+   * @param a The left hand side of the equality.
+   * @param b The right hand side of the equality.
+   * @param recLimit The recursion limit for this call.
    * @param stepLimit The step limit for this call.
+   * @param tmode Determines if/when to try THEORY_REWRITE.
    * @return true if we successfully added a proof of (= a b) to cdp
    */
   bool prove(CDProof* cdp,
              const Node& a,
              const Node& b,
-             theory::TheoryId tid,
-             MethodId mid,
              int64_t recLimit,
-             int64_t stepLimit);
+             int64_t stepLimit,
+             TheoryRewriteMode tmode);
 
  private:
+  /**
+   * Preprocess closure equality. This is called at the beginning of prove to
+   * simplify equalities between closures. In particular we apply two possible
+   * simplifications:
+   *
+   * For (forall x P) = (forall x Q), we return P = Q, where a CONG step
+   * is added to transform this step. That is, the proof is:
+   *
+   * P = Q
+   * ----------------------------- CONG
+   * (forall x. P) = (forall x. Q)
+   *
+   * where P = Q is left to prove.
+   *
+   * For (forall x. P) = (forall y. Q), we return
+   * (forall y. P[y/x]) = (forall y. Q). If P[y/x] is not Q, the proof is:
+   *
+   * ----------------------- ALPHA_EQUIV
+   * (forall x. P) = (forall y. P[y/x])   (forall y. P[y/x]) = (forall y. Q)
+   * ----------------------------------------------------------------- TRANS
+   *  (forall x. P) = (forall y. Q)
+   *
+   * where (forall y. P[y/x]) = (forall y. Q) is left to prove. If P[y/x] is Q,
+   * the proof is:
+   *
+   * ----------------------------- ALPHA_EQUIV
+   * (forall x. P) = (forall y. Q)
+   *
+   * where (forall y. Q) = (forall y. Q) is left to prove (trivially).
+   *
+   * In either case, we add a proof of (= a b) whose free assumptions are
+   * either empty (if the returned equality is reflexive), or the returned
+   * equality.
+   */
+  Node preprocessClosureEq(CDProof* cdp, const Node& a, const Node& b);
   /**
    * Notify class for the match trie, which is responsible for calling this
    * class to notify matches for heads of rewrite rules. It is used as a
@@ -117,14 +161,43 @@ class RewriteDbProofCons : protected EnvObj
     /**
      * Is internal rule? these rules store children (if any) in d_vars.
      */
-    bool isInternalRule() const { return d_id != RewriteProofStatus::DSL; }
+    bool isInternalRule() const
+    {
+      return d_id != RewriteProofStatus::DSL
+             && d_id != RewriteProofStatus::THEORY_REWRITE;
+    }
   };
   /**
    * Prove and store the proof of eq with internal form eqi in cdp if possible,
-   * return true if successful.
+   * return true if successful. Tries the basic utility and all recursion depths
+   * up to recLimit.
+   *
+   * @param cdp The object to add the proof of eq to.
+   * @param eq The equality we are trying to prove.
+   * @param eqi The internal version of the equality that may have been
+   * converted from eq using d_rdnc.
+   * @param recLimit The recursion limit for this call.
+   * @param stepLimit The step limit for this call.
+   * @param tmode Determines if/when to try THEORY_REWRITE.
+   * @return true if we successfully added a proof of (= a b) to cdp
+   */
+  bool proveEqStratified(CDProof* cdp,
+                         const Node& eq,
+                         const Node& eqi,
+                         int64_t recLimit,
+                         int64_t stepLimit,
+                         TheoryRewriteMode tmode);
+  /**
+   * Prove and store the proof of eq with internal form eqi in cdp if possible,
+   * return true if successful. Tries a single recursion depth.
+   *
+   * @param cdp The object to add the proof of eq to.
+   * @param eqi The equality we are trying to prove.
+   * @param recLimit The recursion limit for this call.
+   * @param stepLimit The step limit for this call.
+   * @return true if we successfully added a proof of (= a b) to cdp
    */
   bool proveEq(CDProof* cdp,
-               const Node& eq,
                const Node& eqi,
                int64_t recLimit,
                int64_t stepLimit);
@@ -270,6 +343,8 @@ class RewriteDbProofCons : protected EnvObj
   uint64_t d_currRecLimit;
   /** current step recursion limit */
   uint64_t d_currStepLimit;
+  /** The mode for if/when to try theory rewrites */
+  rewriter::TheoryRewriteMode d_tmode;
   /** current rule we are applying to fixed point */
   ProofRewriteRule d_currFixedPointId;
   /** current substitution from fixed point */

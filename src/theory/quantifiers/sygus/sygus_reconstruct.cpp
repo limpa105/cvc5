@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -553,16 +553,15 @@ void SygusReconstruct::removeReconstructedTerms(
 Node SygusReconstruct::mkGround(Node n) const
 {
   // get the set of bound variables in n
-  std::unordered_set<TNode> vars;
+  std::unordered_set<Node> vars;
   expr::getVariables(n, vars);
 
   std::unordered_map<TNode, TNode> subs;
 
   // generate a ground value for each one of those variables
-  NodeManager* nm = nodeManager();
-  for (const TNode& var : vars)
+  for (const Node& var : vars)
   {
-    subs.emplace(var, nm->mkGroundValue(var.getType()));
+    subs.emplace(var, NodeManager::mkGroundValue(var.getType()));
   }
 
   // substitute the variables with ground values

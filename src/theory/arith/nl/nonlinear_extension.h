@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -34,6 +34,7 @@
 #include "theory/arith/nl/icp/icp_solver.h"
 #include "theory/arith/nl/nl_model.h"
 #include "theory/arith/nl/pow2_solver.h"
+#include "theory/arith/nl/modular_ext/mod_range_solver.h"
 #include "theory/arith/nl/stats.h"
 #include "theory/arith/nl/strategy.h"
 #include "theory/arith/nl/transcendental/transcendental_solver.h"
@@ -255,6 +256,8 @@ class NonlinearExtension : EnvObj
    * constraints involving powers of 2.
    */
   Pow2Solver d_pow2Slv;
+
+  ModRangeSolver d_rangeSlv;
 
   /** The strategy for the nonlinear extension. */
   Strategy d_strategy;

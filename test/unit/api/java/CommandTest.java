@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Mudathir Mohamed, Andrew Reynolds
+ *   Mudathir Mohamed, Andrew Reynolds, Aina Niemetz
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -46,7 +46,7 @@ class CommandTest extends ParserTest
     assertNotEquals(cmd.isNull(), true);
     String result = cmd.invoke(d_solver, d_symman);
     assertEquals(
-        "(error \"Cannot get model unless model generation is enabled (try --produce-models)\")\n",
+        "(error \"cannot get model unless model generation is enabled (try --produce-models)\")\n",
         result);
     // logic already set
     assertThrows(CVC5ParserException.class, () -> parseCommand("(set-logic QF_LRA)"));

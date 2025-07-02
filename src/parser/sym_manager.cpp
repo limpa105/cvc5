@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -309,11 +309,12 @@ void SymManager::Implementation::resetAssertions()
 
 // ---------------------------------------------- SymManager
 
-SymManager::SymManager(cvc5::Solver* s)
-    : d_solver(s),
+SymManager::SymManager(cvc5::TermManager& tm)
+    : d_tm(tm),
       d_implementation(new SymManager::Implementation()),
       d_globalDeclarations(false),
       d_freshDeclarations(true),
+      d_termSortOverload(true),
       d_logicIsForced(false),
       d_logicIsSet(false),
       d_logic()
@@ -332,15 +333,26 @@ bool SymManager::bind(const std::string& name, cvc5::Term obj, bool doOverload)
   return d_implementation->getSymbolTable().bind(name, obj, doOverload);
 }
 
-void SymManager::bindType(const std::string& name, cvc5::Sort t)
+bool SymManager::bindType(const std::string& name, cvc5::Sort t, bool isUser)
 {
-  return d_implementation->getSymbolTable().bindType(name, t);
+  if (isUser && !d_termSortOverload)
+  {
+    // if a user sort and d_termSortOverload is false, we bind a dummy constant
+    // to the term symbol table.
+    cvc5::Sort dummyType = d_tm.mkUninterpretedSort("Type");
+    cvc5::Term ts = d_tm.mkConst(dummyType, name);
+    if (!d_implementation->getSymbolTable().bindDummySortTerm(name, ts))
+    {
+      return false;
+    }
+  }
+  d_implementation->getSymbolTable().bindType(name, t);
+  return true;
 }
 
 bool SymManager::bindMutualDatatypeTypes(
     const std::vector<cvc5::Sort>& datatypes, bool bindTesters)
 {
-  TermManager& tm = d_solver->getTermManager();
   for (size_t i = 0, ntypes = datatypes.size(); i < ntypes; ++i)
   {
     Sort t = datatypes[i];
@@ -350,11 +362,17 @@ bool SymManager::bindMutualDatatypeTypes(
     if (dt.isParametric())
     {
       std::vector<Sort> paramTypes = dt.getParameters();
-      bindType(name, paramTypes, t);
+      if (!bindType(name, paramTypes, t, true))
+      {
+        return false;
+      }
     }
     else
     {
-      bindType(name, t);
+      if (!bindType(name, t, true))
+      {
+        return false;
+      }
     }
     for (size_t j = 0, ncons = dt.getNumConstructors(); j < ncons; j++)
     {
@@ -366,7 +384,7 @@ bool SymManager::bindMutualDatatypeTypes(
       // constructor.
       if (ctor.getNumSelectors() == 0)
       {
-        constructor = tm.mkTerm(Kind::APPLY_CONSTRUCTOR, {constructor});
+        constructor = d_tm.mkTerm(Kind::APPLY_CONSTRUCTOR, {constructor});
       }
       // always do overloading
       if (!bind(constructorName, constructor, true))
@@ -402,11 +420,24 @@ bool SymManager::bindMutualDatatypeTypes(
   return true;
 }
 
-void SymManager::bindType(const std::string& name,
+bool SymManager::bindType(const std::string& name,
                           const std::vector<cvc5::Sort>& params,
-                          cvc5::Sort t)
+                          cvc5::Sort t,
+                          bool isUser)
 {
-  return d_implementation->getSymbolTable().bindType(name, params, t);
+  if (isUser && !d_termSortOverload)
+  {
+    // if a user sort and d_termSortOverload is false, we bind a dummy symbol
+    // to the term symbol table.
+    cvc5::Sort dummyType = d_tm.mkUninterpretedSort("Type");
+    cvc5::Term ts = d_tm.mkConst(dummyType, name);
+    if (!d_implementation->getSymbolTable().bindDummySortTerm(name, ts))
+    {
+      return false;
+    }
+  }
+  d_implementation->getSymbolTable().bindType(name, params, t);
+  return true;
 }
 
 NamingResult SymManager::setExpressionName(cvc5::Term t,
@@ -503,6 +534,9 @@ bool SymManager::getGlobalDeclarations() const { return d_globalDeclarations; }
 
 void SymManager::setFreshDeclarations(bool flag) { d_freshDeclarations = flag; }
 bool SymManager::getFreshDeclarations() const { return d_freshDeclarations; }
+
+void SymManager::setTermSortOverload(bool flag) { d_termSortOverload = flag; }
+bool SymManager::getTermSortOverload() const { return d_termSortOverload; }
 
 void SymManager::setLastSynthName(const std::string& name)
 {

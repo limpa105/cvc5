@@ -1,10 +1,10 @@
 /******************************************************************************
  * Top contributors (to current version):
- *   Andrew Reynolds, Hans-Jörg Schurr, Aina Niemetz
+ *   Andrew Reynolds, Hans-Joerg Schurr, Aina Niemetz
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -23,66 +23,21 @@ namespace cvc5::internal {
 namespace theory {
 namespace datatypes {
 
-DatatypesProofRuleChecker::DatatypesProofRuleChecker(NodeManager* nm,
-                                                     bool sharedSel)
-    : ProofRuleChecker(nm), d_sharedSel(sharedSel)
+DatatypesProofRuleChecker::DatatypesProofRuleChecker(NodeManager* nm)
+    : ProofRuleChecker(nm)
 {
 }
 
 void DatatypesProofRuleChecker::registerTo(ProofChecker* pc)
 {
-  pc->registerChecker(ProofRule::DT_UNIF, this);
-  pc->registerChecker(ProofRule::DT_INST, this);
   pc->registerChecker(ProofRule::DT_SPLIT, this);
-  pc->registerChecker(ProofRule::DT_CLASH, this);
 }
 
 Node DatatypesProofRuleChecker::checkInternal(ProofRule id,
                                               const std::vector<Node>& children,
                                               const std::vector<Node>& args)
 {
-  NodeManager* nm = nodeManager();
-  if (id == ProofRule::DT_UNIF)
-  {
-    Assert(children.size() == 1);
-    Assert(args.size() == 1);
-    uint32_t i;
-    if (children[0].getKind() != Kind::EQUAL
-        || children[0][0].getKind() != Kind::APPLY_CONSTRUCTOR
-        || children[0][1].getKind() != Kind::APPLY_CONSTRUCTOR
-        || children[0][0].getOperator() != children[0][1].getOperator()
-        || !getUInt32(args[0], i))
-    {
-      return Node::null();
-    }
-    if (i >= children[0][0].getNumChildren())
-    {
-      return Node::null();
-    }
-    Assert(children[0][0].getNumChildren() == children[0][1].getNumChildren());
-    return children[0][0][i].eqNode(children[0][1][i]);
-  }
-  else if (id == ProofRule::DT_INST)
-  {
-    Assert(children.empty());
-    Assert(args.size() == 2);
-    Node t = args[0];
-    TypeNode tn = t.getType();
-    uint32_t i;
-    if (!tn.isDatatype() || !getUInt32(args[1], i))
-    {
-      return Node::null();
-    }
-    const DType& dt = tn.getDType();
-    if (i >= dt.getNumConstructors())
-    {
-      return Node::null();
-    }
-    Node tester = utils::mkTester(t, i, dt);
-    Node ticons = utils::getInstCons(t, dt, i, d_sharedSel);
-    return tester.eqNode(t.eqNode(ticons));
-  }
-  else if (id == ProofRule::DT_SPLIT)
+  if (id == ProofRule::DT_SPLIT)
   {
     Assert(children.empty());
     Assert(args.size() == 1);
@@ -93,18 +48,6 @@ Node DatatypesProofRuleChecker::checkInternal(ProofRule id,
     }
     const DType& dt = tn.getDType();
     return utils::mkSplit(args[0], dt);
-  }
-  else if (id == ProofRule::DT_CLASH)
-  {
-    Assert(children.size() == 2);
-    Assert(args.empty());
-    if (children[0].getKind() != Kind::APPLY_TESTER
-        || children[1].getKind() != Kind::APPLY_TESTER
-        || children[0][0] != children[1][0] || children[0] == children[1])
-    {
-      return Node::null();
-    }
-    return nm->mkConst(false);
   }
   // no rule
   return Node::null();

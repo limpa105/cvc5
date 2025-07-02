@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -27,13 +27,14 @@ namespace parser {
 Smt2State::Smt2State(ParserStateCallback* psc,
                      Solver* solver,
                      SymManager* sm,
-                     bool strictMode,
+                     ParsingMode parsingMode,
                      bool isSygus)
-    : ParserState(psc, solver, sm, strictMode),
+    : ParserState(psc, solver, sm, parsingMode),
       d_isSygus(isSygus),
       d_logicSet(false),
       d_seenSetLogic(false)
 {
+  d_freshBinders = (d_solver->getOption("fresh-binders") == "true");
 }
 
 Smt2State::~Smt2State() {}
@@ -295,10 +296,10 @@ void Smt2State::addSepOperators()
 
 void Smt2State::addCoreSymbols()
 {
-  defineType("Bool", d_tm.getBooleanSort(), true);
+  defineType("Bool", d_tm.getBooleanSort(), false);
   Sort tupleSort = d_tm.mkTupleSort({});
-  defineType("Relation", d_tm.mkSetSort(tupleSort), true);
-  defineType("Table", d_tm.mkBagSort(tupleSort), true);
+  defineType("Relation", d_tm.mkSetSort(tupleSort), false);
+  defineType("Table", d_tm.mkBagSort(tupleSort), false);
   defineVar("true", d_tm.mkTrue(), true);
   defineVar("false", d_tm.mkFalse(), true);
   addOperator(Kind::AND, "and");
@@ -311,6 +312,19 @@ void Smt2State::addCoreSymbols()
   addOperator(Kind::XOR, "xor");
   addClosureKind(Kind::FORALL, "forall");
   addClosureKind(Kind::EXISTS, "exists");
+}
+
+void Smt2State::addSkolemSymbols()
+{
+  for (int32_t s = static_cast<int32_t>(SkolemId::INTERNAL);
+       s <= static_cast<int32_t>(SkolemId::NONE);
+       ++s)
+  {
+    auto skolem = static_cast<SkolemId>(s);
+    std::stringstream ss;
+    ss << "@" << skolem;
+    addSkolemId(skolem, ss.str());
+  }
 }
 
 void Smt2State::addOperator(Kind kind, const std::string& name)
@@ -332,6 +346,12 @@ void Smt2State::addClosureKind(Kind tKind, const std::string& name)
   // also include it as a normal operator
   addOperator(tKind, name);
   d_closureKindMap[name] = tKind;
+}
+
+void Smt2State::addSkolemId(SkolemId skolemID, const std::string& name)
+{
+  addOperator(Kind::SKOLEM, name);
+  d_skolemMap[name] = skolemID;
 }
 
 bool Smt2State::isIndexedOperatorEnabled(const std::string& name) const
@@ -688,7 +708,7 @@ void Smt2State::pushDefineFunRecScope(
   // of the define-fun(s)-rec command, we define them here
   for (const std::pair<std::string, Sort>& svn : sortedVarNames)
   {
-    Term v = bindBoundVar(svn.first, svn.second);
+    Term v = bindBoundVar(svn.first, svn.second, d_freshBinders);
     bvs.push_back(v);
   }
 
@@ -757,6 +777,12 @@ void Smt2State::setLogic(std::string name)
   // Core theory belongs to every logic
   addCoreSymbols();
 
+  // add skolems
+  if (d_solver->getOption("parse-skolem-definitions") == "true")
+  {
+    addSkolemSymbols();
+  }
+
   if (d_logic.isTheoryEnabled(internal::theory::THEORY_UF))
   {
     ParserState::addOperator(Kind::APPLY_UF);
@@ -773,7 +799,7 @@ void Smt2State::setLogic(std::string name)
   {
     if (d_logic.areIntegersUsed())
     {
-      defineType("Int", d_tm.getIntegerSort(), true);
+      defineType("Int", d_tm.getIntegerSort(), false);
       addArithmeticOperators();
       if (!strictModeEnabled() || !d_logic.isLinear())
       {
@@ -781,17 +807,23 @@ void Smt2State::setLogic(std::string name)
         addOperator(Kind::INTS_MODULUS, "mod");
         addOperator(Kind::ABS, "abs");
       }
+      if (!strictModeEnabled())
+      {
+        addOperator(Kind::INTS_DIVISION_TOTAL, "div_total");
+        addOperator(Kind::INTS_MODULUS_TOTAL, "mod_total");
+      }
       addIndexedOperator(Kind::DIVISIBLE, "divisible");
     }
 
     if (d_logic.areRealsUsed())
     {
-      defineType("Real", d_tm.getRealSort(), true);
+      defineType("Real", d_tm.getRealSort(), false);
       addArithmeticOperators();
       addOperator(Kind::DIVISION, "/");
       if (!strictModeEnabled())
       {
         addOperator(Kind::ABS, "abs");
+        addOperator(Kind::DIVISION_TOTAL, "/_total");
       }
     }
 
@@ -827,20 +859,28 @@ void Smt2State::setLogic(std::string name)
   {
     addBitvectorOperators();
 
-    if (!strictModeEnabled()
-        && d_logic.isTheoryEnabled(internal::theory::THEORY_ARITH)
+    if (d_logic.isTheoryEnabled(internal::theory::THEORY_ARITH)
         && d_logic.areIntegersUsed())
     {
       // Conversions between bit-vectors and integers
-      addOperator(Kind::BITVECTOR_TO_NAT, "bv2nat");
-      addIndexedOperator(Kind::INT_TO_BITVECTOR, "int2bv");
+      if (!strictModeEnabled())
+      {
+        // For the sake of backwards compatability at the moment we support
+        // the old syntax, which in the case of bv2nat maps directly to
+        // Kind::BITVECTOR_UBV_TO_INT.
+        addOperator(Kind::BITVECTOR_UBV_TO_INT, "bv2nat");
+        addIndexedOperator(Kind::INT_TO_BITVECTOR, "int2bv");
+      }
+      addIndexedOperator(Kind::INT_TO_BITVECTOR, "int_to_bv");
+      addOperator(Kind::BITVECTOR_UBV_TO_INT, "ubv_to_int");
+      addOperator(Kind::BITVECTOR_SBV_TO_INT, "sbv_to_int");
     }
   }
 
   if (d_logic.isTheoryEnabled(internal::theory::THEORY_DATATYPES))
   {
     const std::vector<Sort> types;
-    defineType("UnitTuple", d_tm.mkTupleSort(types), true);
+    defineType("UnitTuple", d_tm.mkTupleSort(types), false);
     addDatatypesOperators();
   }
 
@@ -866,6 +906,8 @@ void Smt2State::setLogic(std::string name)
     addOperator(Kind::SET_IS_SINGLETON, "set.is_singleton");
     addOperator(Kind::SET_MAP, "set.map");
     addOperator(Kind::SET_FILTER, "set.filter");
+    addOperator(Kind::SET_ALL, "set.all");
+    addOperator(Kind::SET_SOME, "set.some");
     addOperator(Kind::SET_FOLD, "set.fold");
     addOperator(Kind::RELATION_JOIN, "rel.join");
     addOperator(Kind::RELATION_TABLE_JOIN, "rel.table_join");
@@ -906,6 +948,8 @@ void Smt2State::setLogic(std::string name)
     addOperator(Kind::BAG_CHOOSE, "bag.choose");
     addOperator(Kind::BAG_MAP, "bag.map");
     addOperator(Kind::BAG_FILTER, "bag.filter");
+    addOperator(Kind::BAG_ALL, "bag.all");
+    addOperator(Kind::BAG_SOME, "bag.some");
     addOperator(Kind::BAG_FOLD, "bag.fold");
     addOperator(Kind::BAG_PARTITION, "bag.partition");
     addOperator(Kind::TABLE_PRODUCT, "table.product");
@@ -922,9 +966,9 @@ void Smt2State::setLogic(std::string name)
   }
   if (d_logic.isTheoryEnabled(internal::theory::THEORY_STRINGS))
   {
-    defineType("String", d_tm.getStringSort(), true);
-    defineType("RegLan", d_tm.getRegExpSort(), true);
-    defineType("Int", d_tm.getIntegerSort(), true);
+    defineType("String", d_tm.getStringSort(), false);
+    defineType("RegLan", d_tm.getRegExpSort(), false);
+    defineType("Int", d_tm.getIntegerSort(), false);
 
     defineVar("re.none", d_tm.mkRegexpNone());
     defineVar("re.allchar", d_tm.mkRegexpAllchar());
@@ -942,11 +986,11 @@ void Smt2State::setLogic(std::string name)
 
   if (d_logic.isTheoryEnabled(internal::theory::THEORY_FP))
   {
-    defineType("RoundingMode", d_tm.getRoundingModeSort(), true);
-    defineType("Float16", d_tm.mkFloatingPointSort(5, 11), true);
-    defineType("Float32", d_tm.mkFloatingPointSort(8, 24), true);
-    defineType("Float64", d_tm.mkFloatingPointSort(11, 53), true);
-    defineType("Float128", d_tm.mkFloatingPointSort(15, 113), true);
+    defineType("RoundingMode", d_tm.getRoundingModeSort(), false);
+    defineType("Float16", d_tm.mkFloatingPointSort(5, 11), false);
+    defineType("Float32", d_tm.mkFloatingPointSort(8, 24), false);
+    defineType("Float64", d_tm.mkFloatingPointSort(11, 53), false);
+    defineType("Float128", d_tm.mkFloatingPointSort(15, 113), false);
 
     defineVar("RNE",
               d_tm.mkRoundingMode(RoundingMode::ROUND_NEAREST_TIES_TO_EVEN));
@@ -1007,6 +1051,8 @@ bool Smt2State::hasGrammars() const
   return sygus() || d_solver->getOption("produce-abducts") == "true"
          || d_solver->getOption("produce-interpolants") == "true";
 }
+
+bool Smt2State::usingFreshBinders() const { return d_freshBinders; }
 
 void Smt2State::checkThatLogicIsSet()
 {
@@ -1351,7 +1397,11 @@ Term Smt2State::applyParseOp(const ParseOp& p, std::vector<Term>& args)
         }
         else if (p.d_name == "nullable.some")
         {
-          return d_tm.mkNullableSome(args[0]);
+          if (args.size() == 1)
+          {
+            return d_tm.mkNullableSome(args[0]);
+          }
+          parseError("nullable.some requires exactly one argument.");
         }
         else
         {
@@ -1364,7 +1414,11 @@ Term Smt2State::applyParseOp(const ParseOp& p, std::vector<Term>& args)
       {
         if (p.d_name == "nullable.val")
         {
-          return d_tm.mkNullableVal(args[0]);
+          if (args.size() == 1)
+          {
+            return d_tm.mkNullableVal(args[0]);
+          }
+          parseError("nullable.val requires exactly one argument.");
         }
         else
         {
@@ -1377,11 +1431,19 @@ Term Smt2State::applyParseOp(const ParseOp& p, std::vector<Term>& args)
       {
         if (p.d_name == "nullable.is_null")
         {
-          return d_tm.mkNullableIsNull(args[0]);
+          if (args.size() == 1)
+          {
+            return d_tm.mkNullableIsNull(args[0]);
+          }
+          parseError("nullable.is_null requires exactly one argument.");
         }
         else if (p.d_name == "nullable.is_some")
         {
-          return d_tm.mkNullableIsSome(args[0]);
+          if (args.size() == 1)
+          {
+            return d_tm.mkNullableIsSome(args[0]);
+          }
+          parseError("nullable.is_some requires exactly one argument.");
         }
         else
         {
@@ -1559,6 +1621,28 @@ Term Smt2State::applyParseOp(const ParseOp& p, std::vector<Term>& args)
                         << std::endl;
         return ret;
       }
+    }
+    else if (kind == Kind::SKOLEM)
+    {
+      Term ret;
+      SkolemId skolemId = d_skolemMap[p.d_name];
+      size_t numSkolemIndices = d_tm.getNumIndicesForSkolemId(skolemId);
+      if (numSkolemIndices == args.size())
+      {
+        ret = d_tm.mkSkolem(skolemId, args);
+      }
+      else
+      {
+        std::vector<Term> skolemArgs(args.begin(),
+                                     args.begin() + numSkolemIndices);
+        Term skolem = d_tm.mkSkolem(skolemId, skolemArgs);
+        std::vector<Term> finalArgs = {skolem};
+        finalArgs.insert(
+            finalArgs.end(), args.begin() + numSkolemIndices, args.end());
+        ret = d_tm.mkTerm(Kind::APPLY_UF, finalArgs);
+      }
+      Trace("parser") << "applyParseOp: return skolem " << ret << std::endl;
+      return ret;
     }
     Term ret = d_tm.mkTerm(kind, args);
     Trace("parser") << "applyParseOp: return default builtin " << ret

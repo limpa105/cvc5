@@ -4,7 +4,7 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
@@ -211,7 +211,7 @@ bool NlModel::checkModel(const std::vector<Node>& assertions,
         {
           Kind k = cur.getKind();
           if (k != Kind::MULT && k != Kind::ADD && k != Kind::NONLINEAR_MULT
-              && k != Kind::TO_REAL && !isTranscendentalKind(k)
+              && k!= Kind::MM_MOD && k != Kind::TO_REAL && !isTranscendentalKind(k)
               && k != Kind::IAND && k != Kind::POW2)
           {
             // if we have not set an approximate bound for it

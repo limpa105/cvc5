@@ -4,7 +4,7 @@
 #
 # This file is part of the cvc5 project.
 #
-# Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+# Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
 # in the top-level source directory and their institutional affiliations.
 # All rights reserved.  See the file COPYING in the top-level source
 # directory for licensing information.
@@ -150,6 +150,15 @@ def test_get_op(tm):
     assert extb.hasOp()
     assert extb.getOp().isIndexed()
     assert extb.getOp() == ext
+
+    bit = tm.mkOp(Kind.BITVECTOR_BIT, 4)
+    bitb = tm.mkTerm(bit, b)
+    assert bitb.getKind() == Kind.BITVECTOR_BIT
+    assert bitb.hasOp()
+    assert bitb.getOp() == bit
+    assert bitb.getOp().isIndexed()
+    assert bit.getNumIndices() == 1
+    assert bit[0] == tm.mkInteger(4)
 
     f = tm.mkConst(funsort, "f")
     fx = tm.mkTerm(Kind.APPLY_UF, f, x)
@@ -1136,6 +1145,11 @@ def test_get_real(tm):
     assert Fraction("0.3") == real_decimal.getRealValue()
     assert Fraction(0.3) == Fraction(5404319552844595, 18014398509481984)
     assert Fraction(0.3) != real_decimal.getRealValue()
+    
+    with pytest.raises(RuntimeError):
+        tm.mkReal("1/0")
+    with pytest.raises(RuntimeError):
+        tm.mkReal("2/0000")
 
 
 def test_get_boolean(tm):

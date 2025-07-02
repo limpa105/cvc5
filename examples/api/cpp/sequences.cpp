@@ -4,13 +4,13 @@
  *
  * This file is part of the cvc5 project.
  *
- * Copyright (c) 2009-2024 by the authors listed in the file AUTHORS
+ * Copyright (c) 2009-2025 by the authors listed in the file AUTHORS
  * in the top-level source directory and their institutional affiliations.
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
  * ****************************************************************************
  *
- * A simple demonstration of reasoning about sequences with cvc5 via C++ API.
+ * A simple demonstration of reasoning about sequences via the C++ API.
  */
 
 #include <cvc5/cvc5.h>
@@ -30,8 +30,6 @@ int main()
   slv.setOption("produce-models", "true");
   // The option strings-exp is needed
   slv.setOption("strings-exp", "true");
-  // Set output language to SMTLIB2
-  slv.setOption("output-language", "smt2");
 
   // Sequence sort
   Sort intSeq = tm.mkSequenceSort(tm.getIntegerSort());
