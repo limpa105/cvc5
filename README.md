@@ -1,3 +1,4 @@
+
 [![License: BSD](
     https://img.shields.io/badge/License-BSD%203--Clause-blue.svg)](
         https://opensource.org/licenses/BSD-3-Clause)
@@ -5,6 +6,13 @@
 [![Coverage](
   https://img.shields.io/endpoint?url=https://cvc5.stanford.edu/downloads/builds/coverage/nightly-coverage.json)](
     https://cvc5.stanford.edu/downloads/builds/coverage)
+
+This fork of cvc5 is a prototype implementation of the refutation procedure described in the paper [Integer Reasoning Modulo Different Constants in SMT](https://arxiv.org/abs/2505.14998). This implementation is planned to be merged into cvc5 but is currently still under development. 
+
+Please let us know at pertseva@stanford.edu if you encounter any bugs or discover multimodular SMT queries that we cannot solve! 
+
+You can run the refutation procedure by first configuring cvc5 with the `--cocoa` option and then running cvc5 with the options `--mod-range-solver --nia-intro-mm-mod`. 
+
 
 cvc5
 ===============================================================================
